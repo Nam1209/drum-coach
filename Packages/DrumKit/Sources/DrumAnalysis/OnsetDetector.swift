@@ -21,7 +21,10 @@ public struct OnsetDetector: Sendable {
     private var noiseFloor = 0.0
     private var lastOnset: TimeInterval = -.infinity
 
-    public init(sampleRate: Double, threshold: Double = 0.15, minInterval: TimeInterval = 0.025) {
+    /// `threshold` is the lowest peak (after the high-pass) that can count as a stroke. iPad mics in measurement mode
+    /// have no automatic gain, so a rubber pad often peaks at only 2–5% of full scale: the default is low, and the
+    /// effective level rises with the room's noise floor so background noise is still ignored.
+    public init(sampleRate: Double, threshold: Double = 0.012, minInterval: TimeInterval = 0.025) {
         self.sampleRate = sampleRate
         self.threshold = threshold
         self.minInterval = minInterval
@@ -57,7 +60,7 @@ public struct OnsetDetector: Sendable {
         recentPeaks.append(peak)
         if recentPeaks.count > 8 { recentPeaks.removeFirst() }
 
-        let level = max(threshold, noiseFloor * 4)
+        let level = max(threshold, noiseFloor * 5)
         var result: (time: TimeInterval, strength: Double)?
         if peak > level, peak > recent * 2 {
             let offset = hopSamples.firstIndex { abs($0) > level }.map { $0 - hopSamples.startIndex } ?? 0

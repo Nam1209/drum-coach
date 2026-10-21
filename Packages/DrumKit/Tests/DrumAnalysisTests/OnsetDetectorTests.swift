@@ -74,3 +74,17 @@ func feed(_ d: inout OnsetDetector, _ s: [Float], chunk: Int = 256, startTime: D
     #expect(on.count == 2)
     #expect(on[1].strength > on[0].strength * 2)
 }
+
+@Test func hearsQuietPadStrokesFromAFewFeetAway() {
+    // An iPad mic in measurement mode (no automatic gain) picks up a rubber pad at ~2–5% of full scale.
+    var d = OnsetDetector(sampleRate: 48_000)
+    let hits = [0.5, 1.0, 1.5, 2.0]
+    let found = feed(&d, synth(duration: 2.5, hits: hits, amp: 0.04, noiseAmp: 0.003))
+    #expect(found.count == hits.count)
+    for (f, h) in zip(found, hits) { #expect(abs(f.time - h) < 0.005) }
+}
+
+@Test func roomNoiseAloneIsNotAHit() {
+    var d = OnsetDetector(sampleRate: 48_000)
+    #expect(feed(&d, synth(duration: 3, hits: [], noiseAmp: 0.004)).isEmpty)
+}
