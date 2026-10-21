@@ -68,3 +68,11 @@ private let expected = (0..<16).map { (time: Double($0) * 0.5, label: $0 % 2 == 
     let legacy = try JSONSerialization.data(withJSONObject: dict)
     #expect(try JSONDecoder().decode(HistoryDigest.self, from: legacy).counting == nil)
 }
+
+@Test(.vietnamese) func tappedCountGetsTappingAdvice() {
+    var j = CountJudge(expected: expected, input: .tap)
+    for e in expected.prefix(12) { _ = j.hear(e.label == "&" ? e.time + 0.070 : e.time) }
+    let tips = j.summary(until: 10).tips
+    #expect(tips.contains { $0.contains("gõ") })
+    #expect(!tips.contains { $0.contains("Bạn nói") || $0.contains("Nói to") })
+}

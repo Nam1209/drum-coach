@@ -4,6 +4,8 @@ import Foundation
 /// Judges a spoken count syllable by syllable while it happens, then scores it and says what to work on.
 public struct CountJudge: Sendable {
     public enum Verdict: Sendable, Equatable { case onTime, early, late }
+    /// How the count is given: out loud, or tapped (fingers on a table, or the screen) when speaking isn't possible.
+    public enum Input: String, Codable, Sendable { case voice, tap }
 
     public struct Mark: Sendable, Equatable {
         public let label: String
@@ -24,9 +26,11 @@ public struct CountJudge: Sendable {
 
     private let expected: [(time: TimeInterval, label: String)]
     private let window: TimeInterval
+    private let input: Input
     private var heard: [Int: TimeInterval] = [:]
 
-    public init(expected: [(time: TimeInterval, label: String)]) {
+    public init(expected: [(time: TimeInterval, label: String)], input: Input = .voice) {
+        self.input = input
         self.expected = expected.sorted { $0.time < $1.time }
         let slot = zip(self.expected, self.expected.dropFirst()).map { $1.time - $0.time }.min() ?? 0.5
         window = min(slot * 0.45, 0.2)
@@ -70,9 +74,12 @@ public struct CountJudge: Sendable {
         for (_, m) in marks { byGroup[Self.group(m.label), default: []].append(m.offsetMs) }
         if let (name, offsets) = byGroup.max(by: { abs(mean($0.value)) < abs(mean($1.value)) }), abs(mean(offsets)) > 35 {
             let ms = Int(abs(mean(offsets)).rounded())
-            issues.append((abs(mean(offsets)), mean(offsets) > 0
-                ? L("Bạn nói \(name) trễ trung bình \(ms) ms. Nghĩ âm đó nằm đúng giữa hai click và nói sớm hơn một chút.", "You say \(name) \(ms) ms late on average. Think of it sitting exactly between two clicks and say it a little earlier.")
-                : L("Bạn nói \(name) sớm trung bình \(ms) ms. Đừng vội, chờ đúng chỗ của nó rồi mới nói.", "You say \(name) \(ms) ms early on average. Don't rush; wait for its place before saying it.")))
+            let late = mean(offsets) > 0
+            issues.append((abs(mean(offsets)), input == .voice
+                ? (late ? L("Bạn nói \(name) trễ trung bình \(ms) ms. Nghĩ âm đó nằm đúng giữa hai click và nói sớm hơn một chút.", "You say \(name) \(ms) ms late on average. Think of it sitting exactly between two clicks and say it a little earlier.")
+                        : L("Bạn nói \(name) sớm trung bình \(ms) ms. Đừng vội, chờ đúng chỗ của nó rồi mới nói.", "You say \(name) \(ms) ms early on average. Don't rush; wait for its place before saying it."))
+                : (late ? L("Bạn gõ \(name) trễ trung bình \(ms) ms. Đếm thầm trong đầu và gõ đúng lúc nghĩ tới âm đó, đừng chờ nghe click.", "You tap \(name) \(ms) ms late on average. Count silently and tap the moment you think it; don't wait for the click.")
+                        : L("Bạn gõ \(name) sớm trung bình \(ms) ms. Thả lỏng tay, chờ đúng chỗ của nó trong lời đếm thầm.", "You tap \(name) \(ms) ms early on average. Relax your hand and wait for its place in your silent count."))))
         }
 
         // Missed syllables, naming the one missed most.
@@ -86,7 +93,9 @@ public struct CountJudge: Sendable {
             // Most missed; on a tie, the one missed first (dictionary order would make the advice change run to run).
             let worst = order.max { counts[$0]! < counts[$1]! || (counts[$0]! == counts[$1]! && order.firstIndex(of: $0)! > order.firstIndex(of: $1)!) }!
             issues.append((Double(missed.count) / Double(total) * 400,
-                           L("App không nghe thấy \(missed.count) âm (hay sót nhất: \(worst)). Nói to và rõ từng âm, kể cả âm nhẹ.", "The app didn't hear \(missed.count) syllables (most often \(worst)). Say every syllable clearly, even the soft ones.")))
+                           input == .voice
+                            ? L("App không nghe thấy \(missed.count) âm (hay sót nhất: \(worst)). Nói to và rõ từng âm, kể cả âm nhẹ.", "The app didn't hear \(missed.count) syllables (most often \(worst)). Say every syllable clearly, even the soft ones.")
+                            : L("App không nhận được \(missed.count) cú gõ (hay sót nhất: \(worst)). Gõ dứt khoát từng âm, kể cả âm \"&\", \"e\", \"a\".", "The app missed \(missed.count) taps (most often \(worst)). Tap every syllable firmly, including \"&\", \"e\" and \"a\".")))
         }
 
         // Rushing or dragging: how far the offset drifts from the first heard syllable to the last.
@@ -103,7 +112,7 @@ public struct CountJudge: Sendable {
             }
             let sd = (ys.reduce(0) { $0 + ($1 - my) * ($1 - my) } / Double(ys.count - 1)).squareRoot()
             if sd > 40 {
-                issues.append((sd, L("Khoảng cách giữa các âm chưa đều (dao động ±\(Int(sd.rounded())) ms). Đếm chậm lại 8 BPM cho thật đều rồi tăng dần.", "The gaps between syllables vary (±\(Int(sd.rounded())) ms). Drop 8 BPM until it's even, then build back up.")))
+                issues.append((sd, L("Khoảng cách giữa các \(input == .voice ? "âm" : "cú gõ") chưa đều (dao động ±\(Int(sd.rounded())) ms). Đếm chậm lại 8 BPM cho thật đều rồi tăng dần.", "The gaps between syllables vary (±\(Int(sd.rounded())) ms). Drop 8 BPM until it's even, then build back up.")))
             }
         }
 
@@ -125,8 +134,11 @@ public struct CountRecord: Codable, Sendable, Equatable {
     public let score: Int
     public let onTime, early, late, missed: Int
     public let tips: [String]
+    /// Spoken or tapped; absent in records saved before tapping existed (they were spoken).
+    public var input: CountJudge.Input? = nil
 
-    public init(date: Date, phase: String, style: String, bpm: Double, summary: CountJudge.Summary) {
+    public init(date: Date, phase: String, style: String, bpm: Double, summary: CountJudge.Summary, input: CountJudge.Input = .voice) {
+        self.input = input
         self.date = date
         self.phase = phase
         self.style = style

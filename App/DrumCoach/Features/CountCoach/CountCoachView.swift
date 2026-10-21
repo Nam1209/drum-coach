@@ -26,7 +26,29 @@ struct CountCoachView: View {
         }
     }
 
+    /// How the player gives the count: out loud, fingers on a table (heard by the mic), or the screen (silent).
+    enum Answer: String, CaseIterable, Identifiable {
+        case voice, table, screen
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .voice: L("Nói", "Speak")
+            case .table: L("Gõ bàn", "Tap table")
+            case .screen: L("Chạm màn hình", "Tap screen")
+            }
+        }
+        var hint: String {
+            switch self {
+            case .voice: L("Đếm to thành tiếng.", "Count out loud.")
+            case .table: L("Đếm thầm, gõ ngón tay xuống bàn đúng mỗi âm (vd. \"1 &\" là 8 cú mỗi ô nhịp). Đặt iPad trên cùng mặt bàn, đeo tai nghe.", "Count silently and tap a finger on the table for every syllable (e.g. \"1 &\" is 8 taps a bar). Put the iPad on the same table and wear headphones.")
+            case .screen: L("Đếm thầm, chạm vào ô lớn bên dưới đúng mỗi âm. Tập được cả ở nơi phải giữ im lặng.", "Count silently and tap the big area below for every syllable. Works even where you must stay quiet.")
+            }
+        }
+    }
+
     let voiceBank: CountVoiceBank
+    @AppStorage("countCoach.answer") private var answer: Answer = .voice
+    @State private var touch: TouchHitSource?
     @State private var stage: Phase = .listen
     @State private var mode: CountMode = .eighths
     @State private var bpm: Double = 60
@@ -60,6 +82,12 @@ struct CountCoachView: View {
                         }
                         .pickerStyle(.segmented)
                         .disabled(running)
+                        if stage != .listen {
+                            Picker(L("Cách đếm theo", "Count by"), selection: $answer) { ForEach(Answer.allCases) { Text($0.title).tag($0) } }
+                                .pickerStyle(.segmented)
+                                .disabled(running)
+                            Text(answer.hint).font(.callout).foregroundStyle(.secondary)
+                        }
                         syllables
                         HStack(spacing: 28) {
                             PlayButton(isPlaying: running) { running ? stop() : start() }
@@ -69,6 +97,7 @@ struct CountCoachView: View {
                                     caption: running ? L("âm đã nghe", "syllables heard") : L("điểm", "score"), size: 44)
                         }
                         if running, judge != nil { liveView }
+                        if running, let touch { tapPad(touch) }
                     }
                 }
                         if let error { Label(error, systemImage: "exclamationmark.circle").foregroundStyle(Theme.missed) }
@@ -97,6 +126,17 @@ struct CountCoachView: View {
             }
         }
         .accessibilityHidden(true)
+    }
+
+    /// Big silent tap target for "Tap screen"; registers on touch-down so the timing is the finger's, not the lift's.
+    private func tapPad(_ source: TouchHitSource) -> some View {
+        RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .fill(Theme.shell.opacity(0.12))
+            .overlay(Text(L("Chạm vào đây theo từng âm", "Tap here on every syllable")).font(.headline).foregroundStyle(Theme.shell))
+            .frame(height: 180)
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0).onChanged { v in if v.translation == .zero { source.tap(nil) } })
+            .accessibilityAddTraits(.isButton)
     }
 
     /// While counting: the syllable just heard and how it landed, plus running totals (misses appear as they pass).
@@ -196,16 +236,25 @@ struct CountCoachView: View {
         let metro = MetronomeEngine(voiceBank: voiceBank)
         engine = metro
         let barSeconds = 4 * 60 / bpm
-        let mic = MicOnsetSource(calibrationOffset: SettingsStore.latency(for: .pad)) { SyllableOnsetDetector(sampleRate: $0) }
+        let answer = self.answer
+        let latency = SettingsStore.latency(for: answer == .screen ? .touch : .pad)
+        let sensitivity = SettingsStore.micSensitivity
+        let source: any HitSource = switch answer {
+        case .voice: MicOnsetSource(calibrationOffset: latency) { SyllableOnsetDetector(sampleRate: $0) }
+        case .table: MicOnsetSource(calibrationOffset: latency) { OnsetDetector.fingerTaps(sampleRate: $0, sensitivity: sensitivity) }
+        case .screen: TouchHitSource(calibrationOffset: latency)
+        }
         do {
             try AudioSessionConfig.activate()
-            if stage != .listen { try mic.start() }
+            if stage != .listen { try source.start() }
             try metro.start(settings: s)
         } catch {
             self.error = L("Không mở được âm thanh: \(error.localizedDescription)", "Couldn't open audio: \(error.localizedDescription)")
-            mic.stop()
+            source.stop()
             return
         }
+        if stage != .listen { touch = source as? TouchHitSource }
+        defer { touch = nil }
         var onsets: [TimeInterval] = []
         // Expected syllables from bar 2 (bar 1 is the count-in), once the click's beat 0 is known.
         func expected(from zero: TimeInterval) -> [(time: TimeInterval, label: String)] {
@@ -213,9 +262,9 @@ struct CountCoachView: View {
             return (1...bars).flatMap { bar in labels.map { (zero + (Double(bar) * 4 + $0.position.doubleValue) * 60 / bpm, $0.label) } }
         }
         let collector = Task {
-            for await h in mic.hits {
+            for await h in source.hits {
                 onsets.append(h.time); heard = onsets.count
-                if judge == nil, let zero = metro.beatZeroHostTime { judge = CountJudge(expected: expected(from: zero)) }
+                if judge == nil, let zero = metro.beatZeroHostTime { judge = CountJudge(expected: expected(from: zero), input: answer == .voice ? .voice : .tap) }
                 if let m = judge?.hear(h.time) { lastMark = m }
             }
         }
@@ -231,19 +280,25 @@ struct CountCoachView: View {
         collector.cancel()
         let zero = metro.beatZeroHostTime
         let stoppedAt = HostClock.now()
-        metro.stop(); mic.stop()
+        metro.stop(); source.stop()
         // Stopping early still scores what was counted so far.
         guard stage != .listen, let zero else { return }
         let all = expected(from: zero)
-        var final = judge ?? CountJudge(expected: all)
+        var final = judge ?? CountJudge(expected: all, input: answer == .voice ? .voice : .tap)
         if judge == nil { for t in onsets { _ = final.hear(t) } }
         let scored = final.summary(until: stoppedAt)
         guard scored.onTime + scored.early + scored.late + scored.missed > 0 else { return }
         summary = scored
         let style = Counting.labels(mode: mode, beats: 1).map(\.label).map { $0.isEmpty ? "1" : $0 }.joined(separator: " ")
-        SettingsStore.countRecords.append(CountRecord(date: Date(), phase: "\(stage)", style: style, bpm: bpm, summary: scored))
+        SettingsStore.countRecords.append(CountRecord(date: Date(), phase: "\(stage)", style: style, bpm: bpm, summary: scored, input: answer == .voice ? .voice : .tap))
         let r = CountEvenness(onsets: onsets, expected: all.filter { $0.time < stoppedAt })
         result = r.matched > 0 ? r : nil
-        if scored.onTime + scored.early + scored.late == 0 { error = L("Không nghe thấy tiếng đếm. Nói to hơn hoặc đưa iPad lại gần.", "Couldn't hear any counting. Speak louder or move the iPad closer.") }
+        if scored.onTime + scored.early + scored.late == 0 {
+            error = switch answer {
+            case .voice: L("Không nghe thấy tiếng đếm. Nói to hơn hoặc đưa iPad lại gần.", "Couldn't hear any counting. Speak louder or move the iPad closer.")
+            case .table: L("Không nghe thấy tiếng gõ. Đặt iPad trên cùng mặt bàn, gõ mạnh hơn, hoặc tăng Độ nhạy micro trong Hiệu chỉnh.", "Couldn't hear any taps. Put the iPad on the same table, tap harder, or raise Mic sensitivity in Calibration.")
+            case .screen: L("Chưa nhận được lần chạm nào.", "No taps received.")
+            }
+        }
     }
 }

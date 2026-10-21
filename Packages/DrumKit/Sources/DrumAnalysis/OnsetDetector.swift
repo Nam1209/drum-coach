@@ -39,6 +39,11 @@ public struct OnsetDetector: Sendable {
     }
 
     /// Tuned to the pad and room measured by `PadProfiler`.
+    /// Fingertips tapped on a table: far quieter than a stick on a pad, and never faster than 16ths at counting tempos.
+    public static func fingerTaps(sampleRate: Double, sensitivity: Double = 1) -> OnsetDetector {
+        OnsetDetector(sampleRate: sampleRate, threshold: 0.004 / max(sensitivity, 0.1), minInterval: 0.08)
+    }
+
     public init(sampleRate: Double, profile: PadProfile, minInterval: TimeInterval = 0.025) {
         self.init(sampleRate: sampleRate, threshold: profile.threshold, minInterval: minInterval)
         minBrightness = profile.minBrightness
