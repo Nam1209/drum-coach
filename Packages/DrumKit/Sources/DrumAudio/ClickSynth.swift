@@ -8,7 +8,7 @@ public enum ClickSynth {
         switch sound {
         case .click: tone(pitchHz, partials: [(1, 1), (2.7, 0.2)], decay: 0.012, length: 0.03, sr: sampleRate, noise: 0.06)
         case .beep: tone(pitchHz, partials: [(1, 1), (2, 0.3)], decay: 0.05, length: 0.12, sr: sampleRate, noise: 0)
-        case .woodblock: wood(pitchHz > 0 ? pitchHz : 900, sr: sampleRate)
+        case .woodblock: wood(pitchHz > 0 ? pitchHz : 900, sr: sampleRate, character: .dry)
         case .cowbell: tone(pitchHz, partials: [(1, 1), (1.48, 0.8)], decay: 0.06, length: 0.2, sr: sampleRate, noise: 0)
         case .rimshot: tone(max(pitchHz, 400), partials: [(1, 0.6), (2.3, 0.4)], decay: 0.015, length: 0.06, sr: sampleRate, noise: 0.6)
         case .hiHat: tone(0, partials: [], decay: 0.02, length: 0.06, sr: sampleRate, noise: 1)
