@@ -105,7 +105,7 @@ final class PracticeViewModel: ObservableObject {
 
     func listen() {
         try? AudioSessionConfig.activate()
-        try? listenPlayer.play(playedExercise, bpm: settings.bpm, countInBars: 1)
+        try? listenPlayer.play(playedExercise, bpm: settings.bpm, countInBars: 1, swing: settings.swing)
     }
 
     func stopListening() { listenPlayer.stop() }

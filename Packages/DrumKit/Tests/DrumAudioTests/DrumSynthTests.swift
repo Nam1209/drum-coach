@@ -16,3 +16,11 @@ import Testing
     #expect(abs(audio[4_000]) > 0 || abs(audio[4_001]) > 0) // snare on beat 1 after count-in
     #expect(audio[5_500...5_900].allSatisfy { abs($0) < 0.05 })   // beat 2 is a rest (only decay)
 }
+
+@Test func patternRenderSwingsOffbeats() throws {
+    // The "&" of beat 1 moves from 0.5 to 2/3 of the beat.
+    let ex = try ExerciseDSL.parse("time: 4/4\ngrid: 2\nSN: -x------")
+    let audio = DrumSynth.renderPattern(ex, bpm: 60, countInBars: 1, sampleRate: 1_000, swing: 2.0 / 3)
+    #expect(audio[4_500...4_640].allSatisfy { abs($0) < 0.05 })   // not at the straight position
+    #expect(audio[4_667...4_700].contains { abs($0) > 0.05 })       // at the swung position
+}

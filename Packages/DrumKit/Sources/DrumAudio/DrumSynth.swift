@@ -37,9 +37,9 @@ public enum DrumSynth {
         }
     }
 
-    /// Mono audio of `exercise` at `bpm`, preceded by `countInBars` of hi-hat clicks on the beats.
-    public static func renderPattern(_ exercise: Exercise, bpm: Double, countInBars: Int, sampleRate: Double) -> [Float] {
-        let timeline = Timeline(exercise: exercise, bpm: bpm, repeats: 1, countInBars: countInBars)
+    /// Mono audio of `exercise` at `bpm` (with `swing`, as the metronome plays it), preceded by `countInBars` of clicks on the beats.
+    public static func renderPattern(_ exercise: Exercise, bpm: Double, countInBars: Int, sampleRate: Double, swing: Double = Swing.straight) -> [Float] {
+        let timeline = Timeline(exercise: exercise, bpm: bpm, repeats: 1, countInBars: countInBars, swing: swing)
         var out = [Float](repeating: 0, count: Int((timeline.duration * sampleRate).rounded()))
         func mix(_ s: [Float], at t: Double, gain: Float = 1) {
             let start = Int((t * sampleRate).rounded())
@@ -71,8 +71,8 @@ public final class DrumPlayer {
         engine.connect(player, to: engine.mainMixerNode, format: format)
     }
 
-    public func play(_ exercise: Exercise, bpm: Double, countInBars: Int = 1) throws {
-        let samples = DrumSynth.renderPattern(exercise, bpm: bpm, countInBars: countInBars, sampleRate: 48_000)
+    public func play(_ exercise: Exercise, bpm: Double, countInBars: Int = 1, swing: Double = Swing.straight) throws {
+        let samples = DrumSynth.renderPattern(exercise, bpm: bpm, countInBars: countInBars, sampleRate: 48_000, swing: swing)
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)) else { return }
         buffer.frameLength = AVAudioFrameCount(samples.count)
         samples.withUnsafeBufferPointer { buffer.floatChannelData![0].update(from: $0.baseAddress!, count: samples.count) }
