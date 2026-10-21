@@ -20,7 +20,14 @@ public enum MIDIFileImporter {
         // Variable-length quantity, never reading past `end`.
         func vlq(_ i: inout Int, _ end: Int) -> Int {
             var v = 0
-            while i < end { let byte = b[i]; i += 1; v = v << 7 | Int(byte & 0x7F); if byte & 0x80 == 0 { break } }
+            // At most 4 bytes (≤ 0x0FFFFFFF) as the SMF spec says, so the value is never negative.
+            for _ in 0..<4 where i < end {
+                let byte = b[i]; i += 1
+                v = v << 7 | Int(byte & 0x7F)
+                if byte & 0x80 == 0 { return v }
+            }
+            // Longer than 4 bytes: skip the rest of the malformed number.
+            while i < end, b[i - 1] & 0x80 != 0 { i += 1 }
             return v
         }
         func u16(_ i: Int) -> Int { Int(b[i]) << 8 | Int(b[i + 1]) }
@@ -40,6 +47,7 @@ public enum MIDIFileImporter {
             var i = p + 8, tick = 0, running: UInt8 = 0
             while isTrack && i < end {
                 tick += vlq(&i, end)
+                guard tick <= Int(Int32.max) else { throw .tooLong }
                 guard i < end else { break }
                 var status = b[i]
                 if status & 0x80 != 0 { i += 1; if status < 0xF0 { running = status } } else { status = running }
@@ -111,7 +119,7 @@ public enum GrooveScribeExport {
             var cells = Array(repeating: Character("-"), count: total)
             for n in e.notes {
                 let i = Int((n.position.doubleValue * Double(cellsPerQuarter)).rounded())
-                if i < total, let c = symbol(n) { cells[i] = c }
+                if i >= 0, i < total, let c = symbol(n) { cells[i] = c }
             }
             return "|" + stride(from: 0, to: total, by: perBar).map { String(cells[$0..<min($0 + perBar, total)]) }.joined(separator: "|") + "|"
         }

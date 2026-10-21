@@ -89,3 +89,15 @@ private func smf(_ track: [UInt8]) -> Data {
     #expect(r?.bpm == 120)
     #expect(r?.exercise.timeSignature == TimeSignature(beats: 4, unit: 4))
 }
+
+@Test(.timeLimit(.minutes(1))) func overlongLengthsCannotLoopOrGoNegative() {
+    // 10-byte "length" overflows to a negative number if not capped at 4 bytes (SMF spec).
+    // 10 groups → bits 21…63 set: a large negative number (−2^21 and up) without the 4-byte cap.
+    let overlong: [UInt8] = Array(repeating: 0xFF, count: 7) + [0x80, 0x80, 0x00]
+    let meta: [UInt8] = [0x00, 0x99, 38, 90, 0x00, 0xFF, 0x01] + overlong + [0x00, 0x99, 38, 90]
+    _ = try? MIDIFileImporter.exercise(from: smf(meta), title: "x")
+    let delta: [UInt8] = [0x00, 0x99, 38, 90] + overlong + [0x99, 38, 90]
+    if let r = try? MIDIFileImporter.exercise(from: smf(delta), title: "x") {
+        #expect(r.exercise.notes.allSatisfy { $0.position >= Rational(0, 1) })
+    }
+}
