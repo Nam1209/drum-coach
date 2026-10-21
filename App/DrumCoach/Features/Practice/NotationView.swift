@@ -8,6 +8,8 @@ struct NotationView: View {
     /// Beats since the start of the exercise (wrapping per repeat); nil when stopped.
     let beat: Double?
     var noteColor: (Int) -> Color? = { _ in nil }
+    /// Early (negative) / late (positive) offset in ms for orange notes.
+    var orangeOffsetMs: (Int) -> Double? = { _ in nil }
     var showVoiceLabels = true
 
     private let spacing: Double = 12
@@ -99,6 +101,13 @@ struct NotationView: View {
                 if let h = g.hand, h != .foot {
                     ctx.draw(Text(h.rawValue).font(.system(size: 17, weight: .heavy)).foregroundColor(.teal.opacity(0.8)),
                              at: CGPoint(x: g.x, y: y(line: g.line, step: -5)))
+                }
+                if let ms = orangeOffsetMs(g.noteIndex) {
+                    let gap = 9 + min(abs(ms), 80) * 0.25
+                    let mx = ms < 0 ? g.x - gap - 4 : g.x + gap + 6
+                    ctx.fill(Path(roundedRect: CGRect(x: mx - 2, y: cy - 13, width: 4, height: 26), cornerRadius: 2), with: .color(.orange))
+                    ctx.draw(Text(String(format: "%+.0f", ms)).font(.caption.weight(.bold)).foregroundColor(.orange),
+                             at: CGPoint(x: g.x, y: y(line: g.line, step: stemTopStep + 6)))
                 }
                 let v = exercise.notes[g.noteIndex].voice
                 if labels, showVoiceLabels, !seenVoices.contains(v) {

@@ -1,4 +1,5 @@
 import DrumAudio
+import SwiftData
 import SwiftUI
 
 @main
@@ -17,6 +18,7 @@ struct DrumCoachApp: App {
             }
             .tint(.orange)
             .task { await voiceBank.prepare() }
+            .modelContainer(for: PracticeSession.self)
         }
     }
 }

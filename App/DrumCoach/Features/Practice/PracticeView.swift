@@ -1,5 +1,7 @@
+import DrumAnalysis
 import DrumAudio
 import DrumCore
+import SwiftData
 import SwiftUI
 
 struct PracticeView: View {
@@ -7,7 +9,7 @@ struct PracticeView: View {
     @State private var showSheet = false
     @State private var showCalibration = false
     private let voiceBank: CountVoiceBank
-    @State private var error: String?
+    @Environment(\.modelContext) private var modelContext
     @State private var taps: [Date] = []
     private let exercises: [Exercise]
 
@@ -21,16 +23,35 @@ struct PracticeView: View {
         TimelineView(.animation(paused: !model.isPlaying)) { context in
             let now = HostClock.now()
             let beat = model.beat(atHostTime: now)
+            let pass = model.currentRepeat(beat: beat)
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     header
-                    NotationView(exercise: model.playedExercise, display: model.display, beat: beat)
+                    if model.showHeadphoneWarning {
+                        Label("Nên dùng tai nghe: micro đang nghe cả tiếng click từ loa, app sẽ bỏ qua tiếng gõ trùng lúc click.",
+                              systemImage: "headphones")
+                            .font(.callout).padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(Color.orange.opacity(0.15)))
+                    }
+                    NotationView(exercise: model.playedExercise, display: model.display, beat: beat,
+                                 noteColor: { model.color(noteIndex: $0, repeat: pass) },
+                                 orangeOffsetMs: { model.orangeOffsetMs(noteIndex: $0, repeat: pass) })
                         .padding(.vertical, 8)
                         .background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemBackground)))
                     RLStripView(timeline: model.displayTimeline, exercise: model.playedExercise,
-                                countMode: model.settings.voiceCount ?? .eighths, beat: beat)
+                                countMode: model.settings.voiceCount ?? .eighths, beat: beat,
+                                noteColor: { tn in model.results[tn.index].map { model.rules.grade($0).color } })
+                    HStack(alignment: .center, spacing: 20) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("Score").font(.caption).foregroundStyle(.secondary)
+                            Text(model.liveScore.map { "\(Int($0.rounded()))%" } ?? "–")
+                                .font(.system(size: 40, weight: .bold, design: .rounded)).monospacedDigit()
+                        }
+                        .frame(width: 120, alignment: .leading)
+                        TimingStrip(recent: model.recent)
+                    }
                     controls
-                    if let error { Text(error).foregroundStyle(.red) }
+                    if let error = model.error { Text(error).foregroundStyle(.red) }
                 }
                 .padding()
             }
@@ -38,6 +59,10 @@ struct PracticeView: View {
         }
         .sheet(isPresented: $showSheet) { MetronomeSheet(settings: $model.settings) }
         .sheet(isPresented: $showCalibration) { CalibrationView(voiceBank: voiceBank) }
+        .sheet(item: $model.finishedStats) { stats in
+            ResultsView(stats: stats, title: model.exercise.title, bpm: model.settings.bpm)
+        }
+        .onAppear { model.modelContext = modelContext }
         .onChange(of: model.settings) { _, new in SettingsStore.saveMetronome(new) }
         .onDisappear { model.stop() }
     }
@@ -83,7 +108,11 @@ struct PracticeView: View {
                     ForEach(InputMode.allCases) { Text($0.title).tag($0) }
                 }
                 Toggle("FLIP", isOn: $model.flipped).toggleStyle(.button)
+                Picker("Độ khó", selection: difficulty) {
+                    Text("Dễ ±45ms").tag(45.0); Text("Vừa ±30ms").tag(30.0); Text("Khó ±20ms").tag(20.0)
+                }
             }
+            .disabled(model.isPlaying)
         }
     }
 
@@ -97,7 +126,12 @@ struct PracticeView: View {
 
     private func toggle() {
         if model.isPlaying { model.stop(); return }
-        do { try model.play(); error = nil } catch { self.error = "Không mở được âm thanh: \(error.localizedDescription)" }
+        model.play()
+    }
+
+    private var difficulty: Binding<Double> {
+        Binding(get: { (model.rules.goodWindow * 1000).rounded() },
+                set: { SettingsStore.scoring = ScoringRules(goodWindow: $0 / 1000); model.rules = SettingsStore.scoring })
     }
 
     private func tapTempo() {

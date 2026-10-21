@@ -67,3 +67,6 @@ public enum Hand: String, Codable, Sendable {
 public enum Articulation: String, Codable, Sendable {
     case normal, accent, ghost, flam, drag, buzz
 }
+
+extension Voice: CodingKeyRepresentable {}
+extension Hand: CodingKeyRepresentable {}

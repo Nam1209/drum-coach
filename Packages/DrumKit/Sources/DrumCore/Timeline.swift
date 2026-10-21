@@ -9,6 +9,14 @@ public struct TimedNote: Sendable, Hashable {
     public let note: NoteEvent
     /// Seconds from beat zero (start of count-in).
     public let time: TimeInterval
+
+    public init(index: Int, noteIndex: Int, repeatIndex: Int, note: NoteEvent, time: TimeInterval) {
+        self.index = index
+        self.noteIndex = noteIndex
+        self.repeatIndex = repeatIndex
+        self.note = note
+        self.time = time
+    }
 }
 
 /// Converts an exercise's beat positions to seconds for one run (count-in + repeats) at a fixed tempo.
