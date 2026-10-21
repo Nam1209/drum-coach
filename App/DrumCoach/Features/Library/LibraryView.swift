@@ -31,7 +31,13 @@ struct LibraryView: View {
                 }
             }
             Section { NavigationLink("🎵 Chơi theo nhạc / backing track") { PlayAlongView() } }
-            Section("Khởi động") { ForEach(StarterExercises.all) { practiceLink($0) } }
+            Section {
+                ForEach(StarterExercises.all) { practiceLink($0) }
+            } header: {
+                Text("Khởi động")
+            } footer: {
+                Text("Nhấn giữ một groove để tạo các bài hoán vị kick hoặc snare.")
+            }
             Section("40 rudiment chuẩn PAS") {
                 NavigationLink("Xem 40 rudiment") { List(PASRudiments.all) { practiceLink($0) }.navigationTitle("PAS Rudiments") }
             }
@@ -77,15 +83,35 @@ struct LibraryView: View {
 
     private func withSource(_ e: Exercise, _ s: String) -> Exercise { var x = e; x.source = s; return x }
 
-    private func practiceLink(_ ex: Exercise) -> some View {
+    /// A row without the permutation menu (used inside permutation lists).
+    private func plainLink(_ ex: Exercise) -> some View {
         NavigationLink {
+            PracticeView(exercises: [ex], voiceBank: voiceBank)
+        } label: {
+            VStack(alignment: .leading) {
+                Text(ex.title)
+                Text("\(ex.timeSignature.beats)/\(ex.timeSignature.unit), \(ex.suggestedTempo.lowerBound)–\(ex.suggestedTempo.upperBound) BPM")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func practiceLink(_ ex: Exercise) -> some View {
+        let isGroove = Set(ex.notes.map(\.voice)).isSuperset(of: [.kick, .snare])
+        return NavigationLink {
             PracticeView(exercises: [ex], voiceBank: voiceBank)
                 .navigationTitle(ex.title).navigationBarTitleDisplayMode(.inline)
         } label: {
             VStack(alignment: .leading) {
                 Text(ex.title)
-                Text("\(ex.timeSignature.beats)/\(ex.timeSignature.unit) · \(ex.suggestedTempo.lowerBound)–\(ex.suggestedTempo.upperBound) BPM")
+                Text("\(ex.timeSignature.beats)/\(ex.timeSignature.unit), \(ex.suggestedTempo.lowerBound)–\(ex.suggestedTempo.upperBound) BPM")
                     .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .contextMenu {
+            if isGroove {
+                NavigationLink("Hoán vị kick") { List(StickingGenerator.kickPermutations(ex)) { plainLink($0) }.navigationTitle("Hoán vị kick") }
+                NavigationLink("Hoán vị snare (nốt ma)") { List(StickingGenerator.snarePermutations(ex)) { plainLink($0) }.navigationTitle("Hoán vị snare") }
             }
         }
     }

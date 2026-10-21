@@ -9,17 +9,17 @@ struct TimingStrip: View {
         GeometryReader { geo in
             let w = geo.size.width, mid = w / 2, scale = (w / 2 - 12) / 60
             ZStack {
-                Capsule().fill(Color(.secondarySystemBackground))
-                Rectangle().fill(Color.primary.opacity(0.6)).frame(width: 2).position(x: mid, y: geo.size.height / 2)
+                Capsule().fill(Theme.hairline)
+                Rectangle().fill(Color.primary.opacity(0.5)).frame(width: 1.5).position(x: mid, y: geo.size.height / 2)
                 Text("sớm").font(.caption2).foregroundStyle(.secondary).position(x: 24, y: geo.size.height / 2)
                 Text("muộn").font(.caption2).foregroundStyle(.secondary).position(x: w - 28, y: geo.size.height / 2)
                 ForEach(Array(recent.enumerated()), id: \.offset) { i, r in
                     Circle().fill(r.grade.color.opacity(0.35 + 0.65 * Double(i + 1) / Double(max(recent.count, 1))))
-                        .frame(width: 12, height: 12)
+                        .frame(width: 9, height: 9)
                         .position(x: mid + max(-60, min(60, r.ms)) * scale, y: geo.size.height / 2)
                 }
             }
         }
-        .frame(height: 32)
+        .frame(height: 26)
     }
 }

@@ -26,24 +26,21 @@ enum NotationDisplay: String, CaseIterable, Identifiable {
     var title: String { self == .page ? "Trang" : "Cuộn" }
 }
 
-extension Grade {
-    var color: Color {
-        switch self {
-        case .good: .green
-        case .early, .late: .orange
-        case .missed: .red
-        }
-    }
-}
 
 @MainActor
 final class PracticeViewModel: ObservableObject {
-    @Published var exercise: Exercise { didSet { if !isPlaying { flipped = false } } }
+    @Published var exercise: Exercise { didSet { if !isPlaying { flipped = false; loopBars = nil; autoLearn = nil } } }
     @Published var settings: MetronomeSettings
     @Published var mode: InputMode = .pad
     @Published var display: NotationDisplay = .page
     @Published var durationSeconds: Double = 60
     @Published var flipped = false
+    /// Bars to loop (1-based); nil = the whole exercise.
+    @Published var loopBars: ClosedRange<Int>?
+    /// Set when "Học tự động" is running.
+    @Published var autoLearn: AutoLearnState?
+    @Published private(set) var lastDiagnosis: TimingDiagnosis?
+    private let listenPlayer = DrumPlayer()
     @Published var rules = SettingsStore.scoring
     @Published private(set) var isPlaying = false
     @Published private(set) var timeline: Timeline?
@@ -85,8 +82,66 @@ final class PracticeViewModel: ObservableObject {
         engine = MetronomeEngine(voiceBank: voiceBank, settings: saved)
     }
 
-    /// The exercise as played (hands flipped when FLIP is on).
-    var playedExercise: Exercise { flipped ? exercise.flippedHands() : exercise }
+    /// The exercise as played: hands flipped when FLIP is on, cut to the looped bars.
+    var playedExercise: Exercise {
+        var e = flipped ? exercise.flippedHands() : exercise
+        if let loopBars { e = e.slice(bars: loopBars) }
+        return e
+    }
+
+    /// Play the exercise once with synthesized drums so you hear it before playing it.
+    func listen() {
+        try? AudioSessionConfig.activate()
+        try? listenPlayer.play(playedExercise, bpm: settings.bpm, countInBars: 1)
+    }
+
+    func stopListening() { listenPlayer.stop() }
+
+    // MARK: Auto-learn
+
+    struct AutoLearnState {
+        var plan: AutoLearnPlan
+        var stepIndex = 0
+        var tempo: AdaptiveTempo
+        var lastScore: Double?
+        var step: AutoLearnPlan.Step? { stepIndex < plan.steps.count ? plan.steps[stepIndex] : nil }
+        var finished: Bool { step == nil }
+    }
+
+    func startAutoLearn() {
+        let target = max(Int(settings.bpm), exercise.suggestedTempo.upperBound > 300 ? 120 : exercise.suggestedTempo.upperBound)
+        autoLearn = AutoLearnState(plan: AutoLearnPlan(exercise: exercise), tempo: AdaptiveTempo(target: target))
+        applyAutoLearnStep()
+    }
+
+    func stopAutoLearn() {
+        autoLearn = nil
+        loopBars = nil
+        settings.volume = SettingsStore.loadMetronome()?.volume ?? 1
+    }
+
+    private func applyAutoLearnStep() {
+        guard let state = autoLearn, let step = state.step else { return }
+        loopBars = step.bars.lowerBound == 1 && step.bars.upperBound == exercise.bars ? nil : step.bars
+        settings.bpm = Double(state.tempo.bpm)
+        settings.volume = step.withClick ? (SettingsStore.loadMetronome()?.volume ?? 1) : 0
+        let passSeconds = playedExercise.lengthInBeats.doubleValue * 60 / settings.bpm
+        durationSeconds = max(20, passSeconds * 4)
+    }
+
+    /// After a run in auto-learn: adjust tempo; a step is done once it is played above 90% at the target tempo.
+    private func recordAutoLearn(score: Double) {
+        guard var state = autoLearn else { return }
+        state.lastScore = score
+        let atTargetBefore = state.tempo.atTarget
+        state.tempo.record(score: score)
+        if score > 90, atTargetBefore {
+            state.stepIndex += 1
+            state.tempo = AdaptiveTempo(target: state.tempo.target)
+        }
+        autoLearn = state
+        applyAutoLearnStep()
+    }
 
     /// Timeline of the current run, or a preview of the first passes when stopped.
     var displayTimeline: Timeline {
@@ -171,7 +226,9 @@ final class PracticeViewModel: ObservableObject {
         var finalResults = results
         for n in played where finalResults[n.index] == nil { finalResults[n.index] = .missed }
         let stats = SessionStats(results: finalResults, notes: played, extraHits: extraHits, rules: rules)
+        lastDiagnosis = TimingDiagnosis(samples: played.compactMap { n in finalResults[n.index]?.offset.map { (n.time, $0 * 1000) } })
         finishedStats = stats
+        recordAutoLearn(score: stats.score)
         if let ctx = modelContext {
             let session = PracticeSession(date: startedAt, exerciseId: exercise.id.uuidString, title: exercise.title,
                                        skill: exercise.source, bpm: settings.bpm, seconds: Date().timeIntervalSince(startedAt),

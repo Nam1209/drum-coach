@@ -17,7 +17,11 @@ struct MIDILearnView: View {
             Section {
                 Text("Nguồn MIDI đang kết nối: \(MIDIHitSource.sourceCount)").foregroundStyle(MIDIHitSource.sourceCount > 0 ? .green : .orange)
                 if MIDIHitSource.sourceCount == 0 { Text("Cắm cáp USB-MIDI từ cổng MIDI OUT của TD-7 vào iPad.").font(.callout) }
-                if let lastNote { Text("Nốt vừa nhận: \(lastNote)").monospacedDigit() }
+                if let lastNote {
+                    let v = DrumCore.Voice.from(midiNote: lastNote, overrides: learn.map)
+                    Text("Nốt \(lastNote) → \(v?.localizedName ?? "chưa gán, sẽ bị bỏ qua khi chấm")").font(Theme.number(17, weight: .medium))
+                        .foregroundStyle(v == nil ? Theme.offTime : .primary)
+                }
             }
             Section("Bấm một bộ phận rồi đánh vào pad đó") {
                 ForEach(pads, id: \.self) { v in

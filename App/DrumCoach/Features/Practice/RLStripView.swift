@@ -44,17 +44,16 @@ struct RLStripView: View {
                     guard x > 44, x < size.width - 8 else { continue }
                     let top = hand == .right
                     let rect = CGRect(x: x - 3, y: top ? axisY - 44 : axisY + 16, width: 6, height: 28)
-                    ctx.fill(Path(roundedRect: rect, cornerRadius: 3), with: .color(noteColor(tn) ?? .secondary.opacity(0.35)))
+                    ctx.fill(Path(roundedRect: rect, cornerRadius: 3), with: .color(noteColor(tn) ?? .secondary.opacity(0.25)))
                 }
             }
 
             var nowLine = Path()
             nowLine.move(to: CGPoint(x: mid, y: 6)); nowLine.addLine(to: CGPoint(x: mid, y: size.height - 6))
-            ctx.stroke(nowLine, with: .color(.primary), lineWidth: 2)
-            ctx.draw(Text("R").font(.headline).foregroundColor(.teal), at: CGPoint(x: 20, y: axisY - 30))
-            ctx.draw(Text("L").font(.headline).foregroundColor(.gray), at: CGPoint(x: 20, y: axisY + 30))
+            ctx.stroke(nowLine, with: .color(Theme.shell), lineWidth: 2)
+            ctx.draw(Text("R").font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundColor(Theme.shell), at: CGPoint(x: 20, y: axisY - 30))
+            ctx.draw(Text("L").font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundColor(.secondary), at: CGPoint(x: 20, y: axisY + 30))
         }
-        .frame(height: 120)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color(.secondarySystemBackground)))
+        .frame(height: 112)
     }
 }

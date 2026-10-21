@@ -63,7 +63,7 @@ struct NotationView: View {
                 let x = Double(b) * l.barWidth
                 p.move(to: CGPoint(x: x, y: y(line: line, step: 8))); p.addLine(to: CGPoint(x: x, y: y(line: line, step: 0)))
             }
-            ctx.stroke(p, with: .color(.secondary.opacity(0.5)), lineWidth: 1)
+            ctx.stroke(p, with: .color(.secondary.opacity(0.35)), lineWidth: 1)
         }
     }
 
@@ -99,20 +99,20 @@ struct NotationView: View {
                              at: CGPoint(x: g.x + 6, y: y(line: g.line, step: stemTopStep + 3)))
                 }
                 if let h = g.hand, h != .foot {
-                    ctx.draw(Text(h.rawValue).font(.system(size: 17, weight: .heavy)).foregroundColor(.teal.opacity(0.8)),
+                    ctx.draw(Text(h.rawValue).font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundColor(h == .right ? Theme.shell : .secondary),
                              at: CGPoint(x: g.x, y: y(line: g.line, step: -5)))
                 }
                 if let ms = orangeOffsetMs(g.noteIndex) {
                     let gap = 9 + min(abs(ms), 80) * 0.25
                     let mx = ms < 0 ? g.x - gap - 4 : g.x + gap + 6
-                    ctx.fill(Path(roundedRect: CGRect(x: mx - 2, y: cy - 13, width: 4, height: 26), cornerRadius: 2), with: .color(.orange))
-                    ctx.draw(Text(String(format: "%+.0f", ms)).font(.caption.weight(.bold)).foregroundColor(.orange),
+                    ctx.fill(Path(roundedRect: CGRect(x: mx - 2, y: cy - 13, width: 4, height: 26), cornerRadius: 2), with: .color(Theme.offTime))
+                    ctx.draw(Text(String(format: "%+.0f", ms)).font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundColor(Theme.offTime),
                              at: CGPoint(x: g.x, y: y(line: g.line, step: stemTopStep + 6)))
                 }
                 let v = exercise.notes[g.noteIndex].voice
                 if labels, showVoiceLabels, !seenVoices.contains(v) {
                     seenVoices.insert(v)
-                    ctx.draw(Text(v.displayName).font(.caption.weight(.bold)).foregroundColor(.orange.opacity(0.8)),
+                    ctx.draw(Text(v.localizedName).font(.caption.weight(.semibold)).foregroundColor(.secondary),
                              at: CGPoint(x: g.x - 14, y: cy), anchor: .trailing)
                 }
             }
@@ -129,6 +129,6 @@ struct NotationView: View {
         guard let beat, beat >= 0 else { return }
         let p = l.playheadX(atBeat: Rational(Int((beat * 1000).rounded()), 1000))
         let rect = CGRect(x: offset + p.x - 5, y: y(line: p.line, step: 14), width: 10, height: y(line: p.line, step: -4) - y(line: p.line, step: 14))
-        ctx.fill(Path(roundedRect: rect, cornerRadius: 5), with: .color(.secondary.opacity(0.25)))
+        ctx.fill(Path(roundedRect: rect, cornerRadius: 5), with: .color(Theme.shell.opacity(0.14)))
     }
 }

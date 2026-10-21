@@ -1,4 +1,5 @@
 import DrumAudio
+import DrumCore
 import SwiftData
 import SwiftUI
 
@@ -6,49 +7,14 @@ import SwiftUI
 struct DrumCoachApp: App {
     private let voiceBank = CountVoiceBank()
 
+    init() {
+        // The interface is Vietnamese until its English translation ships; keep content in the same language.
+        Lang.current = .vi
+    }
+
     var body: some Scene {
         WindowGroup {
-            TabView {
-                Tab("Hôm nay", systemImage: "sun.max") {
-                    NavigationStack { TodayView(voiceBank: voiceBank) }
-                }
-                Tab("Tập", systemImage: "music.note") {
-                    PracticeView(exercises: StarterExercises.all, voiceBank: voiceBank)
-                }
-                Tab("Thầy AI", systemImage: "person.crop.circle.badge.checkmark") {
-                    NavigationStack { TeacherView() }
-                }
-                Tab("Level", systemImage: "trophy") {
-                    NavigationStack { LevelListView(voiceBank: voiceBank) }
-                }
-                Tab("Tiến độ", systemImage: "chart.line.uptrend.xyaxis") {
-                    NavigationStack {
-                        List {
-                            NavigationLink("Biểu đồ") { ProgressChartsView() }
-                            NavigationLink("Hành trình") { JourneyView() }
-                            NavigationLink("Lịch sử & backup") { HistoryView() }
-                        }
-                        .navigationTitle("Tiến độ")
-                    }
-                }
-                Tab("Thư viện", systemImage: "books.vertical") {
-                    NavigationStack { LibraryView(voiceBank: voiceBank) }
-                }
-                Tab("Bài học", systemImage: "graduationcap") {
-                    NavigationStack { LessonsView(voiceBank: voiceBank) }
-                }
-                Tab("Đếm nhịp", systemImage: "waveform") {
-                    NavigationStack { CountCoachView(voiceBank: voiceBank) }
-                }
-                Tab("Metronome", systemImage: "metronome") {
-                    MetronomeView(voiceBank: voiceBank)
-                }
-                Tab("Cài đặt", systemImage: "gearshape") {
-                    NavigationStack { SettingsView(voiceBank: voiceBank) }
-                }
-            }
-            .tabViewStyle(.sidebarAdaptable)
-            .tint(.orange)
+            RootView(voiceBank: voiceBank)
             .modifier(AutoBackup())
             .task {
                 VoiceRecorder.loadAll(into: voiceBank)
