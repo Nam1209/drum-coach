@@ -525,7 +525,7 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
 
     <!-- MIDI -->
     <section class="page" id="midi">
-      <div class="header"><div><h2>MIDI learn</h2><div class="sec">Gán từng nốt MIDI của TD-7 cho đúng trống. Nốt chưa gán bị bỏ qua, không tính điểm.</div></div><button class="link" data-go="settings">‹ Cài đặt</button></div>
+      <div class="header"><div><h2>MIDI learn</h2><div class="sec">Gán từng nốt MIDI của TD-4K cho đúng trống. Nốt chưa gán bị bỏ qua, không tính điểm.</div></div><button class="link" data-go="settings">‹ Cài đặt</button></div>
       <div class="cols">
         <div><div class="section-title"><span>Bảng gán nốt</span></div><div class="list" id="midiMap"></div></div>
         <div style="display:flex;flex-direction:column;gap:22px">
@@ -545,7 +545,7 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
       <div class="header"><h2>Cài đặt</h2></div>
       <div><div class="form-head">Thiết bị</div><div class="list form">
         <div class="r"><span>Hiệu chỉnh độ trễ pad / trống điện</span><button class="link" id="calib">Bắt đầu</button></div>
-        <div class="r"><span>MIDI learn (Roland TD-7)</span><button class="link" data-go="midi">Mở</button></div>
+        <div class="r"><span>MIDI learn (Roland TD-4K)</span><button class="link" data-go="midi">Mở</button></div>
         <div class="r"><span>Hi-hat mở/đóng theo pedal (CC4)</span><button class="switch" aria-label="Hi-hat theo pedal"></button></div>
       </div><div class="form-foot">Bật nếu kit gửi cùng một nốt cho hi-hat mở và đóng: app đọc vị trí pedal để biết bạn đánh mở hay đóng.</div></div>
       <div><div class="form-head">Thầy AI</div><div class="list form">
@@ -1117,7 +1117,7 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
   let learning = null;
   function drawMap() {
     $('#midiMap').innerHTML = KIT.map(([v]) => { const n = Object.keys(map).find(k => map[k] === v); return `<div class="item"><div style="flex:1">${v}</div><span class="num sec">${n ? 'nốt ' + n : 'chưa gán'}</span><button class="btn" data-learn="${v}">${learning === v ? 'Đánh trống…' : 'Học'}</button></div>`; }).join('');
-    $$('[data-learn]').forEach(b => b.onclick = () => { learning = b.dataset.learn; drawMap(); toast(`Đánh trống ${learning} trên TD-7`); });
+    $$('[data-learn]').forEach(b => b.onclick = () => { learning = b.dataset.learn; drawMap(); toast(`Đánh trống ${learning} trên TD-4K`); });
   }
   function midiNote(n, vel) {
     if (learning) { Object.keys(map).forEach(k => map[k] === learning && delete map[k]); map[n] = learning; toast(`Đã gán nốt ${n} cho ${learning}`); learning = null; drawMap(); }
@@ -1135,7 +1135,7 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
     if (!navigator.requestMIDIAccess) { $('#midiStatus').textContent = 'Trình duyệt này không hỗ trợ MIDI (Safari). Dùng Chrome, hoặc chạm các pad bên dưới.'; return; }
     try {
       const acc = await navigator.requestMIDIAccess();
-      const hook = () => { let k = 0; acc.inputs.forEach(i => { k++; i.onmidimessage = e => { const [st, d1, d2] = e.data; if ((st & 0xF0) === 0x90 && d2 > 0) midiNote(d1, d2); if ((st & 0xF0) === 0xB0 && d1 === 4) pedal(d2); }; }); $('#midiStatus').textContent = k ? `Đã kết nối ${k} thiết bị MIDI. Đánh trống để xem nốt.` : 'Chưa thấy thiết bị MIDI. Cắm cáp USB của TD-7 rồi bấm lại.'; };
+      const hook = () => { let k = 0; acc.inputs.forEach(i => { k++; i.onmidimessage = e => { const [st, d1, d2] = e.data; if ((st & 0xF0) === 0x90 && d2 > 0) midiNote(d1, d2); if ((st & 0xF0) === 0xB0 && d1 === 4) pedal(d2); }; }); $('#midiStatus').textContent = k ? `Đã kết nối ${k} thiết bị MIDI. Đánh trống để xem nốt.` : 'Chưa thấy thiết bị MIDI. Cắm cáp USB của TD-4K rồi bấm lại.'; };
       acc.onstatechange = hook; hook();
     } catch { $('#midiStatus').textContent = 'Không được phép dùng MIDI. Chạm các pad bên dưới để thử.'; }
   };

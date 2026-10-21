@@ -30,7 +30,7 @@ struct CalibrationView: View {
                 } footer: {
                     Text(mode == .pad
                          ? L("Đeo tai nghe. Sau 4 tiếng đếm vào, gõ pad đúng theo 16 tiếng click. Hoặc bỏ tai nghe, đặt iPad cạnh loa và để micro tự nghe click.", "Wear headphones. After the 4 count-in clicks, hit the pad in time with the 16 clicks. Or take the headphones off, put the iPad next to the speaker and let the mic hear the click.")
-                         : L("Cắm cáp USB-MIDI từ MIDI OUT của TD-7. Sau 4 tiếng đếm vào, đánh snare đúng theo 16 tiếng click.", "Connect a USB-MIDI cable from the TD-7 MIDI OUT. After the 4 count-in clicks, hit the snare in time with the 16 clicks."))
+                         : L("Cắm cáp USB-MIDI từ MIDI OUT của TD-4K. Sau 4 tiếng đếm vào, đánh snare đúng theo 16 tiếng click.", "Connect a USB-MIDI cable from the TD-4K MIDI OUT. After the 4 count-in clicks, hit the snare in time with the 16 clicks."))
                 }
                 Section {
                     Button(running ? L("Đang đo… (\(heard) cú)", "Measuring… (\(heard) hits)") : L("Bắt đầu đo", "Start measuring")) { Task { await measure() } }

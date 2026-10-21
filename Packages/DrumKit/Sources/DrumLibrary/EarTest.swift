@@ -116,7 +116,7 @@ public enum GMQuiz {
     }
 }
 
-/// Learns which MIDI note each pad of the user's kit sends (e.g. Roland TD-7).
+/// Learns which MIDI note each pad of the user's kit sends (e.g. Roland TD-4K).
 public struct MIDILearn: Sendable {
     public private(set) var map: [UInt8: Voice]
     private var awaiting: Voice?

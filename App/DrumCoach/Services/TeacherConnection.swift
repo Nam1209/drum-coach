@@ -31,7 +31,12 @@ enum TeacherConnection {
     static var isConfigured: Bool { Keychain.get(Keychain.notionToken) != nil && inboxPageId != nil && plansPageId != nil }
 
     static var profile: StudentProfile {
-        get { d.data(forKey: "teacher.profile").flatMap { try? JSONDecoder().decode(StudentProfile.self, from: $0) } ?? StudentProfile() }
+        get {
+            var p = d.data(forKey: "teacher.profile").flatMap { try? JSONDecoder().decode(StudentProfile.self, from: $0) } ?? StudentProfile()
+            // Profiles saved before the kit was corrected say TD-7; the kit is a TD-4K.
+            p.instruments = p.instruments.map { $0 == "Roland TD-7" ? "Roland TD-4K" : $0 }
+            return p
+        }
         set { d.set(try? JSONEncoder().encode(newValue), forKey: "teacher.profile") }
     }
 

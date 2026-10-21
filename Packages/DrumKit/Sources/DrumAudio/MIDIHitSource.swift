@@ -4,7 +4,7 @@ import DrumCore
 import Foundation
 import os
 
-/// Receives note-ons from every connected MIDI source (USB-MIDI cable from the TD-7, Bluetooth MIDI…).
+/// Receives note-ons from every connected MIDI source (USB-MIDI cable from the TD-4K, Bluetooth MIDI…).
 public final class MIDIHitSource: HitSource, @unchecked Sendable {
     public let hits: AsyncStream<Hit>
     public let reportDelay: TimeInterval = 0.05

@@ -52,7 +52,7 @@
 **Tài liệu và thiết bị người dùng cung cấp (2026-10-21):**
 - **Tài liệu:** Stick Control (bản scan PDF) và Rockschool Drums Grade 1–4 (PDF).
 - **Grade 5–8:** người dùng sẽ upload sau. Họ yêu cầu: "báo tôi khi tôi đạt grade 6, tôi sẽ upload doc 6,7,8". Hiện **chưa có sách Grade 5**.
-- **Thiết bị:** Roland **TD-7** (chỉ có MIDI OUT 5 chân, cần cáp USB-MIDI), pad 12", dùi 5A.
+- **Thiết bị:** Roland **TD-4K** (chỉ có MIDI OUT 5 chân, cần cáp USB-MIDI), pad 12", dùi 5A.
 - **Cấu trúc thi Rockschool thật (lấy từ sách):**
   - Grade 1–5: 3 bài biểu diễn (3×20 điểm), Technical Exercises (15), Sight Reading hoặc Improvisation & Interpretation (10), Ear Tests (10), GMQ (5).
   - Grade 6–8: Sight Reading / I&I được thay bằng Quick Study Piece.
@@ -901,7 +901,7 @@ public struct MIDILearn: Sendable { public init(); public mutating func expect(_
   - **Ear Test:** `DrumSynth` phát mẫu bằng âm trống tổng hợp, có count-in 1 ô nhịp; người dùng đánh lại; chấm bằng HitMatcher.
   - **GMQ:** dạng quiz trắc nghiệm.
   - **LessonsView:** 8 bài từ `docs/giao-trinh.html`, mỗi bài có checklist tự kiểm tra và nút "Tập ngay" mở bài tập tương ứng. Ví dụ bài 3 mở bài chỉ-tay-phải / chỉ-tay-trái ở 50 BPM.
-  - **MIDI learn cho TD-7:** nằm trong Settings, hướng dẫn đánh lần lượt từng pad.
+  - **MIDI learn cho TD-4K:** nằm trong Settings, hướng dẫn đánh lần lượt từng pad.
   - **Thông báo khi đạt grade mà thiếu sách grade sau:** dùng `missingGrades`.
 - [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: Rockschool grade syllabus, ear tests, GMQ quiz, lessons and MIDI learn`.
 

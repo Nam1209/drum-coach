@@ -29,7 +29,7 @@ struct LessonsView: View {
             L("Lưng thẳng nhưng không gồng, ngồi nửa trước mặt ghế; vai thả lỏng.", "Back straight but not stiff, sit on the front half of the seat; shoulders relaxed."),
             L("Khuỷu tay buông tự nhiên gần thân.", "Let your elbows hang naturally close to your body."),
             L("Pad 12\" trên chân snare, cao khoảng ngang rốn; cẳng tay gần song song mặt pad.", "12\" pad on the snare stand, about navel height; forearms nearly parallel to the pad."),
-            L("Snare của TD-7 chỉnh y như pad để chuyển qua lại không đổi cảm giác.", "Set the TD-7 snare to the same height as the pad so switching feels the same."),
+            L("Snare của TD-4K chỉnh y như pad để chuyển qua lại không đổi cảm giác.", "Set the TD-4K snare to the same height as the pad so switching feels the same."),
         ], checklist: [c("Vai không nhô lên", "Shoulders not raised"), c("Khuỷu tay sát thân", "Elbows close to the body"), c("Cẳng tay song song mặt pad", "Forearms parallel to the pad")], practice: nil),
         Lesson(id: 2, title: L("Cách cầm dùi (matched grip)", "Holding the sticks (matched grip)"), points: [
             L("Tìm điểm cân bằng: cầm hờ, thả dùi rơi xuống pad, dịch điểm cầm tới chỗ dùi nảy lại nhiều nhất (~1/3 từ đuôi, dùi 5A ≈ 13–14 cm).", "Find the balance point: hold loosely, drop the stick on the pad, and slide your grip to where it rebounds most (~1/3 from the butt, about 13–14 cm on a 5A)."),
@@ -75,11 +75,12 @@ struct LessonsView: View {
             L("15–25: Rockschool grade hiện tại đúng tempo thi.", "15–25: your current Rockschool grade at exam tempo."),
             L("25–30: Count Coach hoặc đọc nhạc, ghi âm 1 lượt.", "25–30: Count Coach or sight-reading, record one take."),
         ], checklist: [c("Bấm \"Bắt đầu buổi tập\" ở tab Hôm nay", "Tap \"Start session\" on the Today tab")], practice: nil),
-        Lesson(id: 8, title: L("Roland TD-7 với iPad", "Roland TD-7 with iPad"), points: [
-            L("TD-7 chỉ có MIDI OUT 5 chân: cần cáp USB-MIDI (vd. Roland UM-ONE) + adapter USB-C.", "The TD-7 only has a 5-pin MIDI OUT: you need a USB-MIDI cable (e.g. Roland UM-ONE) plus a USB-C adapter."),
-            L("Vào Cài đặt → MIDI learn, đánh từng pad một lần.", "Go to Settings → MIDI learn and hit each pad once."),
+        Lesson(id: 8, title: L("Roland TD-4K với iPad", "Roland TD-4K with iPad"), points: [
+            L("TD-4K chỉ có MIDI OUT 5 chân: cần cáp USB-MIDI (vd. Roland UM-ONE) + adapter USB-C.", "The TD-4K only has a 5-pin MIDI OUT: you need a USB-MIDI cable (e.g. Roland UM-ONE) plus a USB-C adapter."),
+            L("Pedal hi-hat FD-8 do mô-đun TD-4 tự xử lý: nó gửi sẵn nốt hi-hat đóng hoặc mở, nên không cần bật \"Hi-hat theo pedal (CC4)\" trong Cài đặt.", "The TD-4 module handles the FD-8 hi-hat pedal itself and already sends closed or open hi-hat notes, so leave \"Hi-hat by pedal (CC4)\" off in Settings."),
+            L("Cắm cáp là app tự nhận từng trống theo bảng nốt mặc định của Roland. Vào Cài đặt → MIDI learn để kiểm tra: pad nào hiện \"chưa gán\" thì bấm Học rồi đánh pad đó.", "Once the cable is in, the app recognises each drum from Roland's default note map. Check it in Settings → MIDI learn: if a pad shows \"not mapped\", tap Learn and hit that pad."),
             L("Chưa có cáp: dùng micro như pad tập (chấm sớm/muộn, không biết trống nào).", "No cable yet: use the microphone like a practice pad (early/late scoring, but it can't tell which drum)."),
-        ], checklist: [c("MIDI learn đủ các pad", "MIDI learn done for all pads"), c("Hiệu chỉnh độ trễ cho trống điện", "Latency calibration for the e-drum kit")], practice: nil),
+        ], checklist: [c("Mọi pad đều được nhận đúng trống", "Every pad is recognised as the right drum"), c("Hiệu chỉnh độ trễ cho trống điện", "Latency calibration for the e-drum kit")], practice: nil),
     ] }
 
     @AppStorage("lessonChecks") private var checksRaw = ""

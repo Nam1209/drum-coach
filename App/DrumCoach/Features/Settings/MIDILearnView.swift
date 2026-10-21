@@ -3,7 +3,7 @@ import DrumCore
 import DrumLibrary
 import SwiftUI
 
-/// Hit each pad of the kit once so the app learns its MIDI notes (Roland TD-7 via a USB-MIDI cable).
+/// Hit each pad of the kit once so the app learns its MIDI notes (Roland TD-4K via a USB-MIDI cable).
 struct MIDILearnView: View {
     @State private var learn = MIDILearn(map: SettingsStore.midiMap())
     @State private var waitingFor: Voice?
@@ -16,7 +16,7 @@ struct MIDILearnView: View {
         Form {
             Section {
                 Text(L("Nguồn MIDI đang kết nối: \(MIDIHitSource.sourceCount)", "Connected MIDI sources: \(MIDIHitSource.sourceCount)")).foregroundStyle(MIDIHitSource.sourceCount > 0 ? .green : .orange)
-                if MIDIHitSource.sourceCount == 0 { Text(L("Cắm cáp USB-MIDI từ cổng MIDI OUT của TD-7 vào iPad.", "Connect a USB-MIDI cable from the TD-7 MIDI OUT port to the iPad.")).font(.callout) }
+                if MIDIHitSource.sourceCount == 0 { Text(L("Cắm cáp USB-MIDI từ cổng MIDI OUT của TD-4K vào iPad.", "Connect a USB-MIDI cable from the TD-4K MIDI OUT port to the iPad.")).font(.callout) }
                 if let lastNote {
                     let v = DrumCore.Voice.from(midiNote: lastNote, overrides: learn.map)
                     Text(L("Nốt \(lastNote) → \(v?.localizedName ?? "chưa gán, sẽ bị bỏ qua khi chấm")", "Note \(lastNote) → \(v?.localizedName ?? "not mapped, ignored when scoring")")).font(Theme.number(17, weight: .medium))
