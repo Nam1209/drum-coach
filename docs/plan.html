@@ -264,13 +264,24 @@ footer{color:var(--muted);font-size:.85rem;text-align:center;margin-top:24px}
       <div class="card" style="background:var(--surface)"><b>⑤ "Hôm nay tập gì"</b> → bấm Bắt đầu, app chạy lần lượt: Khởi động → Bài chính → Bài vui, với tempo đặt sẵn → quay lại ①</div>
     </div>
   </div>
+  <h3>Dùng gói Claude Pro, không tốn thêm tiền: cầu nối qua Notion</h3>
+  <div class="mock" style="margin:10px 0 16px">
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:.92rem">
+      <div class="card" style="background:var(--surface)"><b>1. DrumCoach – bấm "Gửi cho thầy"</b> → app đẩy báo cáo lịch sử lên Notion <code>DrumCoach › Hộp thư</code>, copy lời nhắn và mở app Claude</div>
+      <div style="text-align:center;color:var(--muted)">↓</div>
+      <div class="card" style="background:var(--surface)"><b>2. App Claude (Pro), Project "Thầy dạy trống"</b> → dán lời nhắn rồi gửi. Claude đọc Hộp thư, phân tích, tìm video, rồi ghi <b>Kế hoạch</b> lên Notion <code>DrumCoach › Kế hoạch</code></div>
+      <div style="text-align:center;color:var(--muted)">↓</div>
+      <div class="card" style="background:var(--accent-soft)"><b>3. DrumCoach – bấm "Đồng bộ"</b> (hoặc tự đồng bộ khi mở app) → kiểm tra bài và link → <b>"Áp dụng kế hoạch mới?"</b> → cập nhật "Hôm nay tập gì"</div>
+    </div>
+  </div>
+  <p class="muted">Cài đặt một lần: tạo Notion integration (dán token vào app), tạo trang DrumCoach, tạo Project trên claude.ai rồi dán hướng dẫn do app cung cấp. Nếu sau này bạn nhập API key thì bước 2 chạy tự động hoàn toàn.</p>
   <div class="grid2">
     <div class="card"><h4>Thầy có trí nhớ</h4>Hồ sơ học viên gồm mục tiêu (Grade 8), số phút tập mỗi ngày, ghi chú của bạn ("cổ tay trái yếu"), và mọi lời khuyên đã đưa. Tuần sau thầy kiểm tra bạn đã làm theo chưa.</div>
     <div class="card"><h4>Không bịa link</h4>Claude dùng web search để tìm video thật. App kiểm tra lại từng link YouTube; link hỏng được thay bằng link tìm kiếm YouTube với đúng từ khóa.</div>
     <div class="card"><h4>Hỏi thầy bất cứ lúc nào</h4>Chat tự do, ví dụ "Tại sao tôi hay trễ ở &amp;?". Thầy thấy được lịch sử của bạn và báo cáo gần nhất.</div>
     <div class="card"><h4>Lịch sử không bao giờ mất</h4>Lưu trên máy từ buổi tập đầu tiên. Mỗi Chủ nhật tự backup ra file JSON (Files / iCloud Drive), và nhập lại được khi đổi máy.</div>
   </div>
-  <p class="muted">Thầy AI dùng Claude Opus 5.5, ước tính khoảng 2–5 USD/tháng. App hiện ước tính chi phí trước khi gửi. Claude chỉ nhận bản tóm tắt, không nhận dữ liệu thô.</p>
+  <p class="muted">Mặc định đi qua gói Claude Pro + Notion: không tốn thêm tiền. Nhập API key (tùy chọn) để chạy tự động hoàn toàn, khoảng 2–5 USD/tháng. Claude chỉ nhận bản tóm tắt, không nhận dữ liệu thô.</p>
 </section>
 
 <section id="dem">

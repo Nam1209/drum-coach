@@ -673,6 +673,60 @@ public enum HistorySummarizer { public static func digest(_ records: [SessionRec
   - **Backup:** xuất toàn bộ lịch sử ra một file JSON (`DrumCoach-backup-YYYY-MM-DD.json`) vào Files hoặc iCloud Drive, và nhập lại được. Mỗi Chủ nhật tự backup vào thư mục Documents của app (bật trong Files). Test round-trip: xuất rồi nhập vào store rỗng phải ra cùng số bản ghi và cùng score.
 - [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: long-term practice history, digest and backup`.
 
+### Task 13B: Cầu nối Claude Pro qua Notion (cách mặc định, không tốn API)
+
+Người dùng dùng **gói Claude Pro**. Gói này không có API, nên app không gọi Claude trực tiếp mà đi qua Notion. Claude trong app Claude (Pro) có connector Notion nên đọc/ghi được, còn DrumCoach đọc/ghi qua Notion API bằng internal integration token.
+
+Luồng hoạt động:
+1. **Bấm "Gửi cho thầy"** trong DrumCoach. App làm ba việc:
+   - tạo trang con `Báo cáo YYYY-MM-DD` dưới trang `DrumCoach › Hộp thư`, chứa `HistoryDigest` và `StudentProfile` dạng JSON trong code block;
+   - copy lời nhắn ngắn vào clipboard ("Thầy ơi, xem báo cáo YYYY-MM-DD");
+   - mở app Claude bằng `https://claude.ai/new` (universal link).
+2. **Trong Project "Thầy dạy trống" trên Claude:** người dùng dán lời nhắn rồi gửi. Theo hướng dẫn của Project, Claude:
+   - đọc báo cáo mới nhất trong Hộp thư;
+   - phân tích và dùng web search tìm video;
+   - tạo trang `Kế hoạch YYYY-MM-DD` dưới `DrumCoach › Kế hoạch`, gồm phần đọc cho người (tiến bộ, 3 điều cần sửa, video) và một code block ```json chứa `TeacherReport`.
+3. **Bấm "Đồng bộ"** trong DrumCoach. App tự đồng bộ thêm mỗi lần mở app. App:
+   - đọc trang Kế hoạch mới nhất chưa import và ghép các rich_text của code block thành JSON;
+   - decode thành `TeacherReport` rồi kiểm tra: DSL parse được, exerciseId có thật, link YouTube có thật (oEmbed);
+   - hiện màn hình **"Áp dụng kế hoạch mới?"** để so plan cũ và plan mới;
+   - khi bấm Áp dụng thì cập nhật "Hôm nay tập gì", tempo mục tiêu và bài mới vào thư viện, rồi ghi `fixFirst` vào `pastAdvice`.
+
+**Files:** Create `DrumAI/NotionClient.swift`, `DrumAI/NotionBridge.swift`, `DrumAI/TeacherProjectKit.swift`, `App/.../Teacher/SyncView.swift`, `App/.../Teacher/ApplyPlanView.swift`; Test `NotionBridgeTests.swift`
+
+**Interfaces – Produces:**
+```swift
+public struct NotionClient: Sendable {   // Notion REST API, header "Notion-Version" lấy theo bản hiện hành lúc implement
+  public init(token: String, transport: HTTPTransport)
+  public func createChildPage(parent: String, title: String, codeBlockJSON: String) async throws -> String   // tách JSON thành các rich_text ≤ 2000 ký tự
+  public func childPages(of parent: String) async throws -> [(id: String, title: String, created: Date)]
+  public func codeBlocks(of page: String, language: String) async throws -> [String]                       // ghép rich_text lại
+}
+public struct NotionBridge: Sendable {
+  public init(client: NotionClient, inboxPageId: String, plansPageId: String)
+  public func send(digest: HistoryDigest, profile: StudentProfile, date: Date) async throws -> (pageTitle: String, prompt: String)
+  public func fetchNewPlans(after lastImported: Date?) async throws -> [(title: String, report: Result<TeacherReport, BridgeError>)]
+}
+public enum BridgeError: Error, Equatable { case noJSONBlock, invalidJSON(String), schemaMismatch(String) }
+public enum TeacherProjectKit {
+  public static let projectInstructions: String   // hướng dẫn dán vào Project trên claude.ai: vai trò thầy, quy trình đọc Hộp thư → ghi Kế hoạch, schema JSON, ngữ pháp DSL, danh sách exerciseId
+}
+```
+- [ ] **Bước 1: Test** (fake transport):
+  - Digest 24 KB → request tạo trang có code block được tách thành các rich_text, mỗi cái ≤ 2000 ký tự; ghép lại phải ra đúng chuỗi ban đầu.
+  - Trang Kế hoạch có JSON hợp lệ → `.success`; không có code block → `.noJSONBlock`; JSON hỏng → `.invalidJSON`; thiếu field → `.schemaMismatch`.
+  - `fetchNewPlans(after:)` bỏ qua trang cũ hơn hoặc bằng `lastImported`.
+  - `projectInstructions` chứa schema `TeacherReport` và ví dụ DSL. Ví dụ JSON trong instructions phải decode được thành `TeacherReport` (test bắt lỗi khi schema code và instructions lệch nhau).
+- [ ] **Bước 2:** FAIL. **Bước 3:** Implement.
+  - **Màn hình cài đặt một lần** "Kết nối thầy AI", hướng dẫn từng bước kèm nút copy:
+    1. Tạo Notion integration và dán token (lưu Keychain).
+    2. Tạo trang DrumCoach, share trang đó cho integration, dán link trang. App tự tạo 2 trang con Hộp thư và Kế hoạch.
+    3. Trên claude.ai tạo Project "Thầy dạy trống", dán `projectInstructions`, bật connector Notion và web search.
+  - Chạy được cả khi không có mạng: báo cáo chờ gửi lại sau.
+- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: Claude Pro bridge via Notion (send digest, sync and apply plan)`.
+
+**Liên quan đến Task 9, 10, 14:** `ClaudeClient` (API) trở thành **tùy chọn**, chỉ dùng khi người dùng nhập API key trong Settings; khi đó "Gửi cho thầy" chạy tự động hoàn toàn. Không có key thì: đọc PDF làm qua Project (gửi ảnh trang, Claude ghi bài DSL vào trang `DrumCoach › Bài tập mới`, app Sync về), đánh giá Task 10 dùng `localFallback`, còn chat với thầy làm ngay trong Project trên claude.ai (Task 15 bỏ TeacherChatView khi không có key).
+
 ### Task 14: Giáo viên AI – báo cáo tuần, kế hoạch, tài liệu gợi ý
 
 **Files:** Create `DrumAI/TeacherReport.swift`, `DrumAI/StudentProfile.swift`, `DrumAI/ResourceValidator.swift`, `App/.../Teacher/TeacherView.swift`, `App/Models/StoredReport.swift`; Test `TeacherReportTests.swift`, `ResourceValidatorTests.swift`
@@ -764,7 +818,7 @@ public struct TeacherChat: Sendable {
 
 ## Thứ tự và kiểm tra cuối
 
-Thứ tự làm: Task 1 → 2 → 3 → 4 → 5 → 6 → 7 → 7A. Đến đây đã có app dùng được hằng ngày: metronome, giọng đếm mượt, khuông nhạc chạy, đo sớm/trễ, luyện đếm. Sau đó làm 8 → 9 → 10 → 10A → 13 → 14 → 15 → 11 → 12. Giáo viên AI (13–15) được làm trước biểu đồ tiến độ (11), vì người dùng không có giáo viên thật.
+Thứ tự làm: Task 1 → 2 → 3 → 4 → 5 → 6 → 7 → 7A. Đến đây đã có app dùng được hằng ngày: metronome, giọng đếm mượt, khuông nhạc chạy, đo sớm/trễ, luyện đếm. Sau đó làm 8 → 9 → 10 → 10A → 13 → 13B → 14 → 15 → 11 → 12. Ở Task 14, phần `TeacherReport`, `StudentProfile` và `ResourceValidator` dùng chung cho cả hai đường (Notion và API). Chỉ hàm `Teacher.weeklyReport` là thuộc đường API. Giáo viên AI (13–15) được làm trước biểu đồ tiến độ (11), vì người dùng không có giáo viên thật.
 
 **Stick Control trong app:** generator ở Task 8 sinh các tổ hợp sticking cùng kiểu. Bài trong sách thật thì người dùng nhập qua PDF (Task 9). Mỗi bài mặc định lặp 20 lần liên tục rồi mới chuyển bài, tempo ramp 50 → 90.
 
