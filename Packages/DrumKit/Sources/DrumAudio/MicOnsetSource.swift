@@ -8,17 +8,22 @@ public final class MicOnsetSource: HitSource, @unchecked Sendable {
     public let hits: AsyncStream<Hit>
     private let continuation: AsyncStream<Hit>.Continuation
     private let engine = AVAudioEngine()
-    private let detector = OSAllocatedUnfairLock<OnsetDetector?>(initialState: nil)
+    private let detector = OSAllocatedUnfairLock<(any OnsetDetecting)?>(initialState: nil)
+    private let makeDetector: @Sendable (Double) -> any OnsetDetecting
     private let offset: OSAllocatedUnfairLock<TimeInterval>
-    private let sensitivity: Double
 
     /// - Parameters:
     ///   - calibrationOffset: measured extra latency (seconds) subtracted from every hit.
     ///   - threshold: onset threshold (lower = more sensitive).
-    public init(calibrationOffset: TimeInterval = 0, threshold: Double = 0.15) {
+    public convenience init(calibrationOffset: TimeInterval = 0, threshold: Double = 0.15) {
+        self.init(calibrationOffset: calibrationOffset) { OnsetDetector(sampleRate: $0, threshold: threshold) }
+    }
+
+    /// Use a custom detector, e.g. `SyllableOnsetDetector` for spoken counting.
+    public init(calibrationOffset: TimeInterval = 0, makeDetector: @escaping @Sendable (Double) -> any OnsetDetecting) {
         (hits, continuation) = AsyncStream.makeStream(of: Hit.self, bufferingPolicy: .bufferingNewest(256))
         offset = OSAllocatedUnfairLock(initialState: calibrationOffset)
-        sensitivity = threshold
+        self.makeDetector = makeDetector
     }
 
     public func setCalibrationOffset(_ value: TimeInterval) { offset.withLock { $0 = value } }
@@ -31,7 +36,8 @@ public final class MicOnsetSource: HitSource, @unchecked Sendable {
     public func start() throws {
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
-        detector.withLock { $0 = OnsetDetector(sampleRate: format.sampleRate, threshold: sensitivity) }
+        let made = makeDetector(format.sampleRate)
+        detector.withLock { $0 = made }
         #if os(iOS)
         let inputLatency = AVAudioSession.sharedInstance().inputLatency
         #else

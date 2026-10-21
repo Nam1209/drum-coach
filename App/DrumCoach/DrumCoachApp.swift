@@ -12,6 +12,9 @@ struct DrumCoachApp: App {
                 Tab("Tập", systemImage: "music.note") {
                     PracticeView(exercises: StarterExercises.all, voiceBank: voiceBank)
                 }
+                Tab("Đếm nhịp", systemImage: "waveform") {
+                    NavigationStack { CountCoachView(voiceBank: voiceBank) }
+                }
                 Tab("Metronome", systemImage: "metronome") {
                     MetronomeView(voiceBank: voiceBank)
                 }
