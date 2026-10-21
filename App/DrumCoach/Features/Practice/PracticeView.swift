@@ -9,6 +9,7 @@ struct PracticeView: View {
     @StateObject private var model: PracticeViewModel
     @State private var showSheet = false
     @State private var showCalibration = false
+    @State private var showCamera = false
     private let voiceBank: CountVoiceBank
     @Environment(\.modelContext) private var modelContext
     @State private var taps: [Date] = []
@@ -62,6 +63,7 @@ struct PracticeView: View {
         }
         .sheet(isPresented: $showSheet) { MetronomeSheet(settings: $model.settings) }
         .sheet(isPresented: $showCalibration) { CalibrationView(voiceBank: voiceBank) }
+        .sheet(isPresented: $showCamera) { PostureCameraView(exerciseTitle: model.exercise.title) }
         .sheet(item: $model.finishedStats) { stats in
             ResultsView(stats: stats, title: model.exercise.title, bpm: model.settings.bpm,
                         input: model.assessmentInput(for: stats), session: model.lastSession)
@@ -83,6 +85,8 @@ struct PracticeView: View {
                 ForEach(NotationDisplay.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented).frame(width: 180)
+            Button { showCamera = true } label: { Image(systemName: "camera") }
+                .buttonStyle(.bordered).accessibilityLabel("Soi tư thế")
             Button { showCalibration = true } label: { Image(systemName: "dot.radiowaves.left.and.right") }
                 .buttonStyle(.bordered).accessibilityLabel("Hiệu chỉnh độ trễ")
         }

@@ -32,14 +32,20 @@ public indirect enum JSONValue: Sendable, Equatable, Encodable {
 }
 
 public enum ContentBlock: Sendable {
+    static func image(_ d: Data, _ type: String) -> JSONValue {
+        .object(["type": .string("image"), "source": .object(["type": .string("base64"), "media_type": .string(type),
+                                                              "data": .string(d.base64EncodedString())])])
+    }
+
     case text(String)
     case imagePNG(Data)
+    case imageJPEG(Data)
 
     var json: JSONValue {
         switch self {
         case .text(let t): .object(["type": .string("text"), "text": .string(t)])
-        case .imagePNG(let d): .object(["type": .string("image"), "source": .object([
-            "type": .string("base64"), "media_type": .string("image/png"), "data": .string(d.base64EncodedString())])])
+        case .imagePNG(let d): Self.image(d, "image/png")
+        case .imageJPEG(let d): Self.image(d, "image/jpeg")
         }
     }
 }
