@@ -12,6 +12,9 @@ struct DrumCoachApp: App {
                 Tab("Tập", systemImage: "music.note") {
                     PracticeView(exercises: StarterExercises.all, voiceBank: voiceBank)
                 }
+                Tab("Thư viện", systemImage: "books.vertical") {
+                    NavigationStack { LibraryView(voiceBank: voiceBank) }
+                }
                 Tab("Đếm nhịp", systemImage: "waveform") {
                     NavigationStack { CountCoachView(voiceBank: voiceBank) }
                 }
@@ -21,7 +24,7 @@ struct DrumCoachApp: App {
             }
             .tint(.orange)
             .task { await voiceBank.prepare() }
-            .modelContainer(for: PracticeSession.self)
+            .modelContainer(for: [PracticeSession.self, StoredExercise.self])
         }
     }
 }

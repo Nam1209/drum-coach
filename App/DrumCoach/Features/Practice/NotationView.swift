@@ -71,7 +71,7 @@ struct NotationView: View {
         let stemTopStep = 13
         var seenVoices = Set<Voice>()
         let stacks = Dictionary(grouping: l.glyphs) { "\($0.line)-\(Int($0.x * 10))" }
-        for (_, stack) in stacks {
+        for stack in stacks.values.sorted(by: { ($0[0].line, $0[0].x) < ($1[0].line, $1[0].x) }) {
             let lowest = stack.min { $0.staffStep < $1.staffStep }!
             let color = stack.compactMap { noteColor($0.noteIndex) }.first ?? .primary
             var stem = Path()
