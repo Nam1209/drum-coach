@@ -24,6 +24,7 @@ extension NotionError {
         case .http(429, _): L("Notion đang giới hạn số yêu cầu. Thử lại sau ít phút.", "Notion is rate-limiting requests. Try again in a few minutes.")
         case .http(let code, _): L("Notion trả lỗi \(code). Thử lại sau.", "Notion returned error \(code). Try again later.")
         case .badResponse: L("Notion trả về dữ liệu không đọc được, hoặc link trang DrumCoach không đúng.", "Notion returned unreadable data, or the DrumCoach page link is wrong.")
+        case .noSharedPage: L("Mã đúng nhưng integration chưa được vào trang nào. Trong trang integration → tab Access → chọn trang DrumCoach, rồi bấm Kết nối lại.", "The token works but the integration can't see any page. On the integration's page → Access tab → pick the DrumCoach page, then tap Connect again.")
         }
     }
 }

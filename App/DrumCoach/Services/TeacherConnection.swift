@@ -45,21 +45,32 @@ enum TeacherConnection {
         return NotionBridge(client: NotionClient(token: token), inboxPageId: inbox, plansPageId: plans, exercisesPageId: exercisesPageId)
     }
 
-    /// Creates "Hộp thư", "Kế hoạch" and "Bài tập mới" under the user's DrumCoach page.
-    static func setUp(token: String, rootLink: String) async throws {
-        guard let root = NotionClient.pageId(fromLink: rootLink) else { throw NotionError.badResponse }
-        Keychain.set(token, for: Keychain.notionToken)
+    static var guideTitle: String { L("Hướng dẫn cho thầy", "Teacher guide") }
+
+    /// One step: with just the token, find the page shared with the integration, set up "Hộp thư", "Kế hoạch",
+    /// "Bài tập mới" and the teacher guide inside it.
+    static func connect(token: String, catalog: [String: String]) async throws {
+        let token = token.trimmingCharacters(in: .whitespacesAndNewlines)
         let client = NotionClient(token: token)
-        inboxPageId = try await client.createChildPage(parent: root, title: L("Hộp thư", "Inbox"))
-        plansPageId = try await client.createChildPage(parent: root, title: L("Kế hoạch", "Plans"))
-        exercisesPageId = try await client.createChildPage(parent: root, title: L("Bài tập mới", "New exercises"))
-        rootPageId = root
+        let ws = try await NotionSetup.connect(client: client, titles: .init(inbox: L("Hộp thư", "Inbox"), plans: L("Kế hoạch", "Plans"),
+                                                                            exercises: L("Bài tập mới", "New exercises")))
+        Keychain.set(token, for: Keychain.notionToken)
+        rootPageId = ws.root; inboxPageId = ws.inbox; plansPageId = ws.plans; exercisesPageId = ws.exercises
+        try await publishGuide(catalog: catalog)
+    }
+
+    /// The teacher's instructions live in Notion, so no Claude Project has to be set up or kept up to date by hand.
+    static func publishGuide(catalog: [String: String]) async throws {
+        guard let token = Keychain.get(Keychain.notionToken), let root = rootPageId else { return }
+        try await NotionSetup.publishGuide(client: NotionClient(token: token), root: root, title: guideTitle,
+                                           text: TeacherProjectKit.projectInstructions(exerciseCatalog: catalog))
     }
 
     /// Upload the weekly digest (plus a full backup), copy the message, and open the Claude app.
     static func sendWeekly(_ ctx: ModelContext) async throws -> String {
         guard let bridge else { throw NotionError.badResponse }
         let out = try await bridge.send(kind: .weekly, payload: HistoryStore.digest(ctx), profile: profile, date: Date())
+        try? await publishGuide(catalog: ExerciseCatalog.titles(ctx))   // keeps the exercise list in the guide current
         handOff(out.prompt)
         do {
             _ = try await bridge.send(kind: .backup, payload: try HistoryStore.backup(ctx), profile: profile, date: Date())
@@ -79,7 +90,9 @@ enum TeacherConnection {
     }
 
     static func handOff(_ prompt: String) {
-        UIPasteboard.general.string = prompt
+        let intro = L("Dùng connector Notion: đọc trang \"DrumCoach › \(guideTitle)\" và làm đúng theo đó. ",
+                      "Use the Notion connector: read the page \"DrumCoach › \(guideTitle)\" and follow it exactly. ")
+        UIPasteboard.general.string = intro + prompt
         if let url = URL(string: "https://claude.ai/new") { UIApplication.shared.open(url) }
     }
 

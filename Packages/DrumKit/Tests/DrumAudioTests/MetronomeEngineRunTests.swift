@@ -48,3 +48,16 @@ import Testing
     try await Task.sleep(for: .milliseconds(400))
     player.stop()
 }
+
+/// The voice is rendered in the background at launch; a count started before it is ready must pick it up once it is.
+@MainActor
+@Test(.timeLimit(.minutes(1))) func countingVoiceArrivesAfterTheEngineStarted() async throws {
+    let bank = CountVoiceBank()
+    let engine = MetronomeEngine(voiceBank: bank)
+    do { try engine.start(settings: MetronomeSettings(bpm: 90, voiceCount: .quarters)) } catch { return }
+    defer { engine.stop() }
+    #expect(engine.cachedSyllables.isEmpty)
+    bank.setCustomSyllable("1", samples: (0..<4800).map { sin(Float($0) * 0.1) * 0.5 })
+    try await Task.sleep(for: .milliseconds(200))
+    #expect(engine.cachedSyllables.contains("1"))
+}

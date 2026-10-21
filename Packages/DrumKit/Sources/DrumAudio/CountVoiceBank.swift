@@ -13,6 +13,9 @@ public final class CountVoiceBank: @unchecked Sendable {
         "e": "ee", "&": "and", "a": "uh", "trip": "trip", "let": "let",
     ]
 
+    /// Posted (object: the bank) whenever a syllable is added or replaced, so a running count can pick it up.
+    public static let didChange = Notification.Name("CountVoiceBank.didChange")
+
     public init(sampleRate: Double = 48_000) { self.sampleRate = sampleRate }
 
     /// Ratio (≤ 1) to speed a syllable up so it ends within 90% of its slot instead of being cut off.
@@ -30,6 +33,7 @@ public final class CountVoiceBank: @unchecked Sendable {
     public func setCustomSyllable(_ label: String, samples: [Float]) {
         let shaped = Self.shape(samples, sampleRate: sampleRate)
         lock.lock(); syllables[label] = shaped; lock.unlock()
+        NotificationCenter.default.post(name: Self.didChange, object: self)
     }
 
     /// Syllable fitted to `slot` seconds and converted to the output device's `outputRate`
@@ -74,6 +78,7 @@ public final class CountVoiceBank: @unchecked Sendable {
             guard !raw.isEmpty else { continue }
             let shaped = Self.shape(raw, sampleRate: sampleRate)
             lock.withLock { syllables[label] = shaped }
+            NotificationCenter.default.post(name: Self.didChange, object: self)
         }
     }
 
@@ -94,6 +99,8 @@ public final class CountVoiceBank: @unchecked Sendable {
         await withCheckedContinuation { (cont: CheckedContinuation<[Float], Never>) in
             let collector = SpeechCollector(targetRate: targetRate, continuation: cont)
             synth.write(u, toBufferCallback: bufferHandler(collector))
+            // If the synthesizer never sends its final empty buffer, keep what arrived instead of waiting forever.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { collector.finish() }
         }
     }
 
@@ -106,6 +113,7 @@ public final class CountVoiceBank: @unchecked Sendable {
 /// Accumulates AVSpeechSynthesizer output buffers, resampled to mono Float at `targetRate`.
 private final class SpeechCollector: @unchecked Sendable {
     let targetRate: Double
+    private let lock = NSLock()
     var samples: [Float] = []
     var continuation: CheckedContinuation<[Float], Never>?
 
@@ -114,13 +122,17 @@ private final class SpeechCollector: @unchecked Sendable {
         self.continuation = continuation
     }
 
-    func append(_ buffer: AVAudioBuffer) {
-        guard let pcm = buffer as? AVAudioPCMBuffer else { return }
-        if pcm.frameLength == 0 {
+    /// Resumes the waiting caller once, with whatever has been collected.
+    func finish() {
+        lock.withLock {
             continuation?.resume(returning: samples)
             continuation = nil
-            return
         }
+    }
+
+    func append(_ buffer: AVAudioBuffer) {
+        guard let pcm = buffer as? AVAudioPCMBuffer else { return }
+        if pcm.frameLength == 0 { finish(); return }
         let rate = pcm.format.sampleRate
         var mono: [Float] = []
         if let f = pcm.floatChannelData {
@@ -131,9 +143,11 @@ private final class SpeechCollector: @unchecked Sendable {
         guard rate > 0, !mono.isEmpty else { return }
         let ratio = targetRate / rate
         let outCount = Int(Double(mono.count) * ratio)
-        for k in 0..<outCount {
-            let x = Double(k) / ratio, j = Int(x)
-            samples.append(j < mono.count ? mono[j] : 0)
+        lock.withLock {
+            for k in 0..<outCount {
+                let x = Double(k) / ratio, j = Int(x)
+                samples.append(j < mono.count ? mono[j] : 0)
+            }
         }
     }
 }

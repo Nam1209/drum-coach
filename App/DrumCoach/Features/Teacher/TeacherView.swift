@@ -29,7 +29,7 @@ struct TeacherView: View {
                 }
                 if !TeacherConnection.isConfigured {
                     CardSection(footer: L("Dùng gói Claude Pro của bạn qua Notion, không tốn thêm tiền.", "Use your Claude Pro plan through Notion at no extra cost.")) {
-                        CardLink(L("Kết nối thầy AI (một lần)", "Connect the AI teacher (one time)"), subtitle: L("Hướng dẫn từng bước, khoảng 5 phút", "Step-by-step guide, about 5 minutes")) { TeacherSetupView() }
+                        CardLink(L("Kết nối thầy AI (một lần)", "Connect the AI teacher (one time)"), subtitle: L("Dán 1 mã từ Notion, khoảng 2 phút", "Paste one key from Notion, about 2 minutes")) { TeacherSetupView() }
                     }
                 } else {
                     Stage {

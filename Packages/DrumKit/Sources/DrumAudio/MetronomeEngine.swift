@@ -99,6 +99,11 @@ public final class MetronomeEngine: ObservableObject {
     private var startLatency: TimeInterval = 0
     /// Watches for the output device changing (headphones or a USB DAC plugged in or out).
     private var configObserver: NSObjectProtocol?
+    /// Watches for counting syllables becoming ready after the count has started.
+    private var voiceObserver: NSObjectProtocol?
+
+    /// Syllables the running count can speak (for tests).
+    var cachedSyllables: Set<String> { Set(renderer?.state.withLock { Array($0.syllableCache.keys) } ?? []) }
 
     public init(voiceBank: CountVoiceBank, settings: MetronomeSettings = MetronomeSettings(bpm: 70)) {
         self.voiceBank = voiceBank
@@ -150,6 +155,12 @@ public final class MetronomeEngine: ObservableObject {
                 try? self.start(settings: self.settings)
             }
         }
+        voiceObserver = NotificationCenter.default.addObserver(forName: CountVoiceBank.didChange, object: voiceBank, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, let r = self.renderer else { return }
+                self.refreshSyllables(r, settings: self.settings)
+            }
+        }
     }
 
     /// The render block runs on the audio thread. It is built in a nonisolated function so it does not inherit
@@ -169,6 +180,8 @@ public final class MetronomeEngine: ObservableObject {
     public func stop() {
         if let configObserver { NotificationCenter.default.removeObserver(configObserver) }
         configObserver = nil
+        if let voiceObserver { NotificationCenter.default.removeObserver(voiceObserver) }
+        voiceObserver = nil
         guard let node = sourceNode else { return }
         engine.stop()
         engine.detach(node)

@@ -20,7 +20,7 @@ public struct NotionClient: Sendable {
 
     /// Creates a child page; when `codeBlockJSON` is given it is stored in code blocks (≤ 2000-char pieces, ≤ 100 per block),
     /// sent in several requests (create, then append) so large backups stay under Notion's size limit.
-    public func createChildPage(parent: String, title: String, codeBlockJSON: String? = nil) async throws -> String {
+    public func createChildPage(parent: String, title: String, codeBlockJSON: String? = nil, codeLanguage: String = "json") async throws -> String {
         var blocks: [JSONValue] = []
         if let text = codeBlockJSON {
             let pieces = Self.chunks(text, size: Self.maxRichText)
@@ -29,7 +29,7 @@ public struct NotionClient: Sendable {
                     JSONValue.object(["type": .string("text"), "text": .object(["content": .string($0)])])
                 }
                 blocks.append(.object(["object": .string("block"), "type": .string("code"),
-                                       "code": .object(["language": .string("json"), "rich_text": .array(Array(rich))])]))
+                                       "code": .object(["language": .string(codeLanguage), "rich_text": .array(Array(rich))])]))
             }
         }
         let first = Array(blocks.prefix(Self.blocksPerRequest))
@@ -56,6 +56,26 @@ public struct NotionClient: Sendable {
             let created = (b["created_time"] as? String).flatMap(Self.parseDate) ?? .distantPast
             return (id, title, created)
         }
+    }
+
+    /// Pages this integration has been given access to, matching `query` (Notion's own title search).
+    public func searchPages(_ query: String = "") async throws -> [(id: String, title: String)] {
+        let json = try await request("search", method: "POST", body: .object([
+            "query": .string(query),
+            "filter": .object(["property": .string("object"), "value": .string("page")]),
+        ]))
+        return (json["results"] as? [[String: Any]] ?? []).compactMap { page in
+            guard let id = page["id"] as? String else { return nil }
+            let props = page["properties"] as? [String: Any] ?? [:]
+            let titleProp = props.values.compactMap { $0 as? [String: Any] }.first { $0["type"] as? String == "title" }
+            let title = (titleProp?["title"] as? [[String: Any]] ?? []).compactMap { $0["plain_text"] as? String }.joined()
+            return (id, title)
+        }
+    }
+
+    /// Moves a page to Notion's trash (recoverable there for 30 days).
+    public func archive(page: String) async throws {
+        _ = try await request("pages/\(page)", method: "PATCH", body: .object(["archived": .bool(true)]))
     }
 
     /// Text of every code block on the page (rich-text pieces joined).
@@ -122,4 +142,6 @@ public struct NotionClient: Sendable {
 public enum NotionError: Error, Equatable {
     case http(Int, String)
     case badResponse
+    /// The token works but no page was shared with the integration.
+    case noSharedPage
 }
