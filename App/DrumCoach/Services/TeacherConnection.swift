@@ -77,7 +77,7 @@ enum TeacherConnection {
                 ctx.insert(s)
                 stored.append(s)
             case .failure(let e):
-                problems.append("\(p.title): \(e)")
+                problems.append("\(p.title): \(e.userMessage)")
             }
             lastPlanSync = max(lastPlanSync ?? .distantPast, p.created)
         }

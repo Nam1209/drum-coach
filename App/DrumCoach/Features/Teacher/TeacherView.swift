@@ -67,13 +67,13 @@ struct TeacherView: View {
     private func send() async {
         working = true; defer { working = false }
         do { message = "Đã gửi \(try await TeacherConnection.sendWeekly(context)). Dán lời nhắn vào Claude nhé." }
-        catch { message = "Không gửi được: \(error)" }
+        catch { message = "Không gửi được: \(Friendly.message(error))" }
     }
 
     private func viaAPI(_ key: String) async {
         working = true; defer { working = false }
         do { pending = try await TeacherConnection.weeklyReportViaAPI(context, apiKey: key, model: model) }
-        catch { message = "Claude chưa trả lời được: \(error). Kế hoạch cũ vẫn giữ nguyên." }
+        catch { message = "\(Friendly.message(error)) Kế hoạch cũ vẫn giữ nguyên." }
     }
 
     private func sync(quiet: Bool = false) async {
@@ -81,10 +81,10 @@ struct TeacherView: View {
             let out = try await TeacherConnection.sync(context)
             if let first = out.plans.last { pending = first }
             if !quiet || !out.plans.isEmpty || out.exercises > 0 {
-                message = "Kế hoạch mới: \(out.plans.count) · Bài tập mới: \(out.exercises)" + (out.problems.isEmpty ? "" : "\nLỗi: " + out.problems.joined(separator: "; "))
+                message = "Kế hoạch mới: \(out.plans.count) · Bài tập mới: \(out.exercises)" + (out.problems.isEmpty ? "" : "\n" + out.problems.joined(separator: "\n"))
             }
         } catch {
-            if !quiet { message = "Không đồng bộ được: \(error)" }
+            if !quiet { message = "Không đồng bộ được: \(Friendly.message(error))" }
         }
     }
 }

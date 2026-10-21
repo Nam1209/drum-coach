@@ -56,7 +56,7 @@ struct TeacherChatView: View {
             messages.append((role: "assistant", text: a))
             error = nil
         } catch {
-            self.error = "Không gửi được: \(error)"
+            self.error = Friendly.message(error)
         }
     }
 }

@@ -48,7 +48,7 @@ struct TeacherSetupView: View {
             try await TeacherConnection.setUp(token: token, rootLink: link)
             message = "Đã tạo Hộp thư, Kế hoạch, Bài tập mới trong trang DrumCoach."
         } catch {
-            message = "Không kết nối được: \(error). Kiểm tra token và đã thêm integration vào trang chưa."
+            message = "Không kết nối được: \(Friendly.message(error))"
         }
     }
 }

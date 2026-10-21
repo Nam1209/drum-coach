@@ -21,7 +21,7 @@ struct JourneyView: View {
                     Button("Nhờ thầy tổng kết giai đoạn") {
                         Task {
                             do { sendMessage = "Đã gửi \(try await TeacherConnection.sendPeriod(review)). Dán lời nhắn vào Claude." }
-                            catch { sendMessage = "Không gửi được: \(error)" }
+                            catch { sendMessage = "Không gửi được: \(Friendly.message(error))" }
                         }
                     }
                     if let sendMessage { Text(sendMessage).font(.callout).foregroundStyle(.secondary) }

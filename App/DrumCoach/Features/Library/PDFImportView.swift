@@ -86,7 +86,7 @@ struct PDFImportView: View {
             pasted = dsl.joined(separator: "\n\n")
             message = dsl.isEmpty ? "Không đọc được bài nào trên trang này." : nil
         } catch {
-            message = "Lỗi Claude: \(error)"
+            message = error.userMessage
         }
     }
 

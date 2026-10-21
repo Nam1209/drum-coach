@@ -77,7 +77,7 @@ public enum AssessmentRequest {
         do {
             return (try await run(input, client: client), true, nil)
         } catch {
-            return (localFallback(input), false, "Không kết nối được Claude — đang dùng đánh giá cục bộ (\(error))")
+            return (localFallback(input), false, "\(error.userMessage) Đang dùng đánh giá cục bộ.")
         }
     }
 

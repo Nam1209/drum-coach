@@ -89,7 +89,7 @@ struct PostureCameraView: View {
     private func askAPI(_ key: String) async {
         working = true; defer { working = false }
         do { review = try await PostureCheck.review(frames: frames, exercise: exerciseTitle, client: ClaudeClient(apiKey: key, model: model)) }
-        catch { message = "Không gửi được: \(error)" }
+        catch { message = error.userMessage }
     }
 }
 
