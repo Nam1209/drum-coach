@@ -356,6 +356,7 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
         <div class="seg" id="ccMode"><button>1 2 3 4</button><button class="on">1 &amp;</button><button>1 e &amp; a</button><button>Chùm ba</button></div>
         <div class="syll" id="syll"></div>
         <div class="row"><button class="play" id="ccPlay" aria-label="Bắt đầu đếm"><span class="ring"></span><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></button>
+          <div class="tempo" id="ccTempo"><button class="step" data-d="-2" aria-label="Giảm tempo">−</button><div class="val"><span class="num" id="ccBpm">60</span><span class="foot sec">BPM</span></div><button class="step" data-d="2" aria-label="Tăng tempo">+</button></div>
           <div class="readout"><div class="v" id="ccScore" style="font-size:44px">–</div><div class="foot sec">độ đều</div></div>
           <div class="spacer"></div>
           <div class="callout sec" style="max-width:420px" id="ccTip">Mẹo: chữ "&amp;" hay bị vội. Kéo dài "một" cho tới đúng nửa phách rồi mới nói "và".</div></div>
@@ -791,15 +792,23 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
 
   // ---------- Count coach ----------
   const CC = { '1 2 3 4': ['1', '2', '3', '4'], '1 &': ['1', '&', '2', '&', '3', '&', '4', '&'], '1 e & a': ['1', 'e', '&', 'a', '2', 'e', '&', 'a'], 'Chùm ba': ['1', 'ta', 'ti', '2', 'ta', 'ti'] };
-  let ccSyl = CC['1 &'], ccOn = null;
+  // Syllables per beat for each counting mode.
+  const PER_BEAT = { '1 2 3 4': 1, '1 &': 2, '1 e & a': 4, 'Chùm ba': 3 };
+  let ccSyl = CC['1 &'], ccPer = 2, ccBpm = 60, ccOn = null;
   function drawSyll(now = -1, bars) { $('#syll').innerHTML = ccSyl.map((s, i) => `<div><b class="${i === now ? 'now' : ''}">${s}</b><span style="background:${bars && bars[i] ? css(bars[i]) : ''}"></span></div>`).join(''); }
-  segs($('#ccMode'), b => { ccSyl = CC[b.textContent]; drawSyll(); });
-  $('#ccPlay').onclick = () => {
-    if (ccOn) { clearInterval(ccOn); ccOn = null; $('#ccPlay').classList.remove('playing'); return; }
+  function stopCount() { if (ccOn) { clearInterval(ccOn); ccOn = null; } $('#ccPlay').classList.remove('playing'); }
+  function restartCount() { if (ccOn) { stopCount(); startCount(); } }
+  segs($('#ccMode'), b => { ccSyl = CC[b.textContent]; ccPer = PER_BEAT[b.textContent]; drawSyll(); restartCount(); });
+  $$('#ccTempo .step').forEach(b => b.onclick = () => {
+    ccBpm = Math.max(40, Math.min(120, ccBpm + +b.dataset.d)); $('#ccBpm').textContent = ccBpm; restartCount();
+  });
+  $('#ccPlay').onclick = () => ccOn ? stopCount() : startCount();
+  function startCount() {
     audio().resume(); $('#ccPlay').classList.add('playing'); let i = 0; const bars = [];
-    const step = 60 / bpm / (ccSyl.length / (ccSyl.length === 4 ? 4 : 2)) * 1000;
+    $('#ccPlay').style.setProperty('--beat', (60 / ccBpm) + 's');
+    const step = 60 / ccBpm / ccPer * 1000;
     ccOn = setInterval(() => { const k = i % ccSyl.length; click(audio().currentTime + .01, k === 0 ? 5 : ccSyl[k].match(/\d/) ? 4 : 2); bars[k] = ccSyl[k] === '&' && Math.random() < .35 ? '--off' : '--on'; drawSyll(k, bars); i++; if (i % ccSyl.length === 0) { const ok = bars.filter(b => b === '--on').length / ccSyl.length; $('#ccScore').textContent = Math.round(70 + ok * 28) + '%'; } }, step);
-  };
+  }
   drawSyll();
 
   // ---------- Lessons ----------
@@ -864,7 +873,7 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
   $('#calib').onclick = () => toast('Gõ pad theo 8 tiếng click. Độ trễ đo được: 38 ms, đã lưu.');
   segs($('#themeSeg'), b => { b.dataset.t ? document.documentElement.setAttribute('data-theme', b.dataset.t) : document.documentElement.removeAttribute('data-theme'); drawNotation(); drawLanes(0); drawBpmChart(); });
 
-  function stopAll() { stopPractice(); stopMetro(); if (ccOn) { clearInterval(ccOn); ccOn = null; $('#ccPlay').classList.remove('playing'); } }
+  function stopAll() { stopPractice(); stopMetro(); stopCount(); }
 
   setBpm(70); loadExercise('Single Strokes'); drawBpmChart();
   go((location.hash || '#today').slice(1));
