@@ -27,6 +27,14 @@ final class VoiceRecorder: ObservableObject {
         }
     }
 
+    /// The tap runs on the audio thread, so it is built outside the main actor (see MetronomeEngine.makeSourceNode).
+    nonisolated private static func tap(into collector: SampleCollector) -> AVAudioNodeTapBlock {
+        { buffer, _ in
+            guard let ch = buffer.floatChannelData?[0] else { return }
+            collector.append(Array(UnsafeBufferPointer(start: ch, count: Int(buffer.frameLength))))
+        }
+    }
+
     static func delete(_ label: String) { try? FileManager.default.removeItem(at: file(label)) }
 
     /// Record one second, resampled to the bank's rate, and save it.
@@ -35,10 +43,7 @@ final class VoiceRecorder: ObservableObject {
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
         let collector = SampleCollector()
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
-            guard let ch = buffer.floatChannelData?[0] else { return }
-            collector.append(Array(UnsafeBufferPointer(start: ch, count: Int(buffer.frameLength))))
-        }
+        input.installTap(onBus: 0, bufferSize: 1024, format: format, block: Self.tap(into: collector))
         recordingLabel = label
         try engine.start()
         try await Task.sleep(for: .seconds(1.2))

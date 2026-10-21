@@ -93,8 +93,13 @@ public final class CountVoiceBank: @unchecked Sendable {
     private static func renderSpeech(_ synth: AVSpeechSynthesizer, _ u: AVSpeechUtterance, targetRate: Double) async -> [Float] {
         await withCheckedContinuation { (cont: CheckedContinuation<[Float], Never>) in
             let collector = SpeechCollector(targetRate: targetRate, continuation: cont)
-            synth.write(u) { buffer in collector.append(buffer) }
+            synth.write(u, toBufferCallback: bufferHandler(collector))
         }
+    }
+
+    /// Speech buffers may arrive on a background queue: the handler must not inherit main-actor isolation.
+    nonisolated private static func bufferHandler(_ collector: SpeechCollector) -> AVSpeechSynthesizer.BufferCallback {
+        { buffer in collector.append(buffer) }
     }
 }
 

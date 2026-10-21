@@ -131,15 +131,7 @@ public final class MetronomeEngine: ObservableObject {
         setVolumes(r, settings)
 
         let mono = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)!
-        let node = AVAudioSourceNode(format: mono) { _, timestamp, frameCount, audioBufferList in
-            let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
-            guard let data = abl.first?.mData?.assumingMemoryBound(to: Float.self) else { return noErr }
-            r.render(frames: Int(frameCount), hostTime: timestamp.pointee.mHostTime, into: data)
-            for extra in abl.dropFirst() {
-                extra.mData?.copyMemory(from: data, byteCount: Int(frameCount) * MemoryLayout<Float>.size)
-            }
-            return noErr
-        }
+        let node = Self.makeSourceNode(format: mono, renderer: r)
         engine.attach(node)
         engine.connect(node, to: engine.mainMixerNode, format: mono)
         renderer = r
@@ -153,6 +145,20 @@ public final class MetronomeEngine: ObservableObject {
                 guard let self, self.isRunning else { return }
                 try? self.start(settings: self.settings)
             }
+        }
+    }
+
+    /// The render block runs on the audio thread. It is built in a nonisolated function so it does not inherit
+    /// main-actor isolation: Swift checks isolation at run time and would stop the app on the audio thread.
+    nonisolated private static func makeSourceNode(format: AVAudioFormat, renderer r: MetronomeRenderer) -> AVAudioSourceNode {
+        AVAudioSourceNode(format: format) { _, timestamp, frameCount, audioBufferList in
+            let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
+            guard let data = abl.first?.mData?.assumingMemoryBound(to: Float.self) else { return noErr }
+            r.render(frames: Int(frameCount), hostTime: timestamp.pointee.mHostTime, into: data)
+            for extra in abl.dropFirst() {
+                extra.mData?.copyMemory(from: data, byteCount: Int(frameCount) * MemoryLayout<Float>.size)
+            }
+            return noErr
         }
     }
 
