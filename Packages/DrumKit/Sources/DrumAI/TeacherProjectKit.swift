@@ -40,6 +40,16 @@ public enum TeacherProjectKit {
            Sách có phần hướng dẫn kỹ thuật (cầm dùi, tư thế, cách đánh, cách luyện): dựa vào đó để giải thích likelyCauses và
            viết focus cho từng bài thành lời dặn kỹ thuật cụ thể (vd. "thả dùi nảy tự nhiên, cổ tay dẫn — Grade 1 tr. 8").
 
+        ĐIỂM VÀ LEVEL (app tự tính, data.level trong báo cáo):
+        - Mỗi lần chơi: từ 90% +10…+20, 75–90% +3…+8, 60–75% +1…+3, 40–60% 0, dưới 40% −1…−5. Độ khó Khó ×1,5, Dễ ×0,75 (chỉ điểm cộng).
+          Chơi hết bài và đạt từ 60% thưởng thêm +1 mỗi 30 giây (2–10). Dừng trong 10 giây đầu hoặc app không nghe được thì không tính.
+        - Level 0–8 đi cùng Grade Rockschool: cần qua bài kiểm tra Grade N trong app VÀ đủ điểm tích luỹ
+          (Grade 1–5: mỗi Grade 10.000 điểm, Grade 6–8: 15.000; khoảng 5,5 tháng mỗi Grade nếu tập 30 phút/ngày).
+        - Lên kế hoạch hướng tới level kế tiếp: chọn BPM để tôi đạt khoảng 70–85% (dưới 60% không được điểm, dễ nản);
+          ưu tiên bài chơi trọn được; mỗi bài ít nhất vài phút. data.level.nextAction = "takeTest" → xếp một ngày ôn và làm bài
+          kiểm tra Grade kế tiếp; "practise" → tăng thời lượng bài trúng Grade hiện tại; "both" → vừa luyện vừa chuẩn bị bài kiểm tra.
+          Trong summary nói rõ còn bao nhiêu điểm (pointsToNext) và ước tính tuần này kiếm được khoảng bao nhiêu.
+
         SCHEMA kế hoạch (TeacherReport) — ví dụ hợp lệ:
         \(exampleReportJSONVi)
         - weekPlan: 7 ngày (day 1–7), mỗi ngày tổng khoảng 30 phút; mỗi mục có exerciseId (lấy từ danh sách bên dưới) HOẶC newExerciseDSL.
@@ -84,6 +94,16 @@ public enum TeacherProjectKit {
            Add the book to resources with kind "book". When assessing, compare against the Rockschool requirements and marking in the books.
            The books include technique guidance (grip, posture, strokes, how to practise): use it to explain likelyCauses and turn
            each item's focus into a concrete technique cue (e.g. "let the stick rebound, lead with the wrist — Grade 1 p. 8").
+
+        POINTS AND LEVEL (the app computes them; data.level in the report):
+        - Each run: 90%+ +10..+20, 75–90% +3..+8, 60–75% +1..+3, 40–60% 0, under 40% −1..−5. Hard ×1.5, Easy ×0.75 (rewards only).
+          Finishing an exercise at 60%+ adds +1 per 30 s (2–10). Runs stopped within 10 s, or that the app barely heard, don't count.
+        - Levels 0–8 follow the Rockschool grades: Level N needs the app's Grade N test passed AND enough total points
+          (Grades 1–5: 10,000 points each, Grades 6–8: 15,000; about 5.5 months per grade at 30 min a day).
+        - Plan towards the next level: pick tempos where I'll score about 70–85% (under 60% earns nothing and is discouraging);
+          prefer exercises I can play through; keep each item a few minutes at least. data.level.nextAction = "takeTest" → schedule a
+          review day and the next Grade test; "practise" → more time on current-grade material; "both" → practise and prepare the test.
+          In the summary, say how many points are left (pointsToNext) and roughly how many this week's plan should earn.
 
         PLAN SCHEMA (TeacherReport) — valid example:
         \(exampleReportJSONEn)

@@ -26,7 +26,9 @@ enum HistoryStore {
     }
 
     static func digest(_ ctx: ModelContext) -> HistoryDigest {
-        HistorySummarizer.digest(records(ctx), journal: journal(ctx), counting: SettingsStore.countRecords, currentLevel: SettingsStore.currentGrade, now: Date(), calendar: .current)
+        HistorySummarizer.digest(records(ctx), journal: journal(ctx), counting: SettingsStore.countRecords,
+                                 level: LevelStatus(rank: PracticeRank.for(points: totalPoints(ctx), grade: SettingsStore.currentGrade), points: totalPoints(ctx)),
+                                 currentLevel: SettingsStore.currentGrade, now: Date(), calendar: .current)
     }
 
     static func backup(_ ctx: ModelContext) throws -> BackupFile {

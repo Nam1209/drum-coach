@@ -80,3 +80,26 @@ public struct PracticeRank: Sendable, Equatable {
                             next: level + 1 < floors.count ? floors[level + 1] : nil, pointsGrade: byPoints, testsGrade: byTests)
     }
 }
+
+/// The level as the AI teacher sees it in the weekly report, so the plan can aim at the next level.
+public struct LevelStatus: Codable, Sendable, Equatable {
+    public let level: Int
+    public let title: String
+    public let points: Int
+    /// Points still missing for the next level (0 when the practice is already enough).
+    public let pointsToNext: Int
+    /// Grade whose tests are passed in the app.
+    public let testsGrade: Int
+    /// "takeTest" (enough practice, test not passed), "practise" (test passed, points short),
+    /// "both" (needs points and the test), or "top" (Grade 8).
+    public let nextAction: String
+
+    public init(rank: PracticeRank, points: Int) {
+        level = rank.level
+        title = rank.title
+        self.points = points
+        pointsToNext = rank.next.map { max(0, $0 - points) } ?? 0
+        testsGrade = rank.testsGrade
+        nextAction = rank.next == nil ? "top" : rank.needsTest ? "takeTest" : rank.needsPractice ? "practise" : "both"
+    }
+}

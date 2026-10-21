@@ -67,7 +67,7 @@ enum TeacherConnection {
     }
 
     /// Bump when the guide's wording changes, so the page in Notion is rewritten on the next sync.
-    static let guideVersion = 3
+    static let guideVersion = 4
 
     /// Puts the guide back if it is missing (e.g. deleted in Notion, or lost to an earlier failed update).
     static func ensureGuide(catalog: @autoclosure () -> [String: String]) async throws {

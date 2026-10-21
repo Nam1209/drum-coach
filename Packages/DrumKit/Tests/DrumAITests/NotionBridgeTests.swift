@@ -234,3 +234,10 @@ private func codeBlock(_ text: String) -> String {
         .fetchPlans(seen: ["plan-1": got[0].fingerprint], recheckSince: now.addingTimeInterval(86_400 * 30)).isEmpty)
     #expect(old.requests.count == 1)
 }
+
+@Test(.vietnamese) func guideExplainsPointsAndLevelsSoPlansAimForTheNextLevel() {
+    let text = TeacherProjectKit.projectInstructions(exerciseCatalog: [:], rootTitle: "Drum")
+    #expect(text.contains("data.level"))
+    #expect(text.contains("takeTest") && text.contains("practise"))
+    #expect(text.contains("60%") && text.contains("10 giây"))
+}

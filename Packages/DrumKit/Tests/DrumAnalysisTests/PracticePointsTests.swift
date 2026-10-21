@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import DrumAnalysis
 
@@ -87,4 +88,15 @@ import Testing
     #expect(PracticePoints.completionBonus(seconds: 300) == 10)
     #expect(PracticePoints.completionBonus(seconds: 1200) == 10)   // capped
     #expect(PracticePoints.points(score: 65, goodWindowMs: 30, isLevelTest: false, seconds: 180, completed: true) == 2 + 6)
+}
+
+@Test func weeklyDigestCarriesTheLevel() throws {
+    let rank = PracticeRank.for(points: 25_000, grade: 1)
+    let status = LevelStatus(rank: rank, points: 25_000)
+    #expect(status.level == 1 && status.pointsToNext == 0 && status.nextAction == "takeTest")
+    let d = HistorySummarizer.digest([], journal: [], level: status, currentLevel: 1, now: Date(timeIntervalSince1970: 1_800_000_000), calendar: .current)
+    let json = String(data: try JSONEncoder().encode(d), encoding: .utf8)!
+    #expect(json.contains("\"level\"") && json.contains("takeTest"))
+    let behind = LevelStatus(rank: PracticeRank.for(points: 4_000, grade: 2), points: 4_000)
+    #expect(behind.nextAction == "practise" && behind.pointsToNext == 6_000)
 }

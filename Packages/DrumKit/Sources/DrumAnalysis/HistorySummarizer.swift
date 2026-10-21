@@ -58,6 +58,8 @@ public struct HistoryDigest: Codable, Sendable, Equatable {
     public let journal: [String]
     /// Counting-coach runs from the last 14 days (absent in digests made before the coach was scored).
     public var counting: [CountRecord]? = nil
+    /// Level (kept in step with the Rockschool grade) and what it takes to reach the next one.
+    public var level: LevelStatus? = nil
 }
 
 public struct LevelMilestone: Codable, Sendable, Equatable {
@@ -94,7 +96,7 @@ public enum HistorySummarizer {
     static let weakMs = 20.0
     static let cleanScore = 90.0
 
-    public static func digest(_ records: [SessionRecord], journal: [(Date, String)], counting: [CountRecord] = [], currentLevel: Int,
+    public static func digest(_ records: [SessionRecord], journal: [(Date, String)], counting: [CountRecord] = [], level: LevelStatus? = nil, currentLevel: Int,
                               now: Date, calendar: Calendar) -> HistoryDigest {
         let sorted = records.sorted { $0.date < $1.date }
         let days = Set(sorted.map { calendar.startOfDay(for: $0.date) })
@@ -129,7 +131,8 @@ public enum HistorySummarizer {
                              firstDate: sorted.first?.date, currentLevel: currentLevel, weekly: weekly,
                              perExercise: Array(trends.prefix(30)), recurringWeaknesses: recurringWeaknesses(sorted, now: now),
                              last7Days: Array(recent), journal: notes.map { "\(dayFmt.string(from: $0.0)): \($0.1)" },
-                             counting: Array(counting.filter { $0.date >= now.addingTimeInterval(-14 * 86_400) }.sorted { $0.date < $1.date }.suffix(30)))
+                             counting: Array(counting.filter { $0.date >= now.addingTimeInterval(-14 * 86_400) }.sorted { $0.date < $1.date }.suffix(30)),
+                             level: level)
     }
 
     /// Weaknesses (counting position, hand, overall early/late) seen in at least 6 of the last 8 weeks.
