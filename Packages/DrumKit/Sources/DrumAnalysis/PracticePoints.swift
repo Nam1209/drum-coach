@@ -11,6 +11,9 @@ public enum PracticePoints {
     public static let minimumSeconds: Double = 10
     /// For playing to the last note: +1 per 30 s, at least 2 and at most 10, so sticking with a long exercise pays more
     /// (not scaled by difficulty).
+    /// Finishing only earns the bonus from this score up (a run that is mostly wrong isn't rewarded for lasting).
+    public static let completionMinScore: Double = 40
+
     public static func completionBonus(seconds: Double) -> Int {
         min(10, max(2, Int((seconds / 30).rounded())))
     }
@@ -18,7 +21,7 @@ public enum PracticePoints {
     public static func points(score: Double, goodWindowMs: Double, isLevelTest: Bool,
                               seconds: Double = .infinity, missedFraction: Double = 0, completed: Bool = false) -> Int {
         guard seconds >= minimumSeconds, missedFraction < 0.9 else { return 0 }
-        return forScore(score, goodWindowMs: goodWindowMs, isLevelTest: isLevelTest) + (completed ? completionBonus(seconds: seconds) : 0)
+        return forScore(score, goodWindowMs: goodWindowMs, isLevelTest: isLevelTest) + (completed && score >= completionMinScore ? completionBonus(seconds: seconds) : 0)
     }
 
     private static func forScore(_ score: Double, goodWindowMs: Double, isLevelTest: Bool) -> Int {

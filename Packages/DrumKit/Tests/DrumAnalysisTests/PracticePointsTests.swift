@@ -60,7 +60,9 @@ import Testing
 @Test func finishingTheExerciseEarnsABonus() {
     #expect(PracticePoints.points(score: 50, goodWindowMs: 30, isLevelTest: false, seconds: 60, completed: true) == 2)     // learning zone, but finished
     #expect(PracticePoints.points(score: 95, goodWindowMs: 20, isLevelTest: false, seconds: 60, completed: true) == 23 + 2)  // bonus not multiplied
-    #expect(PracticePoints.points(score: 0, goodWindowMs: 30, isLevelTest: false, seconds: 60, completed: true) == -3)
+    #expect(PracticePoints.points(score: 0, goodWindowMs: 30, isLevelTest: false, seconds: 60, completed: true) == -5)      // under 40%: no bonus
+    #expect(PracticePoints.points(score: 39, goodWindowMs: 30, isLevelTest: false, seconds: 60, completed: true) == -1)
+    #expect(PracticePoints.points(score: 40, goodWindowMs: 30, isLevelTest: false, seconds: 60, completed: true) == 2)
     // Not for runs that don't count.
     #expect(PracticePoints.points(score: 95, goodWindowMs: 30, isLevelTest: false, seconds: 8, completed: true) == 0)
     #expect(PracticePoints.points(score: 0, goodWindowMs: 30, isLevelTest: false, seconds: 60, missedFraction: 1, completed: true) == 0)
