@@ -153,6 +153,7 @@ struct ClickPatternGrid: View {
         case .hiHat: "hi-hat"
         case .rimshot: "rimshot"
         case .voice: L("giọng đọc", "voice")
+        case .tick: L("kim đồng hồ", "clock tick")
         }
     }
 }

@@ -2,6 +2,8 @@ import DrumCore
 
 public enum ClickSound: String, Codable, CaseIterable, Sendable {
     case click, beep, woodblock, cowbell, hiHat, rimshot
+    /// A clock's tick: a few milliseconds of bright transient, no ringing pitch.
+    case tick
     /// Speaks the counting syllable ("1", "e", "&", "a") at this slot.
     case voice
 }
@@ -32,13 +34,22 @@ public struct LevelTone: Codable, Sendable, Equatable, Hashable {
 }
 
 public enum ToneLadder {
-    /// Warm wooden tones, all below 900 Hz, so long sessions in headphones stay comfortable.
+    /// A clock's tick-tock: a deeper "tock" on beat 1, light "ticks" elsewhere; nothing rings, so it stays easy on the ears.
     public static let `default`: [Int: LevelTone] = [
-        5: LevelTone(sound: .woodblock, pitchHz: 880, gainDb: 0),  // high woodblock — beat 1 / accent
-        4: LevelTone(sound: .woodblock, pitchHz: 660, gainDb: -3), // woodblock — beats 2, 3, 4
-        3: LevelTone(sound: .click, pitchHz: 520, gainDb: -7),     // soft low click — "&"
-        2: LevelTone(sound: .woodblock, pitchHz: 440, gainDb: -11),// low woodblock — clear "e"/"a"
-        1: LevelTone(sound: .hiHat, pitchHz: 0, gainDb: -17),      // soft hi-hat — background "e"/"a"
+        5: LevelTone(sound: .tick, pitchHz: 1300, gainDb: -2),     // tock — beat 1 / accent
+        4: LevelTone(sound: .tick, pitchHz: 2000, gainDb: -6),     // tick — beats 2, 3, 4
+        3: LevelTone(sound: .tick, pitchHz: 2600, gainDb: -11),    // lighter tick — "&"
+        2: LevelTone(sound: .tick, pitchHz: 3200, gainDb: -15),    // faint tick — clear "e"/"a"
+        1: LevelTone(sound: .hiHat, pitchHz: 0, gainDb: -20),      // whisper — background "e"/"a"
+    ]
+
+    /// The second factory ladder (wooden blocks), recognised in saved settings like the first.
+    public static let woodblockDefault: [Int: LevelTone] = [
+        5: LevelTone(sound: .woodblock, pitchHz: 880, gainDb: 0),
+        4: LevelTone(sound: .woodblock, pitchHz: 660, gainDb: -3),
+        3: LevelTone(sound: .click, pitchHz: 520, gainDb: -7),
+        2: LevelTone(sound: .woodblock, pitchHz: 440, gainDb: -11),
+        1: LevelTone(sound: .hiHat, pitchHz: 0, gainDb: -17),
     ]
 
     /// The first factory ladder (piercing 1760/1320 Hz beeps), kept to recognise it in saved settings.
@@ -52,7 +63,7 @@ public enum ToneLadder {
 
     /// Saved settings still on the old factory ladder move to the new one; a ladder the user edited is kept.
     public static func upgraded(_ ladder: [Int: LevelTone]) -> [Int: LevelTone] {
-        ladder == legacyDefault ? `default` : ladder
+        ladder == legacyDefault || ladder == woodblockDefault ? `default` : ladder
     }
 
     public static func tone(for slot: ClickSlot, ladder: [Int: LevelTone] = ToneLadder.default) -> LevelTone? {
@@ -119,6 +130,8 @@ public struct MetronomeSettings: Sendable, Codable, Equatable {
     public var musicVolume: Float
     /// 0.5 = straight; up to 0.75. Moves the off-beat 8th click (and the spoken "&").
     public var swing: Double = Swing.straight
+    /// Bars at the start whose beats are spoken "1 2 3 4" even when counting is off (the count-in). Not saved.
+    public var spokenCountInBars = 0
 
     public init(bpm: Double, timeSignature: TimeSignature = TimeSignature(beats: 4, unit: 4),
                 pattern: ClickPattern = .quarter, accentBeatOne: Bool = false, beatSkip: BeatSkip = .all,
@@ -160,7 +173,7 @@ public struct MetronomeSettings: Sendable, Codable, Equatable {
     /// Settings saved by the first release with its untouched factory sound (busy 8th clicks, piercing beeps) become
     /// the gentle default: one wooden "tick" on beat 1 and the same soft "tock" on the other beats.
     public func upgradedFromFirstRelease() -> MetronomeSettings {
-        guard ladder == ToneLadder.legacyDefault else { return self }
+        guard ladder == ToneLadder.legacyDefault || ladder == ToneLadder.woodblockDefault else { return self }
         var s = self
         s.ladder = ToneLadder.default
         if pattern == .eighths { s.pattern = .quarter }
@@ -235,6 +248,13 @@ public enum ClickSchedule {
 
         // Spoken counting runs alongside the clicks; it follows the gap but not beat skip.
         let per = voiceLabels.count
+        if per == 0, s.spokenCountInBars > 0 {
+            // Counting is off: still say the beat numbers of the count-in so the player knows when to come in.
+            forEachTick(spt: samplesPerBeat, from: from, to: min(to, Int64((Double(s.spokenCountInBars * beatsPerBar) * samplesPerBeat).rounded()))) { n, sample in
+                body(ClickEvent(sampleTime: sample, kind: .voice(numberLabels[min(n % beatsPerBar, numberLabels.count - 1)]),
+                                bar: n / beatsPerBar, level: 4, tone: LevelTone(sound: .voice, pitchHz: 0, gainDb: 0)))
+            }
+        }
         guard per > 0 else { return }
         forEachTick(spt: samplesPerBeat / Double(per), from: from - lookback, to: to) { n, sample in
             let beat = n / per, sub = n % per

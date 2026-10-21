@@ -103,6 +103,14 @@ final class PracticeViewModel: ObservableObject {
     /// Swing for this exercise: the setting, or straight when the exercise has 16ths, triplets or an x/8 meter.
     var swing: Double { Swing.effective(settings.swing, for: playedExercise) }
 
+    /// The count-in beat being played (1…4 in 4/4) at host time `t`, or nil once the exercise has started.
+    func countInNumber(atHostTime t: TimeInterval) -> Int? {
+        guard isPlaying, let b = engine.beat(atHostTime: t) else { return nil }
+        let perBar = engine.settings.beatsPerBar
+        guard b < Double(perBar * Self.countInBars) else { return nil }
+        return Int(b.rounded(.down)) % max(perBar, 1) + 1
+    }
+
     /// Screen tap in L("Gõ màn hình", "Tap screen") mode.
     func tap(_ voice: Voice?) { (source as? TouchHitSource)?.tap(voice) }
 
@@ -185,6 +193,7 @@ final class PracticeViewModel: ObservableObject {
         var s = settings
         s.timeSignature = exercise.timeSignature
         s.swing = swing
+        s.spokenCountInBars = Self.countInBars      // "1 2 3 4" before the exercise starts
         let tl = Timeline(exercise: playedExercise, bpm: s.bpm, repeats: repeats, countInBars: Self.countInBars, swing: s.swing)
         timeline = tl
         byRepeatAndNote = [:]

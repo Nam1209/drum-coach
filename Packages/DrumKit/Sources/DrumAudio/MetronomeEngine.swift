@@ -192,11 +192,11 @@ public final class MetronomeEngine: ObservableObject {
     }
 
     private func refreshSyllables(_ r: MetronomeRenderer, settings s: MetronomeSettings) {
-        guard let mode = s.voiceCount else { return }
-        let per = Counting.labels(mode: mode, beats: 1).count
-        let slot = s.secondsPerBeat / Double(per)
+        guard s.voiceCount != nil || s.spokenCountInBars > 0 else { return }
+        let syllables = s.voiceCount.map { Counting.labels(mode: $0, beats: 1) } ?? []
+        let slot = s.secondsPerBeat / Double(max(syllables.count, 1))
         var cache: [String: [Float]] = [:]
-        let labels = (1...max(s.beatsPerBar, 1)).map(String.init) + Counting.labels(mode: mode, beats: 1).dropFirst().map(\.label)
+        let labels = (1...max(s.beatsPerBar, 1)).map(String.init) + syllables.dropFirst().map(\.label)
         for label in labels { cache[label] = voiceBank.fitted(label, slot: slot, outputRate: r.sampleRate) }
         let fitted = cache
         r.state.withLock { $0.syllableCache = fitted }

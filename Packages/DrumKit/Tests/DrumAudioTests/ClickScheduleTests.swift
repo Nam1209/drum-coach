@@ -178,9 +178,18 @@ private let sr = 48_000.0
     #expect(CountVoiceBank.resample(tone, from: 48_000, to: 48_000) == tone)
 }
 
-@Test func defaultClicksAreWarm() {
-    // Nothing above ~900 Hz fundamental: the old 1760/1320 Hz beeps were piercing in headphones.
-    #expect(ToneLadder.default.values.allSatisfy { $0.pitchHz <= 900 })
+@Test func defaultClicksAreShortClockTicks() {
+    // Like a clock's tick-tock: no ringing tone, the sound is over within a few milliseconds.
+    #expect((2...5).allSatisfy { ToneLadder.default[$0]?.sound == .tick })
+    let tick = ClickSynth.render(sound: .tick, pitchHz: ToneLadder.default[4]!.pitchHz, sampleRate: 48_000)
+    #expect(tick.count <= 960)                                          // at most 20 ms long
+    let energy = tick.map { $0 * $0 }
+    let early = energy.prefix(288).reduce(0, +), total = energy.reduce(0, +)
+    #expect(early / total > 0.9)                                        // 90% of it in the first 6 ms
+}
+
+@Test func woodblockFactoryLadderIsUpgradedToo() {
+    #expect(ToneLadder.upgraded(ToneLadder.woodblockDefault) == ToneLadder.default)
 }
 
 @Test func savedFactoryLadderIsUpgradedButCustomOnesAreKept() {
@@ -201,4 +210,21 @@ private let sr = 48_000.0
     // Tick on 1, the same soft tock on 2, 3, 4.
     let e = ClickSchedule.events(settings: MetronomeSettings(bpm: 60, pattern: .quarter, accentBeatOne: true), sampleRate: sr, from: 0, to: 48_000 * 4)
     #expect(e.map(\.tone).dropFirst().allSatisfy { $0 == e[1].tone } && e[0].tone != e[1].tone)
+}
+
+@Test func countInIsSpokenOneTwoThreeFour() {
+    var s = MetronomeSettings(bpm: 60, pattern: .quarter)
+    s.spokenCountInBars = 1
+    let voice = ClickSchedule.events(settings: s, sampleRate: sr, from: 0, to: 48_000 * 8).compactMap { e -> (Int64, String)? in
+        if case .voice(let l) = e.kind { (e.sampleTime, l) } else { nil }
+    }
+    #expect(voice.map(\.1) == ["1", "2", "3", "4"])                         // only during the count-in bar
+    #expect(voice.map(\.0) == [0, 48_000, 96_000, 144_000])
+}
+
+@Test func countInIsNotDoubledWhenCountingIsOn() {
+    var s = MetronomeSettings(bpm: 60, pattern: .quarter, voiceCount: .quarters)
+    s.spokenCountInBars = 1
+    let first = ClickSchedule.events(settings: s, sampleRate: sr, from: 0, to: 48_000).filter { if case .voice = $0.kind { true } else { false } }
+    #expect(first.count == 1)
 }

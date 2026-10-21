@@ -47,6 +47,19 @@ struct PracticeView: View {
                                         noteColor: { tn in model.results[tn.index].map { model.rules.grade($0).color } })
                         }
                     }
+                    .overlay {
+                        // Count-in: the beat number, big, so you know exactly when to come in.
+                        if let n = model.countInNumber(atHostTime: HostClock.now()) {
+                            Text("\(n)")
+                                .font(Theme.number(180, weight: .bold))
+                                .foregroundStyle(Theme.shell)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(RoundedRectangle(cornerRadius: Theme.stageRadius, style: .continuous).fill(Theme.stage.opacity(0.92)))
+                                .id(n)
+                                .transition(.opacity)
+                                .accessibilityLabel(L("Đếm vào \(n)", "Count-in \(n)"))
+                        }
+                    }
                     controls(beat: beat)
                     if model.mode == .touch { touchPads }
                     options
@@ -64,7 +77,13 @@ struct PracticeView: View {
             ResultsView(stats: stats, title: model.exercise.title, bpm: model.settings.bpm,
                         input: model.assessmentInput(for: stats), session: model.lastSession, diagnosis: model.lastDiagnosis, samples: model.lastSamples)
         }
-        .onAppear { model.modelContext = modelContext }
+        .onAppear {
+            model.modelContext = modelContext
+            #if DEBUG
+            // `-autoplay` starts the run at once (screenshots of the count-in and the running screen).
+            if ProcessInfo.processInfo.arguments.contains("-autoplay") { model.play() }
+            #endif
+        }
         .onChange(of: model.settings) { _, new in if model.autoLearn == nil, model.testItem == nil { SettingsStore.saveMetronome(new) } }
         .onDisappear { model.stop(); model.stopListening() }
     }

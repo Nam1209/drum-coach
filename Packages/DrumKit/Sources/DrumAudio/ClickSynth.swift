@@ -13,18 +13,20 @@ public enum ClickSynth {
         case .rimshot: tone(max(pitchHz, 400), partials: [(1, 0.6), (2.3, 0.4)], decay: 0.015, length: 0.06, sr: sampleRate, noise: 0.6)
         case .hiHat: tone(0, partials: [], decay: 0.02, length: 0.06, sr: sampleRate, noise: 1)
         case .voice: tone(pitchHz > 0 ? pitchHz : 1000, partials: [(1, 1)], decay: 0.01, length: 0.03, sr: sampleRate, noise: 0)
+        case .tick: tone(pitchHz > 0 ? pitchHz : 2000, partials: [(1, 0.5), (1.83, 0.2)], decay: 0.0018, length: 0.012,
+                         sr: sampleRate, noise: 0.9, attack: 0.0002)
         }
     }
 
     /// Sum of decaying sine partials plus optional high-passed noise, normalized to a 0.9 peak.
     private static func tone(_ f0: Double, partials: [(Double, Double)], decay: Double, length: Double,
-                             sr: Double, noise: Double) -> [Float] {
+                             sr: Double, noise: Double, attack attackSeconds: Double = 0.0015) -> [Float] {
         let count = Int(length * sr)
         var out = [Float](repeating: 0, count: count)
         var rng = SplitMix(seed: 0x5eed)
         var lastNoise = 0.0
         // 1.5 ms raised-cosine attack: takes the sting off the onset without blurring where the click is heard.
-        let attack = Int(0.0015 * sr)
+        let attack = Int(attackSeconds * sr)
         for i in 0..<count {
             let t = Double(i) / sr
             var env = exp(-t / decay)
