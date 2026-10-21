@@ -32,6 +32,9 @@ struct CountCoachView: View {
     @State private var bpm: Double = 60
     @State private var run: Task<Void, Never>?
     @State private var result: CountEvenness?
+    @State private var judge: CountJudge?
+    @State private var lastMark: CountJudge.Mark?
+    @State private var summary: CountJudge.Summary?
     @State private var heard = 0
     @State private var error: String?
     @State private var engine: MetronomeEngine?
@@ -62,13 +65,14 @@ struct CountCoachView: View {
                             PlayButton(isPlaying: running) { running ? stop() : start() }
                             TempoControl(bpm: $bpm, range: 40...120, disabled: running)
                             Spacer()
-                            Readout(value: running ? "\(heard)" : result.map { "\(Int((max(0, 1 - $0.gapRatioStdDev) * 100).rounded()))%" } ?? "–",
-                                    caption: running ? L("âm đã nghe", "syllables heard") : L("độ đều", "evenness"), size: 44)
+                            Readout(value: running ? "\(heard)" : summary.map { "\($0.score)" } ?? "–",
+                                    caption: running ? L("âm đã nghe", "syllables heard") : L("điểm", "score"), size: 44)
                         }
+                        if running, judge != nil { liveView }
                     }
                 }
                         if let error { Label(error, systemImage: "exclamationmark.circle").foregroundStyle(Theme.missed) }
-                if let result { resultView(result) }
+                if let summary { resultView(summary, evenness: result) }
             }
             .padding(Theme.pagePadding)
         }
@@ -95,13 +99,64 @@ struct CountCoachView: View {
         .accessibilityHidden(true)
     }
 
-    private func resultView(_ r: CountEvenness) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(L("Kết quả", "Results")).font(.title3.weight(.semibold))
-            labelRow(r)
-            Text(advice(r)).font(.headline)
-            Text(String(format: L("Độ lệch giữa các khoảng: %.0f%% (càng gần 0%% càng đều).", "Interval deviation: %.0f%% (the closer to 0%%, the more even)."), r.gapRatioStdDev * 100))
-                .font(.callout).foregroundStyle(.secondary)
+    /// While counting: the syllable just heard and how it landed, plus running totals (misses appear as they pass).
+    private var liveView: some View {
+        TimelineView(.periodic(from: .now, by: 0.25)) { _ in
+            let live = judge?.summary(until: HostClock.now())
+            HStack(alignment: .firstTextBaseline, spacing: 18) {
+                if let m = lastMark {
+                    Text(m.label).font(Theme.number(40))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(verdictText(m.verdict)).font(.title3.weight(.semibold)).foregroundStyle(verdictColor(m.verdict))
+                        Text(String(format: "%+.0f ms", m.offsetMs)).font(Theme.number(15, weight: .medium)).foregroundStyle(.secondary)
+                    }
+                } else {
+                    Text(L("Bắt đầu đếm từ ô nhịp 2…", "Start counting from bar 2…")).foregroundStyle(.secondary)
+                }
+                Spacer()
+                if let live { counts(live) }
+            }
+        }
+    }
+
+    private func counts(_ s: CountJudge.Summary) -> some View {
+        HStack(spacing: 14) {
+            countCell(s.onTime, L("Đúng", "On time"), Theme.onTime)
+            countCell(s.early, L("Sớm", "Early"), Theme.offTime)
+            countCell(s.late, L("Muộn", "Late"), Theme.offTime)
+            countCell(s.missed, L("Trượt", "Missed"), Theme.missed)
+        }
+    }
+
+    private func countCell(_ n: Int, _ title: String, _ color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text("\(n)").font(Theme.number(22)).foregroundStyle(color)
+            Text(title).font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private func verdictText(_ v: CountJudge.Verdict) -> String {
+        switch v {
+        case .onTime: L("Đúng", "On time")
+        case .early: L("Sớm", "Early")
+        case .late: L("Muộn", "Late")
+        }
+    }
+
+    private func verdictColor(_ v: CountJudge.Verdict) -> Color { v == .onTime ? Theme.onTime : Theme.offTime }
+
+    private func resultView(_ s: CountJudge.Summary, evenness r: CountEvenness?) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(L("Kết quả: \(s.score) điểm", "Result: \(s.score) points")).font(.title3.weight(.semibold))
+                Spacer()
+                counts(s)
+            }
+            if let r, !r.offsetsByLabel.isEmpty { labelRow(r) }
+            Text(L("Cần cải thiện", "What to work on")).font(.headline)
+            ForEach(Array(s.tips.enumerated()), id: \.offset) { i, tip in
+                Label(tip, systemImage: s.tips.count == 1 && s.missed == 0 && s.early + s.late == 0 ? "checkmark.circle" : "\(i + 1).circle")
+            }
         }
     }
 
@@ -118,14 +173,6 @@ struct CountCoachView: View {
         }
     }
 
-    private func advice(_ r: CountEvenness) -> String {
-        guard let (label, ms) = r.offsetsByLabel.filter({ $0.key != "number" }).max(by: { abs($0.value) < abs($1.value) }),
-              abs(ms) > 25 else { return L("Rất đều! Thử giai đoạn tiếp theo hoặc tăng tempo 4 BPM.", "Very even! Try the next phase or raise the tempo by 4 BPM.") }
-        return ms > 0
-            ? L("Bạn nói \"\(label)\" trễ trung bình \(Int(ms.rounded())) ms → nghĩ \"\(label)\" nằm ĐÚNG giữa hai phách, nói sớm hơn một chút.", "You say \"\(label)\" late by \(Int(ms.rounded())) ms on average. Think of \"\(label)\" as sitting exactly halfway between two beats and say it a bit earlier.")
-            : L("Bạn nói \"\(label)\" sớm \(Int((-ms).rounded())) ms → đừng vội, chờ đúng giữa hai phách.", "You say \"\(label)\" early by \(Int((-ms).rounded())) ms. Don't rush, wait for the exact middle between two beats.")
-    }
-
     private func start() {
         run = Task { await go(); run = nil; engine = nil }
     }
@@ -137,7 +184,7 @@ struct CountCoachView: View {
     private func go() async {
         // The run uses the settings it started with, even if the screen changes meanwhile.
         let stage = self.stage, mode = self.mode, bpm = self.bpm
-        result = nil; heard = 0; error = nil
+        result = nil; summary = nil; judge = nil; lastMark = nil; heard = 0; error = nil
         var s = MetronomeSettings(bpm: bpm, pattern: .quarter, accentBeatOne: true, voiceCount: mode)
         switch stage {
         case .listen, .along: s.voiceVolume = 1
@@ -158,7 +205,18 @@ struct CountCoachView: View {
             return
         }
         var onsets: [TimeInterval] = []
-        let collector = Task { for await h in mic.hits { onsets.append(h.time); heard = onsets.count } }
+        // Expected syllables from bar 2 (bar 1 is the count-in), once the click's beat 0 is known.
+        func expected(from zero: TimeInterval) -> [(time: TimeInterval, label: String)] {
+            let labels = Counting.labels(mode: mode, beats: 4)
+            return (1...bars).flatMap { bar in labels.map { (zero + (Double(bar) * 4 + $0.position.doubleValue) * 60 / bpm, $0.label) } }
+        }
+        let collector = Task {
+            for await h in mic.hits {
+                onsets.append(h.time); heard = onsets.count
+                if judge == nil, let zero = metro.beatZeroHostTime { judge = CountJudge(expected: expected(from: zero)) }
+                if let m = judge?.hear(h.time) { lastMark = m }
+            }
+        }
         if stage == .fade {
             try? await Task.sleep(for: .seconds(barSeconds * 3))
             var quiet = s; quiet.voiceVolume = 0.2; metro.update(quiet)
@@ -170,16 +228,18 @@ struct CountCoachView: View {
         }
         collector.cancel()
         let zero = metro.beatZeroHostTime
+        let stoppedAt = HostClock.now()
         metro.stop(); mic.stop()
-        guard !Task.isCancelled, stage != .listen, let zero else { return }
-        // Expected syllables from bar 2 (bar 1 is the count-in).
-        var expected: [(time: TimeInterval, label: String)] = []
-        let labels = Counting.labels(mode: mode, beats: 4)
-        for bar in 1...bars {
-            for l in labels { expected.append((zero + (Double(bar) * 4 + l.position.doubleValue) * 60 / bpm, l.label)) }
-        }
-        let r = CountEvenness(onsets: onsets, expected: expected)
+        // Stopping early still scores what was counted so far.
+        guard stage != .listen, let zero else { return }
+        let all = expected(from: zero)
+        var final = judge ?? CountJudge(expected: all)
+        if judge == nil { for t in onsets { _ = final.hear(t) } }
+        let scored = final.summary(until: stoppedAt)
+        guard scored.onTime + scored.early + scored.late + scored.missed > 0 else { return }
+        summary = scored
+        let r = CountEvenness(onsets: onsets, expected: all.filter { $0.time < stoppedAt })
         result = r.matched > 0 ? r : nil
-        if result == nil { error = L("Không nghe thấy tiếng đếm. Nói to hơn hoặc đưa iPad lại gần.", "Couldn't hear any counting. Speak louder or move the iPad closer.") }
+        if scored.onTime + scored.early + scored.late == 0 { error = L("Không nghe thấy tiếng đếm. Nói to hơn hoặc đưa iPad lại gần.", "Couldn't hear any counting. Speak louder or move the iPad closer.") }
     }
 }
