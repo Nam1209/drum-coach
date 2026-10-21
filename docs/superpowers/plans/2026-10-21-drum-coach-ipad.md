@@ -65,7 +65,12 @@
 - Platform của package: `.iOS(.v18), .macOS(.v15)`.
 - Không dùng dependency bên thứ ba trong runtime (chỉ dùng XcodeGen lúc build).
 - Mọi thời gian dùng kiểu `TimeInterval` (giây, host time). Chuyển sang ms chỉ ở tầng hiển thị.
-- Model Claude mặc định là `claude-sonnet-5-5`, có thể chọn `claude-opus-5-5` trong Settings. Endpoint `https://api.anthropic.com/v1/messages`, header `anthropic-version: 2023-06-01`.
+- **AI:** Claude API gọi bằng HTTP thuần qua URLSession (Swift không có SDK chính thức). Endpoint `https://api.anthropic.com/v1/messages`, header `anthropic-version: 2023-06-01`.
+- **Model mặc định cho mọi tính năng là `claude-opus-5-5`.** Settings cho phép đổi sang `claude-sonnet-5-5` để tiết kiệm. Dùng `thinking: {type: "adaptive"}`. Đặt `output_config.effort` rõ ràng (vì mặc định của Opus 5.5 là `medium`): báo cáo tuần và test level dùng `high`, chat dùng `low`, đọc PDF dùng `medium`.
+- **Không dùng `tool_choice` kiểu `tool`/`any`**: Opus 5.5 và Sonnet 5.5 trả về lỗi 400. Ép JSON bằng structured outputs `output_config: {format: {type: "json_schema", schema: …}}`.
+- **Web search:** server tool `{"type": "web_search_20260209", "name": "web_search", "max_uses": 5}`. Lỗi của tool trả về trong block `web_search_tool_result` (HTTP 200), không phải exception.
+- **Refusal fallback:** gửi header `anthropic-beta: server-side-fallback-2026-07-01` cùng `fallbacks: "default"`. Luôn kiểm tra `stop_reason == "refusal"` trước khi đọc `content`.
+- Prompt caching: system prompt và ngữ pháp DSL cố định ở đầu request, đặt `cache_control: {type: "ephemeral"}`, không chèn timestamp vào system.
 - Chữ trong UI viết bằng tiếng Việt. Thuật ngữ trống giữ nguyên tiếng Anh (Hi-Hat, Snare, Kick, Paradiddle, Flam…).
 - Không ship bất kỳ văn bản hay bài nhạc nào chép từ Stick Control hoặc Rockschool.
 
@@ -523,17 +528,17 @@ public enum Grade8Curriculum { public static let units: [CurriculumUnit] }
 public protocol HTTPTransport: Sendable { func send(_ req: URLRequest) async throws -> (Data, HTTPURLResponse) } // fake trong test
 public struct ClaudeClient: Sendable {
   public init(apiKey: String, model: String, transport: HTTPTransport)
-  /// Gọi Messages API, ép trả về JSON qua một tool duy nhất (tool_choice: {type: "tool", name}), trả về `input` của tool đã decode.
-  public func structured<T: Decodable & Sendable>(system: String, content: [ContentBlock], toolName: String, schema: JSONValue, as: T.Type, maxTokens: Int) async throws(ClaudeError) -> T
+  /// Gọi Messages API với structured outputs (output_config.format json_schema), decode text JSON trả về thành T. Tham số `webSearch: Bool` bật server tool web_search_20260209.
+  public func structured<T: Decodable & Sendable>(system: String, content: [ContentBlock], schema: JSONValue, as: T.Type, effort: Effort, webSearch: Bool, maxTokens: Int) async throws(ClaudeError) -> T
 }
 public enum ContentBlock: Sendable { case text(String), imagePNG(Data) }
-public enum ClaudeError: Error, Equatable { case missingKey, http(Int, String), noToolUse, decoding(String), network(String) }
+public enum ClaudeError: Error, Equatable { case missingKey, http(Int, String), refused(String?), decoding(String), network(String) }
 public enum PageTranscriber { public static func transcribe(pagePNG: Data, client: ClaudeClient) async throws(ClaudeError) -> [String /* DSL */] }
 ```
 - [ ] **Bước 1: Test** (fake transport):
-  - request có header `x-api-key`, `anthropic-version: 2023-06-01`, body có `model`, `tools[0].name`, `tool_choice`;
-  - response mẫu có block `tool_use` thì decode thành T;
-  - status 401 → `.http(401, …)`; response không có `tool_use` → `.noToolUse`;
+  - request có header `x-api-key`, `anthropic-version: 2023-06-01`, body có `model`, `output_config.format.type == "json_schema"`, `thinking.type == "adaptive"`, `fallbacks == "default"`, **không có** `tool_choice`; response có `stop_reason: "refusal"` → `.refused`;
+  - response mẫu có text là JSON hợp lệ thì decode thành T;
+  - status 401 → `.http(401, …)`; JSON không khớp schema → `.decoding`;
   - `PageTranscriber` loại bỏ những chuỗi DSL mà `ExerciseDSL.parse` báo lỗi.
 - [ ] **Bước 2:** FAIL. **Bước 3:** Implement. `PDFImportView`: chọn file PDF (UIDocumentPicker), render trang bằng PDFKit ra PNG rộng 1600 px, gửi kèm prompt hướng dẫn chuyển từng bài trên trang sang DSL (có mô tả ngữ pháp DSL ở Task 2 và ví dụ). Hiện từng bài đọc được kèm khuông nhạc xem trước để người dùng sửa hoặc lưu. Ghi rõ trong UI: "Chỉ dùng với sách bạn sở hữu; dữ liệu chỉ lưu trên máy này."
 - [ ] **Bước 4:** PASS. Kiểm tra tay với một trang Stick Control của người dùng.
@@ -703,7 +708,7 @@ public struct ResourceValidator: Sendable {
   - Request gửi Claude có digest, profile, danh sách id thư viện, và tool `web_search` được bật.
   - Mất mạng → báo lỗi, report cũ vẫn còn.
 - [ ] **Bước 2:** FAIL. **Bước 3:** Implement.
-  - **Gọi Claude:** model mặc định `claude-sonnet-5-5`; nút "Phân tích sâu" dùng `claude-opus-5-5`. Bật **server tool web search của Claude API** để tìm video và tài liệu có thật. Kiểm tra tên và phiên bản tool trong tài liệu Anthropic lúc implement.
+  - **Gọi Claude:** dùng `claude-opus-5-5` với effort `high`, bật `web_search_20260209` (`max_uses: 5`) để tìm video và tài liệu có thật. Gọi bằng streaming vì báo cáo dài.
   - **System prompt:** Claude đóng vai giáo viên trống kèm 1-1, nói tiếng Việt, cụ thể và nhẹ nhàng. Phải dựa trên số liệu, phải nhắc lại lời khuyên cũ và đánh giá người dùng đã làm theo chưa. Không quá 3 điều cần sửa mỗi tuần. Ưu tiên bài trong thư viện; thiếu thì viết bài mới bằng DSL. Tài liệu ưu tiên kênh uy tín và phải có `searchQuery`.
   - **Màn hình "Thầy AI":**
     - Báo cáo mới nhất: tóm tắt, tiến bộ, 3 điều cần sửa, kế hoạch 7 ngày, danh sách video/tài liệu. Video YouTube mở trong sheet bằng `SFSafariViewController`.
