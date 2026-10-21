@@ -25,7 +25,7 @@ struct TodayView: View {
         let base = todayPlan
         let plan = (day: base.day.adapted(to: instrument, catalog: catalog), source: base.source)
         let total = plan.day.allItems.reduce(0) { $0 + $1.minutes }
-        let rank = PracticeRank.for(points: HistoryStore.totalPoints(context))
+        let rank = PracticeRank.for(points: HistoryStore.totalPoints(context), grade: SettingsStore.currentGrade)
         let streak = ProgressSummary(records: HistoryStore.records(context), now: Date(), calendar: .current).streakDays
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
@@ -33,8 +33,7 @@ struct TodayView: View {
                 HStack(alignment: .bottom, spacing: 40) {
                     Readout(value: "\(total)", caption: L("phút tập hôm nay", "minutes planned today"), size: 64)
                     Readout(value: "\(streak)", caption: L("ngày liên tiếp", "day streak"), size: 40)
-                    Readout(value: "\(SettingsStore.currentGrade)", caption: L("cấp độ hiện tại", "current level"), size: 40)
-                    Readout(value: "\(rank.level)", caption: L("hạng: \(rank.title)", "rank: \(rank.title)"), size: 40, tint: Theme.shell)
+                    Readout(value: "\(rank.level)", caption: L("level: \(rank.title)", "level: \(rank.title)"), size: 40, tint: Theme.shell)
                     Spacer()
                     sessionControl(plan.day)
                 }

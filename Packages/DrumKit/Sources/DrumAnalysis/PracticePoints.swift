@@ -42,23 +42,41 @@ public enum PracticePoints {
     }
 }
 
-/// Rank from total points (separate from Rockschool grades).
+/// The player's level, kept in step with Rockschool: Level N means the app's Grade N tests are passed AND enough
+/// practice points have been earned, like an exam that also expects the practice hours behind it.
+///
+/// Points needed per grade: the forecast's typical 5.5 months per grade (Grades 1–5) at 30 min a day, at about
+/// 2 points per minute of normal practice (mostly 70–85%, exercises finished): 5.5 × 30 × 30 × 2 ≈ 10,000.
+/// Grades 6–8 take 1.5× as long (as in ProgressForecast), so 15,000 each.
 public struct PracticeRank: Sendable, Equatable {
+    /// 0 (no grade yet) … 8.
     public let level: Int
     public let title: String
-    /// Points where this rank starts, and where the next one starts (nil at the top).
+    /// Points where this level starts, and where the next one starts (nil at the top).
     public let floor: Int
     public let next: Int?
+    /// Grade the points alone would reach, and the grade whose tests are passed.
+    public let pointsGrade: Int
+    public let testsGrade: Int
 
-    static let floors = [0, 100, 250, 500, 900, 1500, 2500, 4000]
+    /// Enough practice for a higher grade than the tests passed: take the next test.
+    public var needsTest: Bool { pointsGrade > testsGrade }
+    /// Tests passed ahead of the practice: keep practising to make the level count.
+    public var needsPractice: Bool { testsGrade > pointsGrade }
+
+    public static let floors = [0, 10_000, 20_000, 30_000, 40_000, 50_000, 65_000, 80_000, 95_000]
     static var titles: [String] {
         [L("Mới cầm dùi", "New to sticks"), L("Giữ được nhịp", "Keeping time"), L("Tay đều", "Even hands"),
          L("Vững tempo", "Steady tempo"), L("Groove ổn", "In the groove"), L("Tay lụa", "Smooth hands"),
-         L("Biểu diễn", "Stage ready"), L("Bậc thầy", "Master")]
+         L("Biểu diễn", "Stage ready"), L("Nghệ sĩ", "Artist"), L("Bậc thầy", "Master")]
     }
 
-    public static func `for`(points: Int) -> PracticeRank {
-        let i = floors.lastIndex { points >= $0 } ?? 0
-        return PracticeRank(level: i + 1, title: titles[i], floor: floors[i], next: i + 1 < floors.count ? floors[i + 1] : nil)
+    public static func `for`(points: Int, grade: Int) -> PracticeRank {
+        let byPoints = floors.lastIndex { points >= $0 } ?? 0
+        let byTests = min(max(grade, 0), floors.count - 1)
+        let level = min(byPoints, byTests)
+        let name = level == 0 ? titles[0] : "Grade \(level) · \(titles[level])"
+        return PracticeRank(level: level, title: name, floor: floors[level],
+                            next: level + 1 < floors.count ? floors[level + 1] : nil, pointsGrade: byPoints, testsGrade: byTests)
     }
 }

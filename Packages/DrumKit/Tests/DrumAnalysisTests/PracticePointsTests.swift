@@ -48,13 +48,24 @@ import Testing
     #expect(PracticePoints.total([]) == 0)
 }
 
-@Test(.vietnamese) func ranksByTotal() {
-    #expect(PracticeRank.for(points: 0).level == 1)
-    #expect(PracticeRank.for(points: 99).level == 1)
-    let r = PracticeRank.for(points: 100)
-    #expect(r.level == 2 && r.title == "Giữ được nhịp")
-    #expect(r.floor == 100 && r.next == 250)
-    #expect(PracticeRank.for(points: 99_999).next == nil)
+@Test(.vietnamese) func levelFollowsRockschoolGradeAndPractice() {
+    // Nothing yet.
+    let start = PracticeRank.for(points: 0, grade: 0)
+    #expect(start.level == 0 && start.next == 10_000)
+    // Grade 1 tests passed and enough practice: Level 1.
+    let one = PracticeRank.for(points: 10_000, grade: 1)
+    #expect(one.level == 1 && one.title == "Grade 1 · Giữ được nhịp" && one.floor == 10_000 && one.next == 20_000)
+    #expect(!one.needsTest && !one.needsPractice)
+    // Plenty of practice but no test passed: still Level 0, and told to take the test.
+    let practised = PracticeRank.for(points: 25_000, grade: 0)
+    #expect(practised.level == 0 && practised.needsTest)
+    // Tests passed faster than the practice: level waits for the points.
+    let quick = PracticeRank.for(points: 4_000, grade: 2)
+    #expect(quick.level == 0 && quick.needsPractice && quick.next == 10_000)
+    // Grades 6-8 take 1.5x the practice; Grade 8 is the top.
+    #expect(PracticeRank.for(points: 65_000, grade: 6).level == 6)
+    #expect(PracticeRank.for(points: 64_999, grade: 6).level == 5)
+    #expect(PracticeRank.for(points: 200_000, grade: 8).next == nil)
 }
 
 @Test func finishingTheExerciseEarnsABonus() {

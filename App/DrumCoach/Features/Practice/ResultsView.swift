@@ -65,7 +65,7 @@ struct ResultsView: View {
     /// "+15 điểm" for this run, then the running total and the way to the next rank.
     private func pointsView(_ s: PracticeSession) -> some View {
         let total = HistoryStore.totalPoints(context)
-        let rank = PracticeRank.for(points: total)
+        let rank = PracticeRank.for(points: total, grade: SettingsStore.currentGrade)
         let earned = s.points
         return Stage {
             HStack(alignment: .center, spacing: 20) {
@@ -79,12 +79,19 @@ struct ResultsView: View {
                     }
                 }
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(L("Hạng \(rank.level): \(rank.title)", "Rank \(rank.level): \(rank.title)")).font(.headline)
+                    Text(L("Level \(rank.level): \(rank.title)", "Level \(rank.level): \(rank.title)")).font(.headline)
                     if let next = rank.next {
-                        ProgressView(value: Double(total - rank.floor), total: Double(next - rank.floor)).tint(Theme.shell)
-                        Text(L("\(total) điểm, còn \(next - total) điểm lên hạng \(rank.level + 1)", "\(total) points, \(next - total) to rank \(rank.level + 1)")).font(.footnote).foregroundStyle(.secondary)
+                        let n = rank.level + 1
+                        ProgressView(value: Double(min(max(total - rank.floor, 0), next - rank.floor)), total: Double(next - rank.floor)).tint(Theme.shell)
+                        if rank.needsTest {
+                            Text(L("\(total.formatted()) điểm: đủ luyện tập cho Grade \(n). Làm bài kiểm tra Grade \(n) (mục Cấp độ) để lên level.", "\(total.formatted()) points: enough practice for Grade \(n). Take the Grade \(n) test (Levels) to level up.")).font(.footnote).foregroundStyle(.secondary)
+                        } else if rank.needsPractice {
+                            Text(L("Đã qua bài kiểm tra Grade \(rank.testsGrade). Tập thêm \((next - total).formatted()) điểm nữa để lên level \(n).", "Grade \(rank.testsGrade) tests passed. \((next - total).formatted()) more practice points to reach level \(n).")).font(.footnote).foregroundStyle(.secondary)
+                        } else {
+                            Text(L("\(total.formatted()) điểm. Lên level \(n): còn \((next - total).formatted()) điểm và qua bài kiểm tra Grade \(n).", "\(total.formatted()) points. Level \(n): \((next - total).formatted()) more points and the Grade \(n) test.")).font(.footnote).foregroundStyle(.secondary)
+                        }
                     } else {
-                        Text(L("\(total) điểm, hạng cao nhất", "\(total) points, top rank")).font(.footnote).foregroundStyle(.secondary)
+                        Text(L("\(total.formatted()) điểm, level cao nhất (Grade 8)", "\(total.formatted()) points, top level (Grade 8)")).font(.footnote).foregroundStyle(.secondary)
                     }
                     if s.seconds < PracticePoints.minimumSeconds {
                         Text(L("Dừng trước 10 giây: lần này không tính điểm.", "Stopped within 10 seconds: this run doesn't count.")).font(.footnote).foregroundStyle(.secondary)

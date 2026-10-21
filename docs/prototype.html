@@ -608,7 +608,7 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
         <div class="r"><span>Độ khó Vừa (±30 ms)</span><span class="num">×1</span></div>
         <div class="r"><span>Độ khó Dễ (±45 ms)</span><span class="num">×0,75</span></div>
       </div>
-      <div class="foot sec">Điểm trừ không nhân theo độ khó. Tổng điểm không bao giờ xuống dưới 0. Hạng (1–8) tính từ tổng điểm và khác với Grade Rockschool.</div>
+      <div class="foot sec">Điểm trừ không nhân theo độ khó. Tổng điểm không bao giờ xuống dưới 0. Level 0–8 đi cùng Grade Rockschool: cần cả điểm luyện tập tích luỹ và qua bài kiểm tra Grade đó.</div>
       <div class="list form" id="rankTable"></div>
     </div>
   </div>
@@ -1070,7 +1070,7 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
   }
 
   // ---------- Points (same rule as PracticePoints in the app) ----------
-  const RANKS = [[0, 'Mới cầm dùi'], [100, 'Giữ được nhịp'], [250, 'Tay đều'], [500, 'Vững tempo'], [900, 'Groove ổn'], [1500, 'Tay lụa'], [2500, 'Biểu diễn'], [4000, 'Bậc thầy']];
+  const RANKS = [[0, 'Mới cầm dùi'], [10000, 'Grade 1 · Giữ được nhịp'], [20000, 'Grade 2 · Tay đều'], [30000, 'Grade 3 · Vững tempo'], [40000, 'Grade 4 · Groove ổn'], [50000, 'Grade 5 · Tay lụa'], [65000, 'Grade 6 · Biểu diễn'], [80000, 'Grade 7 · Nghệ sĩ'], [95000, 'Grade 8 · Bậc thầy']];
   function points(score, windowMs, levelTest, completed = true) {
     const bonus = completed && score >= 60 ? 2 : 0;
     if (score < 40) return -Math.ceil((40 - score) / 8) + bonus;
