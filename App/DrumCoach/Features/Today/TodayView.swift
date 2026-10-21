@@ -50,6 +50,7 @@ struct TodayView: View {
                     Spacer()
                 }
                 Text(instrumentHint).font(.callout).foregroundStyle(.secondary)
+                if instrument != .pad { DrumStatusPill() }
                 Text(plan.source).font(.callout).foregroundStyle(.secondary)
                 if finished { journal }
                 part(L("Khởi động", "Warm-up"), plan.day.warmup, catalog, segment: 0)

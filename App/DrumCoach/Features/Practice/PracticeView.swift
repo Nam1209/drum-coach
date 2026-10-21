@@ -35,6 +35,7 @@ struct PracticeView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     header
                     if let note = statusNote { Label(note.text, systemImage: note.icon).font(.callout).foregroundStyle(note.color) }
+                    if model.mode == .eDrum { DrumStatusPill() }
                     Stage {
                         VStack(alignment: .leading, spacing: 14) {
                             NotationView(exercise: model.playedExercise, display: model.display, beat: beat,

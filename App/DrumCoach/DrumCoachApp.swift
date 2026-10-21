@@ -21,6 +21,7 @@ struct DrumCoachApp: App {
             .environment(\.locale, AppLocale.current)
             .modifier(AutoBackup())
             .task {
+                DrumConnectionMonitor.shared.start()
                 VoiceRecorder.loadAll(into: voiceBank)
                 await voiceBank.prepare()
             }
