@@ -54,6 +54,7 @@ struct TeacherView: View {
                 }
             }
             Section {
+                NavigationLink("Hỏi thầy (chat)") { TeacherChatView() }
                 NavigationLink("Hồ sơ học viên") { ProfileEditor() }
                 NavigationLink("Cài đặt kết nối") { TeacherSetupView() }
             }

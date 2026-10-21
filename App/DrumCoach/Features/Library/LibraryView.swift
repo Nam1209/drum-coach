@@ -31,6 +31,9 @@ struct LibraryView: View {
                 }
             }
             Section("Khởi động") { ForEach(StarterExercises.all) { practiceLink($0) } }
+            Section("40 rudiment chuẩn PAS") {
+                NavigationLink("Xem 40 rudiment") { List(PASRudiments.all) { practiceLink($0) }.navigationTitle("PAS Rudiments") }
+            }
             ForEach(Grade8Curriculum.units) { unit in
                 Section(unit.title) {
                     ForEach(unit.exercises.compactMap { try? ExerciseDSL.parse($0) }) { ex in

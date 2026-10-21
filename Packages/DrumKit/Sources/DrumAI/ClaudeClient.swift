@@ -91,14 +91,33 @@ public struct ClaudeClient: Sendable {
         throw .decoding("Claude chưa trả lời xong")
     }
 
+    /// Plain-text conversation turn (teacher chat).
+    public func text(system: String, messages: [(role: String, text: String)], effort: Effort, webSearch: Bool,
+                     maxTokens: Int) async throws(ClaudeError) -> String {
+        guard !apiKey.isEmpty else { throw .missingKey }
+        var msgs: [JSONValue] = messages.map { .object(["role": .string($0.role), "content": .string($0.text)]) }
+        for _ in 0..<4 {
+            let reply = try await send(system: system, messages: msgs, schema: nil, effort: effort, webSearch: webSearch, maxTokens: maxTokens)
+            switch reply.stopReason {
+            case "refusal": throw .refused(reply.refusalExplanation)
+            case "pause_turn": msgs.append(.object(["role": .string("assistant"), "content": reply.rawContent])); continue
+            default:
+                guard let t = reply.allText, !t.isEmpty else { throw .decoding("Không có nội dung trả về") }
+                return t
+            }
+        }
+        throw .decoding("Claude chưa trả lời xong")
+    }
+
     private struct Reply {
         let stopReason: String?
         let lastText: String?
+        let allText: String?
         let rawContent: JSONValue
         let refusalExplanation: String?
     }
 
-    private func send(system: String, messages: [JSONValue], schema: JSONValue, effort: Effort,
+    private func send(system: String, messages: [JSONValue], schema: JSONValue?, effort: Effort,
                       webSearch: Bool, maxTokens: Int) async throws(ClaudeError) -> Reply {
         var body: [String: JSONValue] = [
             "model": .string(model),
@@ -106,8 +125,9 @@ public struct ClaudeClient: Sendable {
             "system": .string(system),
             "messages": .array(messages),
             "thinking": .object(["type": .string("adaptive")]),
-            "output_config": .object(["effort": .string(effort.rawValue),
-                                      "format": .object(["type": .string("json_schema"), "schema": schema])]),
+            "output_config": schema.map { .object(["effort": .string(effort.rawValue),
+                                                   "format": .object(["type": .string("json_schema"), "schema": $0])]) }
+                ?? .object(["effort": .string(effort.rawValue)]),
             "fallbacks": .string("default"),
         ]
         if webSearch {
@@ -130,9 +150,11 @@ public struct ClaudeClient: Sendable {
             throw .http(resp.statusCode, msg)
         }
         let content = json["content"] as? [[String: Any]] ?? []
-        let lastText = content.last { $0["type"] as? String == "text" }?["text"] as? String
+        let texts = content.filter { $0["type"] as? String == "text" }.compactMap { $0["text"] as? String }
+        let lastText = texts.last
         let raw = (try? JSONSerialization.data(withJSONObject: content)).flatMap { try? JSONDecoder().decode(AnyJSON.self, from: $0) }
-        return Reply(stopReason: json["stop_reason"] as? String, lastText: lastText, rawContent: raw?.value ?? .array([]),
+        return Reply(stopReason: json["stop_reason"] as? String, lastText: lastText, allText: texts.isEmpty ? nil : texts.joined(),
+                     rawContent: raw?.value ?? .array([]),
                      refusalExplanation: (json["stop_details"] as? [String: Any])?["explanation"] as? String)
     }
 }

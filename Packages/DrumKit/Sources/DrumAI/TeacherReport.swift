@@ -25,6 +25,10 @@ public struct Resource: Codable, Sendable, Equatable, Hashable {
     public var url: URL?
     public let why: String
     public let searchQuery: String
+
+    public init(kind: String, title: String, url: URL?, why: String, searchQuery: String) {
+        self.kind = kind; self.title = title; self.url = url; self.why = why; self.searchQuery = searchQuery
+    }
 }
 
 public struct PlannedItem: Codable, Sendable, Equatable, Hashable {
@@ -34,6 +38,10 @@ public struct PlannedItem: Codable, Sendable, Equatable, Hashable {
     public let bpm: Int
     public let minutes: Int
     public let focus: String
+
+    public init(exerciseId: String?, newExerciseDSL: String?, bpm: Int, minutes: Int, focus: String) {
+        self.exerciseId = exerciseId; self.newExerciseDSL = newExerciseDSL; self.bpm = bpm; self.minutes = minutes; self.focus = focus
+    }
 }
 
 public struct DayPlan: Codable, Sendable, Equatable, Hashable {
@@ -44,6 +52,10 @@ public struct DayPlan: Codable, Sendable, Equatable, Hashable {
     public let fun: [PlannedItem]
 
     public var allItems: [PlannedItem] { warmup + main + fun }
+
+    public init(day: Int, warmup: [PlannedItem], main: [PlannedItem], fun: [PlannedItem]) {
+        self.day = day; self.warmup = warmup; self.main = main; self.fun = fun
+    }
 }
 
 public struct TeacherReport: Codable, Sendable, Equatable {
@@ -55,6 +67,12 @@ public struct TeacherReport: Codable, Sendable, Equatable {
     public let weekPlan: [DayPlan]
     public var resources: [Resource]
     public let nextCheckpoint: String
+
+    public init(summary: String, progress: [String], fixFirst: [String], likelyCauses: [String], weekPlan: [DayPlan],
+                resources: [Resource], nextCheckpoint: String) {
+        self.summary = summary; self.progress = progress; self.fixFirst = fixFirst; self.likelyCauses = likelyCauses
+        self.weekPlan = weekPlan; self.resources = resources; self.nextCheckpoint = nextCheckpoint
+    }
 }
 
 import DrumCore

@@ -10,6 +10,7 @@ struct SettingsView: View {
     @State private var showCalibration = false
     @State private var refresh = 0
     @State private var error: String?
+    @AppStorage("reminderHour") private var reminderHour = 19
 
     var body: some View {
         Form {
@@ -26,6 +27,9 @@ struct SettingsView: View {
                 Text("Claude API (tùy chọn)")
             } footer: {
                 Text("Không bắt buộc. Không có key, app dùng gói Claude Pro qua Notion. Có key thì thầy AI và đọc PDF chạy tự động (tính phí API riêng, khoảng $2–5/tháng).")
+            }
+            Section("Nhắc tập") {
+                Stepper("Giờ nhắc hằng ngày: \(reminderHour):00", value: $reminderHour, in: 5...23)
             }
             Section("Độ trễ") {
                 Button("Hiệu chỉnh độ trễ pad / trống điện") { showCalibration = true }
@@ -56,6 +60,9 @@ struct SettingsView: View {
                 Text("Bấm Ghi âm rồi nói rõ một âm (\"one\", \"and\"…). Xóa để quay về giọng máy (có hiệu lực sau khi mở lại app).")
             }
             Section("Bản cài") {
+                if let exp = ReminderScheduler.expiryDate {
+                    LabeledContent("Ngày hết hạn bản cài", value: exp.formatted(date: .abbreviated, time: .shortened))
+                }
                 Text("Cài bằng Apple ID miễn phí: app hết hạn sau 7 ngày. Cắm iPad vào Mac và bấm Run trong Xcode để cài lại — lịch sử tập vẫn giữ nguyên.")
                     .font(.callout).foregroundStyle(.secondary)
             }

@@ -14,10 +14,12 @@ struct PracticeView: View {
     @State private var taps: [Date] = []
     private let exercises: [Exercise]
 
-    init(exercises: [Exercise], voiceBank: CountVoiceBank, testItem: LevelTestItem? = nil) {
+    init(exercises: [Exercise], voiceBank: CountVoiceBank, testItem: LevelTestItem? = nil, bpm: Double? = nil) {
         self.exercises = exercises
         self.voiceBank = voiceBank
-        _model = StateObject(wrappedValue: PracticeViewModel(exercise: exercises[0], voiceBank: voiceBank, testItem: testItem))
+        let vm = PracticeViewModel(exercise: exercises[0], voiceBank: voiceBank, testItem: testItem)
+        if let bpm, testItem == nil { vm.settings.bpm = bpm }
+        _model = StateObject(wrappedValue: vm)
     }
 
     var body: some View {

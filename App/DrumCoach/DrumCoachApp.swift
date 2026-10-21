@@ -9,6 +9,9 @@ struct DrumCoachApp: App {
     var body: some Scene {
         WindowGroup {
             TabView {
+                Tab("Hôm nay", systemImage: "sun.max") {
+                    NavigationStack { TodayView(voiceBank: voiceBank) }
+                }
                 Tab("Tập", systemImage: "music.note") {
                     PracticeView(exercises: StarterExercises.all, voiceBank: voiceBank)
                 }
