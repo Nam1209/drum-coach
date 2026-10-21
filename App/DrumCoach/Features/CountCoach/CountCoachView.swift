@@ -157,6 +157,8 @@ struct CountCoachView: View {
             ForEach(Array(s.tips.enumerated()), id: \.offset) { i, tip in
                 Label(tip, systemImage: s.tips.count == 1 && s.missed == 0 && s.early + s.late == 0 ? "checkmark.circle" : "\(i + 1).circle")
             }
+            Label(L("Đã lưu vào báo cáo tuần gửi thầy AI (Thầy AI → Gửi cho thầy).", "Saved for the weekly report to the AI teacher (AI teacher → Send to teacher)."), systemImage: "tray.and.arrow.up")
+                .font(.footnote).foregroundStyle(.secondary)
         }
     }
 
