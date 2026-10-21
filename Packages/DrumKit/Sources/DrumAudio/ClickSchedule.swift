@@ -34,8 +34,17 @@ public struct LevelTone: Codable, Sendable, Equatable, Hashable {
 }
 
 public enum ToneLadder {
-    /// A clock's tick-tock: a deeper "tock" on beat 1, light "ticks" elsewhere; nothing rings, so it stays easy on the ears.
+    /// A wooden metronome: a brighter, louder block on beat 1 and the same warm "tok" on the other beats.
     public static let `default`: [Int: LevelTone] = [
+        5: LevelTone(sound: .woodblock, pitchHz: 1150, gainDb: -1),// accent block — beat 1
+        4: LevelTone(sound: .woodblock, pitchHz: 900, gainDb: -5), // block — beats 2, 3, 4
+        3: LevelTone(sound: .woodblock, pitchHz: 1000, gainDb: -10),// light block — "&"
+        2: LevelTone(sound: .woodblock, pitchHz: 1050, gainDb: -14),// faint block — clear "e"/"a"
+        1: LevelTone(sound: .hiHat, pitchHz: 0, gainDb: -20),      // whisper — background "e"/"a"
+    ]
+
+    /// The third factory ladder (clock ticks), recognised in saved settings like the earlier ones.
+    public static let clockTickDefault: [Int: LevelTone] = [
         5: LevelTone(sound: .tick, pitchHz: 1300, gainDb: -2),     // tock — beat 1 / accent
         4: LevelTone(sound: .tick, pitchHz: 2000, gainDb: -6),     // tick — beats 2, 3, 4
         3: LevelTone(sound: .tick, pitchHz: 2600, gainDb: -11),    // lighter tick — "&"
@@ -61,9 +70,12 @@ public enum ToneLadder {
         1: LevelTone(sound: .hiHat, pitchHz: 0, gainDb: -14),
     ]
 
+    /// Every factory ladder shipped before the current one.
+    public static var factoryLadders: [[Int: LevelTone]] { [legacyDefault, woodblockDefault, clockTickDefault] }
+
     /// Saved settings still on the old factory ladder move to the new one; a ladder the user edited is kept.
     public static func upgraded(_ ladder: [Int: LevelTone]) -> [Int: LevelTone] {
-        ladder == legacyDefault || ladder == woodblockDefault ? `default` : ladder
+        factoryLadders.contains(ladder) ? `default` : ladder
     }
 
     public static func tone(for slot: ClickSlot, ladder: [Int: LevelTone] = ToneLadder.default) -> LevelTone? {
@@ -173,7 +185,7 @@ public struct MetronomeSettings: Sendable, Codable, Equatable {
     /// Settings saved by the first release with its untouched factory sound (busy 8th clicks, piercing beeps) become
     /// the gentle default: one wooden "tick" on beat 1 and the same soft "tock" on the other beats.
     public func upgradedFromFirstRelease() -> MetronomeSettings {
-        guard ladder == ToneLadder.legacyDefault || ladder == ToneLadder.woodblockDefault else { return self }
+        guard ToneLadder.factoryLadders.contains(ladder) else { return self }
         var s = self
         s.ladder = ToneLadder.default
         if pattern == .eighths { s.pattern = .quarter }

@@ -8,7 +8,7 @@ public enum ClickSynth {
         switch sound {
         case .click: tone(pitchHz, partials: [(1, 1), (2.7, 0.2)], decay: 0.012, length: 0.03, sr: sampleRate, noise: 0.06)
         case .beep: tone(pitchHz, partials: [(1, 1), (2, 0.3)], decay: 0.05, length: 0.12, sr: sampleRate, noise: 0)
-        case .woodblock: tone(pitchHz, partials: [(1, 1), (2.76, 0.25), (5.4, 0.06)], decay: 0.022, length: 0.07, sr: sampleRate, noise: 0.02)
+        case .woodblock: wood(pitchHz > 0 ? pitchHz : 900, sr: sampleRate)
         case .cowbell: tone(pitchHz, partials: [(1, 1), (1.48, 0.8)], decay: 0.06, length: 0.2, sr: sampleRate, noise: 0)
         case .rimshot: tone(max(pitchHz, 400), partials: [(1, 0.6), (2.3, 0.4)], decay: 0.015, length: 0.06, sr: sampleRate, noise: 0.6)
         case .hiHat: tone(0, partials: [], decay: 0.02, length: 0.06, sr: sampleRate, noise: 1)
@@ -16,6 +16,34 @@ public enum ClickSynth {
         case .tick: tone(pitchHz > 0 ? pitchHz : 2000, partials: [(1, 0.5), (1.83, 0.2)], decay: 0.0018, length: 0.012,
                          sr: sampleRate, noise: 0.9, attack: 0.0002)
         }
+    }
+
+    /// A struck wooden block: a 1 ms noise strike rings three damped resonators (the block's note, a hollow body
+    /// below it and a little brightness above), like a real wood metronome rather than a sine "beep".
+    private static func wood(_ f0: Double, sr: Double) -> [Float] {
+        let count = Int(0.07 * sr)
+        var rng = SplitMix(seed: 0x00d)
+        let strike = Int(0.001 * sr)
+        let excitation: [Double] = (0..<count).map { i in
+            guard i < strike else { return 0 }
+            return (rng.nextUnit() * 2 - 1) * (0.5 - 0.5 * cos(2 * .pi * Double(i) / Double(max(strike, 1))))
+        }
+        // (frequency ratio, decay seconds, level)
+        let modes: [(Double, Double, Double)] = [(1, 0.022, 1), (0.55, 0.014, 0.45), (2.3, 0.006, 0.18)]
+        var out = [Double](repeating: 0, count: count)
+        for (ratio, decay, level) in modes {
+            let w = 2 * Double.pi * f0 * ratio / sr, r = exp(-1 / (decay * sr))
+            let a1 = 2 * r * cos(w), a2 = -r * r
+            var y1 = 0.0, y2 = 0.0
+            for i in 0..<count {
+                let y = excitation[i] * (1 - r) + a1 * y1 + a2 * y2
+                out[i] += level * y
+                y2 = y1; y1 = y
+            }
+        }
+        for i in 0..<count { out[i] *= min(1, Double(count - i) / Double(count) * 8) }   // clean end
+        let peak = out.map(abs).max() ?? 0
+        return out.map { Float(peak > 0 ? $0 * 0.9 / peak : 0) }
     }
 
     /// Sum of decaying sine partials plus optional high-passed noise, normalized to a 0.9 peak.

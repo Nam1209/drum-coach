@@ -178,14 +178,27 @@ private let sr = 48_000.0
     #expect(CountVoiceBank.resample(tone, from: 48_000, to: 48_000) == tone)
 }
 
-@Test func defaultClicksAreShortClockTicks() {
-    // Like a clock's tick-tock: no ringing tone, the sound is over within a few milliseconds.
-    #expect((2...5).allSatisfy { ToneLadder.default[$0]?.sound == .tick })
-    let tick = ClickSynth.render(sound: .tick, pitchHz: ToneLadder.default[4]!.pitchHz, sampleRate: 48_000)
-    #expect(tick.count <= 960)                                          // at most 20 ms long
-    let energy = tick.map { $0 * $0 }
-    let early = energy.prefix(288).reduce(0, +), total = energy.reduce(0, +)
-    #expect(early / total > 0.9)                                        // 90% of it in the first 6 ms
+@Test func defaultClicksSoundLikeAWoodenMetronome() {
+    #expect((2...5).allSatisfy { ToneLadder.default[$0]?.sound == .woodblock })
+    let f0 = ToneLadder.default[4]!.pitchHz
+    let wood = ClickSynth.render(sound: .woodblock, pitchHz: f0, sampleRate: 48_000)
+    // Warm: far more energy at the block's note than in the 4 kHz region that makes clicks piercing.
+    #expect(energy(wood, at: f0) > 10 * energy(wood, at: 4_000))
+    // A short "tok": 90% of the sound is over within 40 ms.
+    let e = wood.map { $0 * $0 }
+    #expect(e.prefix(1_920).reduce(0, +) / e.reduce(0, +) > 0.9)
+}
+
+/// Goertzel power at `f` Hz (48 kHz audio).
+private func energy(_ x: [Float], at f: Double) -> Double {
+    let k = 2 * cos(2 * Double.pi * f / 48_000)
+    var s1 = 0.0, s2 = 0.0
+    for v in x { let s0 = Double(v) + k * s1 - s2; s2 = s1; s1 = s0 }
+    return s1 * s1 + s2 * s2 - k * s1 * s2
+}
+
+@Test func clockTickFactoryLadderIsUpgradedToo() {
+    #expect(ToneLadder.upgraded(ToneLadder.clockTickDefault) == ToneLadder.default)
 }
 
 @Test func woodblockFactoryLadderIsUpgradedToo() {
