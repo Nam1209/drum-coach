@@ -75,9 +75,14 @@ pre{background:var(--surface-2);padding:12px 14px;border-radius:10px;overflow-x:
 .cp{display:flex;gap:12px;justify-content:center;margin:10px 0}
 .cp .col{display:flex;flex-direction:column;gap:6px;align-items:center}
 .cp .cell{width:52px;height:30px;border-radius:8px;background:var(--surface);border:1px solid var(--line)}
-.cp .l3{background:var(--accent);border-color:var(--accent)}
-.cp .l2{background:var(--accent);opacity:.65;border-color:transparent}
-.cp .l1{background:var(--accent);opacity:.35;border-color:transparent}
+.cp .cell{height:22px}
+.cp .lv5{background:var(--accent);border-color:var(--accent)}
+.cp .lv4{background:var(--accent);opacity:.82;border-color:transparent}
+.cp .lv3{background:var(--accent);opacity:.62;border-color:transparent}
+.cp .lv2{background:var(--accent);opacity:.45;border-color:transparent}
+.cp .lv1{background:var(--accent);opacity:.3;border-color:transparent}
+.ladder{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;font-size:.88rem;margin-top:10px}
+.ladder b{color:var(--accent)}
 .cp .snd{font-size:.72rem;color:var(--muted)}
 .cp .lab{font-weight:700}
 
@@ -237,17 +242,25 @@ BD: o-------o-o-----</pre>
     <div class="mock">
       <div class="mock-title" style="text-align:center">Click Pattern</div>
       <div class="cp">
-        <div class="col"><div class="cell l3"></div><div class="cell l3"></div><div class="cell l3"></div><span class="lab">1</span><span class="snd">click</span></div>
-        <div class="col"><div class="cell"></div><div class="cell"></div><div class="cell l1"></div><span class="lab">e</span><span class="snd">hi-hat</span></div>
-        <div class="col"><div class="cell"></div><div class="cell l2"></div><div class="cell l2"></div><span class="lab">&amp;</span><span class="snd">cowbell</span></div>
-        <div class="col"><div class="cell"></div><div class="cell"></div><div class="cell l1"></div><span class="lab">a</span><span class="snd">hi-hat</span></div>
+        <div class="col"><div class="cell lv5"></div><div class="cell lv5"></div><div class="cell lv5"></div><div class="cell lv5"></div><div class="cell lv5"></div><span class="lab">1</span><span class="snd">chuông cao</span></div>
+        <div class="col"><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell lv1"></div><span class="lab">e</span><span class="snd">hi-hat khẽ</span></div>
+        <div class="col"><div class="cell"></div><div class="cell"></div><div class="cell lv3"></div><div class="cell lv3"></div><div class="cell lv3"></div><span class="lab">&amp;</span><span class="snd">cowbell</span></div>
+        <div class="col"><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell lv2"></div><div class="cell lv2"></div><span class="lab">a</span><span class="snd">woodblock</span></div>
       </div>
-      <p class="muted" style="text-align:center;font-size:.85rem;margin:0">Chạm: đổi mức to · Nhấn giữ: chọn âm cho ô</p>
+      <p class="muted" style="text-align:center;font-size:.85rem;margin:0">Chạm ô: chọn mức 1–5 · Nhấn giữ: đổi âm cho ô</p>
+      <div class="ladder">
+        <b>Mức 5</b><span>chuông cao (1760 Hz)</span><span class="muted">phách 1 / accent</span>
+        <b>Mức 4</b><span>click cao (1320 Hz)</span><span class="muted">phách 2·3·4</span>
+        <b>Mức 3</b><span>cowbell (880 Hz)</span><span class="muted">"&amp;"</span>
+        <b>Mức 2</b><span>woodblock trầm (660 Hz)</span><span class="muted">"e" / "a" rõ</span>
+        <b>Mức 1</b><span>hi-hat khẽ</span><span class="muted">"e" / "a" nền</span>
+      </div>
     </div>
     <div>
       <ul>
         <li><b>Preset:</b> Quarter, 8th, 16th, Triplet, Offbeat, cộng với preset bạn tự lưu</li>
-        <li><b>Mỗi ô "1 e &amp; a"</b> có mức to riêng (tắt / nhỏ / vừa / to) và <b>âm riêng</b> (click, woodblock, cowbell, rimshot, hi-hat, beep, giọng đọc)</li>
+        <li><b>5 mức âm</b>, mỗi mức có <b>âm, cao độ và độ to riêng</b>, nên nghe là phân biệt được ngay 1 / e / &amp; / a. "Thang âm" chỉnh được và có nút nghe thử từng mức</li>
+        <li>Mỗi ô vẫn có thể <b>đổi sang âm khác</b> (click, beep, woodblock, cowbell, rimshot, hi-hat, giọng đọc)</li>
         <li>Số ô mỗi phách: 1 / 2 / 3 / 4 / 6</li>
         <li><b>Accent Beat 1</b></li>
         <li><b>Beat Skip:</b> ●●●● / ●○●○ / ●○○○ / ○●○●</li>

@@ -253,16 +253,28 @@ public enum Counting { public static func labels(mode: CountMode, beats: Int) ->
 **Interfaces – Produces:**
 ```swift
 public enum ClickKind: Sendable, Hashable { case downbeat, beat, subdivision, voice(String) } // voice("e") = âm tiết đếm
-public struct ClickEvent: Sendable, Hashable { public let sampleTime: Int64; public let kind: ClickKind; public let bar: Int; public let level: Int; public let sound: ClickSound }
+public struct ClickEvent: Sendable, Hashable { public let sampleTime: Int64; public let kind: ClickKind; public let bar: Int; public let level: Int; public let tone: LevelTone }
 public enum ClickSound: String, Codable, CaseIterable, Sendable { case click, woodblock, cowbell, rimshot, hiHat, beep, voice } // voice = đọc âm tiết "1/e/&/a" ngay tại ô đó
-public struct ClickSlot: Codable, Sendable, Equatable { public var level: Int /* 0 = tắt, 1 nhỏ, 2 vừa, 3 to — giống 3 ô chồng trong Drum Journal */ ; public var sound: ClickSound }
+public struct ClickSlot: Codable, Sendable, Equatable { public var level: Int /* 0 = tắt, 1…5 — 5 ô chồng */ ; public var sound: ClickSound? /* nil = dùng âm mặc định của mức */ }
+/// Mỗi mức có ÂM + CAO ĐỘ + ĐỘ TO riêng để nghe là phân biệt được ngay (người dùng yêu cầu: "mức 1 khác các mức khác").
+public struct LevelTone: Codable, Sendable, Equatable { public var sound: ClickSound; public var pitchHz: Double; public var gainDb: Double }
+public enum ToneLadder {
+  public static let `default`: [Int: LevelTone] = [
+    5: .init(sound: .beep,      pitchHz: 1760, gainDb: 0),    // chuông cao — phách 1 / accent
+    4: .init(sound: .click,     pitchHz: 1320, gainDb: -2),   // click cao — phách 2, 3, 4
+    3: .init(sound: .cowbell,   pitchHz: 880,  gainDb: -5),   // cowbell — "&"
+    2: .init(sound: .woodblock, pitchHz: 660,  gainDb: -9),   // woodblock trầm — "e"/"a" rõ
+    1: .init(sound: .hiHat,     pitchHz: 0,    gainDb: -14),  // hi-hat khẽ — "e"/"a" nền
+  ]
+  public static func tone(for slot: ClickSlot, ladder: [Int: LevelTone]) -> LevelTone? // nil khi level 0; slot.sound ghi đè sound của mức
+}
 public struct ClickPattern: Codable, Sendable, Equatable {
   public var slots: [ClickSlot]                 // 1 phách chia làm slots.count ô: 4 = "1 e & a", 3 = "1 trip let", 2 = "1 &", 1 = "1"
-  public static let quarter: ClickPattern       // [3]
-  public static let eighths: ClickPattern       // [3,0,2,0] (đếm "1 e & a", click vào 1 và &)
-  public static let sixteenths: ClickPattern    // [3,1,2,1]
-  public static let triplets: ClickPattern      // [3,1,1]
-  public static let offbeat: ClickPattern       // [0,0,3,0] (chỉ click vào &)
+  public static let quarter: ClickPattern       // [5]
+  public static let eighths: ClickPattern       // [4,0,3,0] (click vào phách và &)
+  public static let sixteenths: ClickPattern    // [4,1,3,1]
+  public static let triplets: ClickPattern      // [4,2,2]
+  public static let offbeat: ClickPattern       // [0,0,4,0] (chỉ click vào &)
 }
 public enum BeatSkip: String, Codable, CaseIterable, Sendable { case all, oneOnOneOff /* ●○●○ */, beatOneOnly /* ●○○○ */, backbeat /* ○●○● */ }
 public struct MetronomeSettings: Sendable, Codable, Equatable {
@@ -302,18 +314,24 @@ public enum ClickSchedule {
 @Test func backbeatOnly() { /* beatSkip .backbeat → chỉ có phách 2 và 4 */ }
 @Test func clickPatternLevels() { // pattern [3,0,2,0] ở 60 BPM, 48 kHz
   let e = ClickSchedule.events(settings: .init(bpm: 60, pattern: .eighths, …), sampleRate: 48000, from: 0, to: 48000)
-  #expect(e.map(\.sampleTime) == [0, 24000]); #expect(e.map(\.level) == [3, 2]) }  // ClickEvent có thêm `level: Int` và `sound: ClickSound`
-@Test func perSlotSound() { /* slot "&" chọn .cowbell → event ở 1/2 phách có sound .cowbell */ }
+  #expect(e.map(\.sampleTime) == [0, 24000]); #expect(e.map(\.level) == [4, 3]) }
+@Test func levelsHaveDistinctTones() { // mỗi mức 1…5 khác nhau về sound hoặc pitch
+  let tones = (1...5).compactMap { ToneLadder.default[$0] }
+  #expect(Set(tones.map { "\($0.sound)-\($0.pitchHz)" }).count == 5)
+  #expect(tones.map(\.gainDb) == tones.map(\.gainDb).sorted(by: >)) }  // mức cao hơn thì to hơn
+@Test func accentBeatOneUsesLevel5() { /* accentBeatOne + pattern quarter → phách 1 có tone mức 5, phách 2–4 mức 4 */ }
+@Test func slotSoundOverridesLadder() { /* slot level 3, sound .rimshot → tone.sound == .rimshot, pitch/gain vẫn của mức 3 */ }
+@Test func perSlotSound() { /* slot "&" chọn .rimshot → event ở 1/2 phách có tone.sound .rimshot */ }
 @Test func beatSkipOneOnOneOff() { /* 4/4, pattern quarter → chỉ có phách 1 và 3 */ }
 @Test func beatSkipBeatOneOnly() { /* chỉ có phách 1 */ }
-@Test func tripletPatternTiming() { /* [3,1,1] ở 60 BPM → 0, 16000, 32000 */ }
+@Test func tripletPatternTiming() { /* [4,2,2] ở 60 BPM → 0, 16000, 32000 */ }
 @Test func voiceSyllables() { /* voiceCount .sixteenths → kinds .voice("1"), .voice("e"), .voice("&"), .voice("a") */ }
 ```
 - [ ] **Bước 2:** `swift test --filter DrumAudioTests` → FAIL.
 - [ ] **Bước 3:** Implement `ClickSchedule` (thuần). `MetronomeEngine` dùng một `AVAudioSourceNode` render callback: mỗi buffer gọi `ClickSchedule.events` cho đoạn sample của buffer đó rồi mix sample click hoặc giọng vào đúng frame offset. Cách này cho độ chính xác tới từng sample và không phụ thuộc vào timer. `CountVoiceBank` dùng `AVSpeechSynthesizer.write(_:toBufferCallback:)` render trước các âm tiết "one…twelve, e, and, a, trip, let" thành `AVAudioPCMBuffer` ở 48 kHz, cắt bỏ khoảng lặng đầu, rồi cache vào thư mục Caches. **Giọng đếm phải liền mạch** (người dùng phàn nàn rằng tiếng đếm bị giật ở âm "&"): mỗi âm tiết có fade-in 3 ms và fade-out 15 ms, không bao giờ bị cắt cụt; nếu âm tiết dài hơn ô thời gian của nó ở tempo hiện tại thì nén thời lượng (time-compress, giữ cao độ) cho vừa 90% ô; phách chính đọc to hơn "e & a" 4 dB để nghe ra nhịp điệu nói tự nhiên. Có thêm tùy chọn **tự ghi âm giọng mình** cho từng âm tiết trong Settings. Thêm test thuần `syllableFitsSlot`: hàm `CountVoiceBank.stretchFactor(syllableDuration: 0.35, slot: 60/90/4)` phải trả về < 1 và kết quả × 0.35 ≤ 0.9 × slot. Đặt `AVAudioSession` là `.playAndRecord` với `[.defaultToSpeaker, .allowBluetoothA2DP]` và `setPreferredIOBufferDuration(0.005)`.
   **Màn hình "Metronome & Âm thanh"** (sheet, theo mẫu Drum Journal):
   - Preset: Quarter / 8th / 16th / Triplet / Offbeat.
-  - **Click Pattern:** mỗi ô "1 e & a" là một cột 3 ô chồng; chạm vào cột để đổi mức to 0→1→2→3→0. **Nhấn giữ** một cột để chọn âm thanh riêng cho ô đó (click, woodblock, cowbell, rimshot, hi-hat, beep, giọng đọc). Nhãn dưới cột sáng lên theo nhịp đang chạy.
+  - **Click Pattern:** mỗi ô "1 e & a" là một cột **5 ô chồng**; chạm vào ô thứ N để đặt mức N (chạm lại ô đang chọn để tắt), vuốt lên/xuống trên cột để tăng/giảm. Dưới mỗi cột hiện tên âm của mức đang chọn. Có trang **"Thang âm"** cho chỉnh âm, cao độ và độ to của từng mức 1…5, có nút nghe thử từng mức, và nút khôi phục `ToneLadder.default`. **Nhấn giữ** một cột để chọn âm thanh riêng cho ô đó (click, woodblock, cowbell, rimshot, hi-hat, beep, giọng đọc). Nhãn dưới cột sáng lên theo nhịp đang chạy.
   - Đổi số ô mỗi phách: 1 / 2 / 3 / 4 / 6.
   - Accent Beat 1.
   - Beat Skip: Tất cả / ●○●○ / ●○○○ / ○●○●.
@@ -322,7 +340,7 @@ public enum ClickSchedule {
   - Âm lượng riêng cho click, giọng đếm và nhạc nền.
   - Lưu được preset của mình.
 
-  App tự tạo các file âm thanh (click, woodblock…) bằng DSP lúc chạy, không cần file mẫu. Mức to ánh xạ sang 1 = −14 dB, 2 = −6 dB, 3 = 0 dB.
+  App tự tạo âm thanh (click, beep, woodblock, cowbell, hi-hat, rimshot) bằng DSP lúc chạy, theo `pitchHz` và `gainDb` của từng mức, không cần file mẫu. Accent Beat 1 = phách 1 tự lên mức 5.
 - [ ] **Bước 4:** Test → PASS. Kiểm tra tay trên iPad thật: so với một metronome khác ở 60 và 200 BPM, nghe thấy không lệch.
 - [ ] **Bước 5:** Commit `feat: sample-accurate metronome with spoken counting`.
 
