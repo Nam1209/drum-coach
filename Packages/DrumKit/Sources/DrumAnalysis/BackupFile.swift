@@ -34,6 +34,21 @@ public struct BackupSession: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
+extension BackupSession {
+    /// Every number finite and within the ranges the app can produce; strings short.
+    var isSane: Bool {
+        let s = stats
+        let finite = [bpm, seconds, goodWindowMs, s.score, s.accuracy, s.meanOffsetMs, s.stdDevMs] + Array(s.byBeatPosition.values)
+            + Array(s.byVoice.values) + Array(s.byHand.values) + Array(s.loudnessByHandDb.values) + [s.velocityCV ?? 0, s.accentContrastDb ?? 0]
+        return finite.allSatisfy(\.isFinite)
+            && (20...400).contains(bpm) && (0...86_400).contains(seconds) && (1...200).contains(goodWindowMs)
+            && (0...100).contains(s.score) && (0...1).contains(s.accuracy) && (0...1_000_000).contains(s.totalNotes)
+            && finite.allSatisfy { abs($0) <= 100_000 }
+            && [title, skill, exerciseId, mode].allSatisfy { $0.count <= 500 } && (levelTestId?.count ?? 0) <= 100
+            && date.timeIntervalSince1970 > 0 && date.timeIntervalSinceNow < 86_400
+    }
+}
+
 public struct BackupJournal: Codable, Sendable, Equatable {
     public let id: UUID
     public let date: Date
@@ -69,7 +84,15 @@ public struct BackupFile: Codable, Sendable, Equatable {
         return try d.decode(BackupFile.self, from: data)
     }
 
-    public func newSessions(existing: Set<UUID>) -> [BackupSession] { sessions.filter { !existing.contains($0.id) } }
+    /// Sessions not yet in the store, dropping any with out-of-range values (a crafted file must not crash the app).
+    public func newSessions(existing: Set<UUID>) -> [BackupSession] {
+        Array(sessions.lazy.filter { !existing.contains($0.id) && $0.isSane }.prefix(Self.maxSessions))
+    }
+
+    /// Journal notes with a reasonable length.
+    public var saneJournal: [BackupJournal] { Array(journal.filter { $0.text.count <= 10_000 }.prefix(Self.maxSessions)) }
+
+    static let maxSessions = 200_000
 
     public static func fileName(for date: Date, calendar: Calendar = .current) -> String {
         let f = DateFormatter()

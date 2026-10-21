@@ -45,7 +45,7 @@ enum HistoryStore {
             ctx.insert(s)
         }
         let notes = Set((try ctx.fetch(FetchDescriptor<JournalEntry>())).map(\.id))
-        for j in file.journal where !notes.contains(j.id) {
+        for j in file.saneJournal where !notes.contains(j.id) {
             let e = JournalEntry(date: j.date, text: j.text)
             e.id = j.id
             ctx.insert(e)
