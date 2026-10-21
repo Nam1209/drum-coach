@@ -671,7 +671,34 @@ public enum HistorySummarizer { public static func digest(_ records: [SessionRec
   - **Nhật ký:** sau mỗi buổi tập có ô ghi chú tùy chọn (cảm nhận, đau mỏi, chỗ khó).
   - **HistoryView:** lịch tập dạng calendar, bấm vào một ngày để xem các lần chơi.
   - **Backup:** xuất toàn bộ lịch sử ra một file JSON (`DrumCoach-backup-YYYY-MM-DD.json`) vào Files hoặc iCloud Drive, và nhập lại được. Mỗi Chủ nhật tự backup vào thư mục Documents của app (bật trong Files). Test round-trip: xuất rồi nhập vào store rỗng phải ra cùng số bản ghi và cùng score.
-- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: long-term practice history, digest and backup`.
+- [ ] **Bước 3b: Tổng kết giai đoạn (người dùng muốn "sau 3 tháng review lại xem mình đã đi tới đâu"):**
+
+  Thêm:
+  ```swift
+  public struct PeriodReview: Codable, Sendable, Equatable {
+    public let from: Date; public let to: Date; public let totalHours: Double; public let daysPracticed: Int; public let longestStreak: Int
+    public let levelStart: Int; public let levelEnd: Int; public let levelsPassed: [(Int, Date)]   // mốc đạt từng level
+    public let exerciseDeltas: [(title: String, cleanBpmStart: Double?, cleanBpmEnd: Double?)]  // tempo sạch (score > 90) ở 2 tuần đầu so với 2 tuần cuối
+    public let offsetStartMs: Double; public let offsetEndMs: Double; public let scoreStart: Double; public let scoreEnd: Double
+    public let fixedWeaknesses: [String]; public let remainingWeaknesses: [String]
+  }
+  public enum HistorySummarizer { public static func periodReview(_ records: [SessionRecord], levelHistory: [(Int, Date)], from: Date, to: Date, calendar: Calendar) -> PeriodReview }
+  ```
+  (Mảng tuple không Codable: dùng struct nhỏ thay thế, tên do implementer chọn.)
+
+  Test:
+  - Dữ liệu giả 90 ngày, tempo bài A tăng từ 60 lên 84 → `exerciseDeltas` của A là (60, 84).
+  - Điểm yếu "&" trễ có ở tháng 1 nhưng không còn ở tháng 3 → nằm trong `fixedWeaknesses`.
+  - Khoảng thời gian không có dữ liệu → các giá trị `nil`/0, không crash.
+
+  **Màn hình "Hành trình"** (không cần AI):
+  - chọn khoảng thời gian: 1 / 3 / 6 tháng / từ đầu;
+  - thẻ "Trước → Sau" cho từng bài: tempo sạch, độ lệch, %;
+  - dòng thời gian các level đã đạt; tổng giờ tập; chuỗi ngày dài nhất;
+  - điểm yếu đã sửa được và điểm yếu còn lại.
+
+  Nút **"Nhờ thầy tổng kết giai đoạn"** gửi `PeriodReview` qua cầu nối Notion (Task 13B), cùng luồng với báo cáo tuần nhưng trang có tên `Tổng kết YYYY-MM-DD`. Thầy viết nhận xét cả giai đoạn và mục tiêu cho 3 tháng tới. App nhắc vào mỗi mốc 3 tháng kể từ buổi tập đầu tiên.
+- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: long-term practice history, digest, period review and backup`.
 
 ### Task 13B: Cầu nối Claude Pro qua Notion (cách mặc định, không tốn API)
 
