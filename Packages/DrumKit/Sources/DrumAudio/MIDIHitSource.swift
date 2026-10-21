@@ -29,6 +29,13 @@ public final class MIDIHitSource: HitSource, @unchecked Sendable {
 
     public static var sourceCount: Int { MIDIGetNumberOfSources() }
 
+    /// A scorable hit, or nil for notes the kit mapping doesn't know: those are ignored, never counted as any drum
+    /// (a voice-less hit would otherwise match like a microphone hit and inflate the score).
+    static func hit(note: UInt8, velocity: UInt8, time: TimeInterval, overrides: [UInt8: Voice]) -> Hit? {
+        guard let voice = Voice.from(midiNote: note, overrides: overrides) else { return nil }
+        return Hit(time: time, voice: voice, velocity: Double(velocity) / 127)
+    }
+
     public func start() throws {
         var status = MIDIClientCreateWithBlock("DrumCoach" as CFString, &client) { [weak self] note in
             if note.pointee.messageID == .msgSetupChanged { self?.connectAll() }
@@ -44,7 +51,7 @@ public final class MIDIHitSource: HitSource, @unchecked Sendable {
                 let map = overrides.withLock { $0 }
                 for n in MIDIParser.noteOns(words: words) {
                     noteCont.yield(n.note)
-                    cont.yield(Hit(time: host, voice: Voice.from(midiNote: n.note, overrides: map), velocity: Double(n.velocity) / 127))
+                    if let hit = Self.hit(note: n.note, velocity: n.velocity, time: host, overrides: map) { cont.yield(hit) }
                 }
             }
         }

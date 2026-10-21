@@ -15,3 +15,10 @@ import Testing
 @Test func ignoresOtherMessageTypes() {
     #expect(MIDIParser.noteOns(words: [0x40_99_2664, 0x10F8_0000]).isEmpty)
 }
+
+@Test func unmappedNotesAreNotHits() {
+    // Note 99 is not a General MIDI drum and has no learned mapping → it must never become a scorable hit.
+    #expect(MIDIHitSource.hit(note: 99, velocity: 100, time: 1, overrides: [:]) == nil)
+    #expect(MIDIHitSource.hit(note: 38, velocity: 127, time: 1, overrides: [:])?.voice == .snare)
+    #expect(MIDIHitSource.hit(note: 99, velocity: 64, time: 1, overrides: [99: .ride])?.voice == .ride)
+}

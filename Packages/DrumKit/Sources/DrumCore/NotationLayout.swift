@@ -102,3 +102,18 @@ extension Exercise {
         return copy
     }
 }
+
+extension Exercise {
+    /// Bars `bars` (1-based, clamped) as their own exercise starting at beat 0 — for looping a passage.
+    public func slice(bars range: ClosedRange<Int>) -> Exercise {
+        let lo = max(1, min(range.lowerBound, bars)), hi = max(lo, min(range.upperBound, bars))
+        let barBeats = timeSignature.beatsInQuarters
+        let start = barBeats * Rational(lo - 1, 1), end = barBeats * Rational(hi, 1)
+        var copy = self
+        copy.notes = notes.filter { $0.position >= start && $0.position < end }.map { var n = $0; n.position = n.position - start; return n }
+        copy.bars = hi - lo + 1
+        copy.id = Exercise.stableID(for: "\(id)|bars|\(lo)-\(hi)")
+        copy.title = title + L(" (ô \(lo)–\(hi))", " (bars \(lo)–\(hi))")
+        return copy
+    }
+}
