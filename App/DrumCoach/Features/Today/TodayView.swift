@@ -21,14 +21,16 @@ struct TodayView: View {
         let plan = todayPlan
         let catalog = ExerciseCatalog.all(context)
         let total = plan.day.allItems.reduce(0) { $0 + $1.minutes }
+        let rank = PracticeRank.for(points: HistoryStore.totalPoints(context))
         let streak = ProgressSummary(records: HistoryStore.records(context), now: Date(), calendar: .current).streakDays
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
                 PageHeader(title: "Hôm nay", subtitle: Date().formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "vi_VN"))))
                 HStack(alignment: .bottom, spacing: 40) {
                     Readout(value: "\(total)", caption: "phút tập hôm nay", size: 64)
-                    Readout(value: "\(streak)", caption: streak == 1 ? "ngày liên tiếp" : "ngày liên tiếp", size: 40)
+                    Readout(value: "\(streak)", caption: "ngày liên tiếp", size: 40)
                     Readout(value: "\(SettingsStore.currentGrade)", caption: "cấp độ hiện tại", size: 40)
+                    Readout(value: "\(rank.level)", caption: "hạng: \(rank.title)", size: 40, tint: Theme.shell)
                     Spacer()
                     sessionControl(plan.day)
                 }

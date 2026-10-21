@@ -37,5 +37,8 @@ final class PracticeSession {
         self.levelTestId = levelTestId
     }
 
+    /// Points this run earned or cost (derived, so the rule can change without migrating data).
+    var points: Int { PracticePoints.points(score: score, goodWindowMs: goodWindowMs, isLevelTest: isLevelTest) }
+
     var stats: SessionStats? { try? JSONDecoder().decode(SessionStats.self, from: statsData) }
 }

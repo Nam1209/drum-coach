@@ -15,6 +15,12 @@ enum HistoryStore {
         }
     }
 
+    /// Total practice points over the whole history, oldest first.
+    static func totalPoints(_ ctx: ModelContext) -> Int {
+        let all = (try? ctx.fetch(FetchDescriptor<PracticeSession>(sortBy: [SortDescriptor(\.date)]))) ?? []
+        return PracticePoints.total(all.map(\.points))
+    }
+
     static func journal(_ ctx: ModelContext) -> [(Date, String)] {
         ((try? ctx.fetch(FetchDescriptor<JournalEntry>())) ?? []).map { ($0.date, $0.text) }
     }

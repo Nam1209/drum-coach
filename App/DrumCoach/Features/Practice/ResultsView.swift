@@ -26,6 +26,7 @@ struct ResultsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     hero
+                    if let session { pointsView(session) }
                     if let d = diagnosis, d.kind != .notEnoughData { diagnosisView(d) }
                     if samples.count >= 4 { runChart }
                     findings
@@ -57,6 +58,34 @@ struct ResultsView: View {
             tally(stats.totalNotes - good - stats.missed, "sớm/muộn", Theme.offTime)
             tally(stats.missed, "trượt", Theme.missed)
             tally(stats.extra, "thừa", .secondary)
+        }
+    }
+
+    /// "+15 điểm" for this run, then the running total and the way to the next rank.
+    private func pointsView(_ s: PracticeSession) -> some View {
+        let total = HistoryStore.totalPoints(context)
+        let rank = PracticeRank.for(points: total)
+        let earned = s.points
+        return Stage {
+            HStack(alignment: .center, spacing: 20) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(earned >= 0 ? "+\(earned)" : "\(earned)").font(Theme.number(40))
+                        .foregroundStyle(earned > 0 ? Theme.onTime : earned < 0 ? Theme.missed : .secondary)
+                    Text("điểm lần này").font(.footnote).foregroundStyle(.secondary)
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Hạng \(rank.level): \(rank.title)").font(.headline)
+                    if let next = rank.next {
+                        ProgressView(value: Double(total - rank.floor), total: Double(next - rank.floor)).tint(Theme.shell)
+                        Text("\(total) điểm, còn \(next - total) điểm lên hạng \(rank.level + 1)").font(.footnote).foregroundStyle(.secondary)
+                    } else {
+                        Text("\(total) điểm, hạng cao nhất").font(.footnote).foregroundStyle(.secondary)
+                    }
+                    if earned < 0 {
+                        Text("Dưới 60% bị trừ điểm. Giảm tempo 8–10 BPM rồi chơi lại để lấy lại điểm.").font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
     }
 

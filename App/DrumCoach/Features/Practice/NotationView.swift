@@ -15,14 +15,26 @@ struct NotationView: View {
     private let spacing: Double = 12
     private var lineHeight: Double { spacing * 4 + 110 }
 
+    /// Page mode shows this many lines at a time and turns the page as the playhead moves on.
+    private let linesPerPage = 2
+    @State private var width: Double = 900
+    @State private var manualPage = 0
+
+    private var barsPerLine: Int { display == .page ? max(1, min(exercise.bars, width > 900 ? 2 : 1)) : max(exercise.bars, 1) }
+    private var pageCount: Int { display == .page ? (lineCountFor(barsPerLine) + linesPerPage - 1) / linesPerPage : 1 }
+    private func lineCountFor(_ perLine: Int) -> Int { (max(exercise.bars, 1) + perLine - 1) / perLine }
+
     var body: some View {
-        GeometryReader { geo in
-            let barsPerLine = display == .page ? min(exercise.bars, geo.size.width > 900 ? 2 : 1) : exercise.bars
-            let barWidth = display == .page ? (geo.size.width - 40) / Double(max(barsPerLine, 1)) : max(geo.size.width * 0.55, 420)
-            let layout = NotationLayout(exercise: exercise, barWidth: barWidth, barsPerLine: max(barsPerLine, 1), staffSpacing: spacing)
+        let perLine = barsPerLine
+        let barWidth = display == .page ? (width - 40) / Double(perLine) : max(width * 0.55, 420)
+        let layout = NotationLayout(exercise: exercise, barWidth: barWidth, barsPerLine: perLine, staffSpacing: spacing)
+        let playing = (beat ?? -1) >= 0
+        let page = playing ? layout.playheadX(atBeat: Rational(Int(((beat ?? 0) * 1000).rounded()), 1000)).line / linesPerPage
+                           : min(manualPage, pageCount - 1)
+        VStack(alignment: .trailing, spacing: 6) {
             Canvas { ctx, size in
                 if display == .page {
-                    ctx.translateBy(x: 20, y: 0)
+                    ctx.translateBy(x: 20, y: -Double(page * linesPerPage) * lineHeight)
                     draw(layout, in: &ctx, copies: 1)
                 } else {
                     let head = layout.playheadX(atBeat: Rational(Int(((beat ?? 0) * 1000).rounded()), 1000))
@@ -32,8 +44,20 @@ struct NotationView: View {
                     draw(layout, in: &ctx, copies: 3, copyWidth: total)
                 }
             }
+            .frame(height: lineHeight * Double(display == .page ? min(linesPerPage, lineCountFor(perLine)) : 1))
+            .onGeometryChange(for: Double.self) { $0.size.width } action: { width = $0 }
+            if pageCount > 1 {
+                HStack(spacing: 14) {
+                    Text("Trang \(page + 1)/\(pageCount)").font(Theme.number(13, weight: .medium)).foregroundStyle(.secondary)
+                    Button { manualPage = max(0, page - 1) } label: { Image(systemName: "chevron.backward") }
+                        .disabled(playing || page == 0).accessibilityLabel("Trang trước")
+                    Button { manualPage = min(pageCount - 1, page + 1) } label: { Image(systemName: "chevron.forward") }
+                        .disabled(playing || page == pageCount - 1).accessibilityLabel("Trang sau")
+                }
+                .font(.callout.weight(.semibold))
+            }
         }
-        .frame(minHeight: lineHeight * Double(display == .page ? max(1, (exercise.bars + 1) / 2) : 1))
+        .onChange(of: exercise.id) { manualPage = 0 }
     }
 
     private func y(line: Int, step: Int) -> Double {
