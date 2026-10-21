@@ -2,6 +2,10 @@ import Foundation
 
 public struct TimedNote: Sendable, Hashable {
     public let index: Int
+    /// Index into `exercise.notes`.
+    public let noteIndex: Int
+    /// Which pass through the exercise (0-based).
+    public let repeatIndex: Int
     public let note: NoteEvent
     /// Seconds from beat zero (start of count-in).
     public let time: TimeInterval
@@ -24,12 +28,17 @@ public struct Timeline: Sendable {
         var timed: [TimedNote] = []
         for rep in 0..<max(repeats, 0) {
             let offset = countInBeats + exerciseBeats * Rational(rep, 1)
-            for note in exercise.notes {
-                timed.append(TimedNote(index: 0, note: note, time: (offset + note.position).doubleValue * secondsPerBeat))
+            for (i, note) in exercise.notes.enumerated() {
+                timed.append(TimedNote(index: 0, noteIndex: i, repeatIndex: rep, note: note,
+                                       time: (offset + note.position).doubleValue * secondsPerBeat))
             }
         }
-        timed.sort { $0.time < $1.time }
-        notes = timed.enumerated().map { TimedNote(index: $0.offset, note: $0.element.note, time: $0.element.time) }
+        // Stable order: by time, then repeat, then exercise order.
+        timed.sort { ($0.time, $0.repeatIndex, $0.noteIndex) < ($1.time, $1.repeatIndex, $1.noteIndex) }
+        notes = timed.enumerated().map {
+            TimedNote(index: $0.offset, noteIndex: $0.element.noteIndex, repeatIndex: $0.element.repeatIndex,
+                      note: $0.element.note, time: $0.element.time)
+        }
         duration = (countInBeats + exerciseBeats * Rational(max(repeats, 0), 1)).doubleValue * secondsPerBeat
     }
 

@@ -45,7 +45,7 @@ struct MetronomeView: View {
             SettingsStore.saveMetronome(new)
             if engine.isRunning { engine.update(new) }
         }
-        .task { await voiceBank.prepare() }
+        .onDisappear { engine.stop() }
     }
 
     private func roundButton(_ icon: String, action: @escaping () -> Void) -> some View {

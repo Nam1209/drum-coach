@@ -7,8 +7,16 @@ struct DrumCoachApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MetronomeView(voiceBank: voiceBank)
-                .tint(.orange)
+            TabView {
+                Tab("Tập", systemImage: "music.note") {
+                    PracticeView(exercises: StarterExercises.all, voiceBank: voiceBank)
+                }
+                Tab("Metronome", systemImage: "metronome") {
+                    MetronomeView(voiceBank: voiceBank)
+                }
+            }
+            .tint(.orange)
+            .task { await voiceBank.prepare() }
         }
     }
 }
