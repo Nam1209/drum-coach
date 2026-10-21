@@ -468,7 +468,9 @@ public struct SessionStats: Codable, Sendable, Equatable {
   public let missed: Int; public let wrongVoice: Int; public let extra: Int
   public let byBeatPosition: [String: Double]  // "1","e","&","a" → độ lệch trung bình (ms), để tìm điểm yếu
   public let byVoice: [Voice: Double]
-  public let velocityCV: Double?               // độ đều lực đánh (chỉ có với MIDI)
+  public let velocityCV: Double?               // độ đều lực đánh: MIDI dùng velocity, micro dùng strength của onset
+  public let loudnessByHandDb: [Hand: Double]  // độ to trung bình của từng tay (dB tương đối) — tay trái có nhỏ hơn tay phải không
+  public let accentContrastDb: Double?         // nốt accent to hơn nốt thường bao nhiêu dB (nil nếu bài không có accent)
 }
 ```
 - [ ] **Bước 1: Test**
@@ -487,6 +489,7 @@ public struct SessionStats: Codable, Sendable, Equatable {
   #expect(r.score(eightGoodOneLateOneMissed, totalNotes: 10, extraHits: 0) == 85)
   #expect(r.score(allGood10, totalNotes: 10, extraHits: 4) == 80)       // 10 − 4×0.5 = 8
   #expect(r.score([], totalNotes: 10, extraHits: 30) == 0) }            // không bao giờ âm
+@Test func dynamics() { /* R strength 1.0, L strength 0.5 → loudnessByHandDb[.left]! - loudnessByHandDb[.right]! ≈ -6.02; accent 1.0 và nốt thường 0.25 → accentContrastDb ≈ 12.04; không có accent → nil */ }
 @Test func stats() { /* offset -10, +10, +40 ms, 1 missed → accuracy 2/4, mean +13.3, missed 1 */ }
 ```
 - [ ] **Bước 2:** FAIL. **Bước 3:** Implement. Khi ở chế độ micro, coi các nốt có cùng `time` là một "cụm" và một hit ghép với cả cụm. Trong PracticeViewModel, mỗi lần bấm Play tạo `HitMatcher` mới, gọi `expire` theo từng frame. **Phản hồi trực tiếp** (cả trên khuông nhạc lẫn dải R/L), theo `ScoringRules.grade`:
@@ -865,6 +868,7 @@ public struct TeacherChat: Sendable {
 - [ ] **Bước 2:** FAIL. **Bước 3:** Implement.
   - **TodayView là màn hình chính của app:** lấy DayPlan của hôm nay từ báo cáo mới nhất (chưa có báo cáo thì dùng plan mặc định theo level), bấm "Bắt đầu buổi tập" để chạy lần lượt Khởi động → Bài chính → Bài vui, mỗi phần mở PracticeView với tempo đã đặt sẵn.
   - Hết buổi hiện tổng kết và ô nhật ký.
+  - **Nhắc tập hằng ngày:** local notification (`UNUserNotificationCenter`) vào giờ người dùng chọn, nội dung lấy từ DayPlan của hôm nay ("Hôm nay: Stick Control #5–8, Paradiddle 70 BPM — 30 phút"). Hôm đã tập xong thì không nhắc. Test: `ReminderScheduler.content(for: DayPlan?) -> (title, body)`; không có plan thì dùng câu mặc định.
   - **TeacherChatView:** hỏi đáp tự do ("tại sao tôi hay trễ ở &?"). Thầy thấy được lịch sử và báo cáo gần nhất.
 - [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: today's structured session, teacher chat and PAS rudiments`.
 
@@ -901,6 +905,28 @@ public struct MIDILearn: Sendable { public init(); public mutating func expect(_
   - **Thông báo khi đạt grade mà thiếu sách grade sau:** dùng `missingGrades`.
 - [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: Rockschool grade syllabus, ear tests, GMQ quiz, lessons and MIDI learn`.
 
+### Task 17: Tự soi tư thế bằng camera
+
+**Files:** Create `App/.../Practice/PostureCameraView.swift`, `App/Services/PracticeRecorder.swift`, `DrumAI/PostureCheck.swift`; Test `PostureCheckTests.swift`
+
+**Interfaces – Produces:**
+```swift
+public struct PostureCheck: Sendable {
+  public static let checklist: [String]   // lấy từ giao-trinh.html bài 1–3: điểm tựa ~1/3, lực nắm nhẹ, mu bàn tay ~45°, hình chữ V, vai thả lỏng, cẳng tay song song pad…
+  public static func pickFrames(count: Int, duration: TimeInterval, avoidFirst: TimeInterval) -> [TimeInterval]  // chọn khung hình rải đều, bỏ đoạn count-in
+  public static func notionPayload(frames: [Data], date: Date, exercise: String) -> (title: String, prompt: String)
+}
+```
+- [ ] **Bước 1: Test:** `pickFrames(count: 4, duration: 60, avoidFirst: 4)` cho ra 4 mốc tăng dần, mốc nào cũng ≥ 4 và < 60; với `duration` nhỏ hơn `avoidFirst` thì trả về rỗng; `checklist` có ít nhất 8 mục.
+- [ ] **Bước 2:** FAIL. **Bước 3:** Implement.
+  - Nút 📷 trong PracticeView bật camera trước (`AVCaptureSession`). Có cửa sổ xem trước nhỏ (picture-in-picture) để tự nhìn mình trong lúc tập.
+  - Bật thêm "Ghi lại" thì lưu video (`AVCaptureMovieFileOutput`) kèm buổi tập.
+  - Xem lại: video đặt cạnh **ảnh/hình minh họa mẫu** và checklist; người dùng tự tick từng mục.
+  - Nút **"Nhờ thầy xem tư thế":** cắt 4 khung hình rồi gửi lên Notion `DrumCoach › Hộp thư` (Task 13B), kèm checklist và lời nhắn, để Claude trong Project nhận xét cách cầm dùi và tư thế.
+  - Video chỉ lưu trên máy; tự xóa sau 30 ngày, trừ video được đánh dấu ⭐.
+  - Thêm `NSCameraUsageDescription`.
+- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: posture self-check camera with AI feedback via Notion`.
+
 ---
 
 ## Mốc 9 (tùy chọn): Play-along
@@ -917,7 +943,7 @@ public struct MIDILearn: Sendable { public init(); public mutating func expect(_
 
 ## Thứ tự và kiểm tra cuối
 
-Thứ tự làm: Task 1 → 2 → 3 → 4 → 5 → 6 → 7 → 7A. Đến đây đã có app dùng được hằng ngày: metronome, giọng đếm mượt, khuông nhạc chạy, đo sớm/trễ, luyện đếm. Sau đó làm 8 → 9 → 10 → 10A → 13 → 13B → 14 → 15 → 16 → 11 → 12. Ở Task 14, phần `TeacherReport`, `StudentProfile` và `ResourceValidator` dùng chung cho cả hai đường (Notion và API). Chỉ hàm `Teacher.weeklyReport` là thuộc đường API. Giáo viên AI (13–15) được làm trước biểu đồ tiến độ (11), vì người dùng không có giáo viên thật.
+Thứ tự làm: Task 1 → 2 → 3 → 4 → 5 → 6 → 7 → 7A. Đến đây đã có app dùng được hằng ngày: metronome, giọng đếm mượt, khuông nhạc chạy, đo sớm/trễ, luyện đếm. Sau đó làm 8 → 9 → 10 → 10A → 13 → 13B → 14 → 15 → 16 → 17 → 11 → 12. Ở Task 14, phần `TeacherReport`, `StudentProfile` và `ResourceValidator` dùng chung cho cả hai đường (Notion và API). Chỉ hàm `Teacher.weeklyReport` là thuộc đường API. Giáo viên AI (13–15) được làm trước biểu đồ tiến độ (11), vì người dùng không có giáo viên thật.
 
 **Stick Control trong app:** generator ở Task 8 sinh các tổ hợp sticking cùng kiểu. Bài trong sách thật thì người dùng nhập qua PDF (Task 9). Mỗi bài mặc định lặp 20 lần liên tục rồi mới chuyển bài, tempo ramp 50 → 90.
 
