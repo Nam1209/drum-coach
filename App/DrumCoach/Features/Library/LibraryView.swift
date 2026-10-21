@@ -12,6 +12,7 @@ struct LibraryView: View {
     @State private var balancedOnly = false
     @State private var editing: StoredExercise?
     @State private var creating = false
+    @State private var importing = false
 
     var body: some View {
         List {
@@ -55,7 +56,11 @@ struct LibraryView: View {
             }
         }
         .navigationTitle("Thư viện")
-        .toolbar { Button { creating = true } label: { Image(systemName: "plus") } }
+        .toolbar {
+            Button { importing = true } label: { Label("Nhập PDF", systemImage: "doc.viewfinder") }
+            Button { creating = true } label: { Image(systemName: "plus") }
+        }
+        .sheet(isPresented: $importing) { NavigationStack { PDFImportView() } }
         .sheet(isPresented: $creating) { NavigationStack { ExerciseEditorView(item: nil) } }
         .sheet(item: $editing) { item in NavigationStack { ExerciseEditorView(item: item) } }
     }

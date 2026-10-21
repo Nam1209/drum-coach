@@ -21,9 +21,15 @@ struct DrumCoachApp: App {
                 Tab("Metronome", systemImage: "metronome") {
                     MetronomeView(voiceBank: voiceBank)
                 }
+                Tab("Cài đặt", systemImage: "gearshape") {
+                    NavigationStack { SettingsView(voiceBank: voiceBank) }
+                }
             }
             .tint(.orange)
-            .task { await voiceBank.prepare() }
+            .task {
+                VoiceRecorder.loadAll(into: voiceBank)
+                await voiceBank.prepare()
+            }
             .modelContainer(for: [PracticeSession.self, StoredExercise.self])
         }
     }
