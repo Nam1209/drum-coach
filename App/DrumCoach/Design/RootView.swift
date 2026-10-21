@@ -1,4 +1,6 @@
 import DrumAudio
+import DrumCore
+import DrumLibrary
 import SwiftUI
 
 /// iPad sidebar navigation, grouped by what you're doing.
@@ -84,7 +86,19 @@ struct RootView: View {
     private func detail(_ d: Destination) -> some View {
         switch d {
         case .today: TodayView(voiceBank: voiceBank)
-        case .practice: PracticeView(exercises: StarterExercises.all, voiceBank: voiceBank)
+        case .practice:
+            #if DEBUG
+            // `-exercise G3-A` opens a level test directly (screenshots of long pieces).
+            if let i = ProcessInfo.processInfo.arguments.firstIndex(of: "-exercise"), i + 1 < ProcessInfo.processInfo.arguments.count,
+               let item = BookLibrary.levels.flatMap(\.tests).first(where: { $0.id == ProcessInfo.processInfo.arguments[i + 1] }),
+               let ex = try? ExerciseDSL.parse(item.dsl) {
+                PracticeView(exercises: [ex], voiceBank: voiceBank)
+            } else {
+                PracticeView(exercises: StarterExercises.all, voiceBank: voiceBank)
+            }
+            #else
+            PracticeView(exercises: StarterExercises.all, voiceBank: voiceBank)
+            #endif
         case .metronome: MetronomeView(voiceBank: voiceBank)
         case .counting: CountCoachView(voiceBank: voiceBank)
         case .lessons: LessonsView(voiceBank: voiceBank)
