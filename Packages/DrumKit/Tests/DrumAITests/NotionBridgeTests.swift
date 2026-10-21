@@ -241,3 +241,25 @@ private func codeBlock(_ text: String) -> String {
     #expect(text.contains("takeTest") && text.contains("practise"))
     #expect(text.contains("60%") && text.contains("10 giây"))
 }
+
+/// An older app left two pages with the same day's title: the first gets the new report, the extra one is archived
+/// so the teacher can't read a stale copy.
+@Test(.vietnamese) func sameDayDuplicatePagesAreArchived() async throws {
+    let day = Date(timeIntervalSince1970: 1_792_000_000)
+    let title = "Báo cáo \(NotionBridge.dayString(day))"
+    let t = FakeTransport([
+        childrenResponse([childPage("first", title, "2026-10-21T10:00:00.000Z"),
+                          childPage("other", "Tư thế 2026-10-21", "2026-10-21T10:30:00.000Z"),
+                          childPage("dup", title, "2026-10-21T11:00:00.000Z")]),   // inbox
+        childrenResponse([]),                                                         // first's blocks
+        (200, "{}"),                                                                  // append new content
+        (200, "{}"),                                                                  // archive dup
+    ])
+    let bridge = NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "inbox", plansPageId: "plans")
+    let digest = HistorySummarizer.digest([], journal: [], currentLevel: 1, now: day, calendar: .current)
+    _ = try await bridge.send(kind: .weekly, payload: digest, profile: StudentProfile(), date: day)
+    #expect(t.requests[2].url!.absoluteString.contains("/blocks/first/children"))
+    #expect(t.requests[3].httpMethod == "PATCH" && t.requests[3].url!.absoluteString.hasSuffix("/pages/dup"))
+    #expect(t.body(3)["archived"] as? Bool == true)
+    #expect(t.requests.count == 4)    // "other" is left alone
+}

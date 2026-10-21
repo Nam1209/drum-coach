@@ -51,8 +51,11 @@ public struct NotionBridge: Sendable {
         enc.dateEncodingStrategy = .iso8601
         let json = String(data: try enc.encode(Envelope(kind: kind.rawValue, date: day, profile: profile, data: payload)), encoding: .utf8) ?? "{}"
         // One page per kind per day: sending again that day updates it (each report already holds everything).
-        if let existing = try await client.childPages(of: inboxPageId).first(where: { $0.title == title }) {
+        let sameDay = try await client.childPages(of: inboxPageId).filter { $0.title == title }
+        if let existing = sameDay.first {
             try await client.replaceContent(page: existing.id, codeBlockJSON: json)
+            // Older versions could leave a second copy; archive it so the teacher never reads a stale one.
+            for extra in sameDay.dropFirst() { try await client.archive(page: extra.id) }
         } else {
             _ = try await client.createChildPage(parent: inboxPageId, title: title, codeBlockJSON: json)
         }
