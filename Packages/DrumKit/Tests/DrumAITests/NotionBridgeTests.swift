@@ -93,13 +93,33 @@ private func codeBlock(_ text: String) -> String {
 }
 
 @Test(.vietnamese) func sendBuildsPromptAndPage() async throws {
-    let t = FakeTransport([(200, #"{"id":"r1"}"#)])
+    let t = FakeTransport([childrenResponse([]), (200, #"{"id":"r1"}"#)])
     let bridge = NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "inbox", plansPageId: "plans")
     let digest = HistorySummarizer.digest([], journal: [], currentLevel: 1, now: Date(timeIntervalSince1970: 1_792_000_000), calendar: .current)
     let out = try await bridge.send(kind: .weekly, payload: digest, profile: StudentProfile(), date: Date(timeIntervalSince1970: 1_792_000_000))
     #expect(out.pageTitle.hasPrefix("Báo cáo "))
     #expect(out.prompt.contains(out.pageTitle))
-    #expect(((t.body()["parent"] as! [String: Any])["page_id"] as? String) == "inbox")
+    #expect(((t.body(1)["parent"] as! [String: Any])["page_id"] as? String) == "inbox")
+}
+
+/// Sending twice on one day updates that day's page instead of adding a second "Báo cáo <day>".
+@Test(.vietnamese) func sameDayReportReplacesTheExistingPage() async throws {
+    let day = Date(timeIntervalSince1970: 1_792_000_000)
+    let title = "Báo cáo \(NotionBridge.dayString(day))"
+    let t = FakeTransport([
+        childrenResponse([childPage("old-report", title, "2026-10-21T10:00:00.000Z")]),     // inbox
+        childrenResponse([codeBlock("{}").replacingOccurrences(of: #"{"type":"code""#, with: #"{"id":"b1","type":"code""#)]),  // its blocks
+        (200, "{}"),                                                                          // delete b1
+        (200, "{}"),                                                                          // append new content
+    ])
+    let bridge = NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "inbox", plansPageId: "plans")
+    let digest = HistorySummarizer.digest([], journal: [], currentLevel: 1, now: day, calendar: .current)
+    let out = try await bridge.send(kind: .weekly, payload: digest, profile: StudentProfile(), date: day)
+    #expect(out.pageTitle == title)
+    #expect(!t.requests.contains { $0.url!.absoluteString.hasSuffix("/v1/pages") })        // no new page
+    #expect(t.requests[2].httpMethod == "DELETE" && t.requests[2].url!.absoluteString.hasSuffix("/blocks/b1"))
+    #expect(t.requests[3].httpMethod == "PATCH" && t.requests[3].url!.absoluteString.contains("/blocks/old-report/children"))
+    #expect(t.body(3)["children"] != nil)
 }
 
 @Test func instructionsExampleMatchesSchema() throws {

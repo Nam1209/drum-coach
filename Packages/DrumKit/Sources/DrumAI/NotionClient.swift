@@ -21,17 +21,7 @@ public struct NotionClient: Sendable {
     /// Creates a child page; when `codeBlockJSON` is given it is stored in code blocks (≤ 2000-char pieces, ≤ 100 per block),
     /// sent in several requests (create, then append) so large backups stay under Notion's size limit.
     public func createChildPage(parent: String, title: String, codeBlockJSON: String? = nil, codeLanguage: String = "json") async throws -> String {
-        var blocks: [JSONValue] = []
-        if let text = codeBlockJSON {
-            let pieces = Self.chunks(text, size: Self.maxRichText)
-            for group in stride(from: 0, to: pieces.count, by: Self.maxRichTextPerBlock) {
-                let rich = pieces[group..<min(group + Self.maxRichTextPerBlock, pieces.count)].map {
-                    JSONValue.object(["type": .string("text"), "text": .object(["content": .string($0)])])
-                }
-                blocks.append(.object(["object": .string("block"), "type": .string("code"),
-                                       "code": .object(["language": .string(codeLanguage), "rich_text": .array(Array(rich))])]))
-            }
-        }
+        let blocks = codeBlockJSON.map { Self.codeBlocks($0, language: codeLanguage) } ?? []
         let first = Array(blocks.prefix(Self.blocksPerRequest))
         let body: JSONValue = .object([
             "parent": .object(["page_id": .string(parent)]),
@@ -40,13 +30,39 @@ public struct NotionClient: Sendable {
         ])
         let json = try await request("pages", method: "POST", body: body)
         guard let id = json["id"] as? String else { throw NotionError.badResponse }
-        var rest = blocks.dropFirst(Self.blocksPerRequest)
+        try await append(Array(blocks.dropFirst(Self.blocksPerRequest)), to: id)
+        return id
+    }
+
+    /// Replaces everything on a page with new code blocks (the old blocks go to Notion's trash).
+    public func replaceContent(page: String, codeBlockJSON: String, codeLanguage: String = "json") async throws {
+        for block in try await children(of: page) {
+            guard let id = block["id"] as? String else { continue }
+            _ = try await request("blocks/\(id)", method: "DELETE", body: nil)
+        }
+        try await append(Self.codeBlocks(codeBlockJSON, language: codeLanguage), to: page)
+    }
+
+    /// Text stored in code blocks: ≤ 2000-char pieces, ≤ 100 pieces per block.
+    static func codeBlocks(_ text: String, language: String) -> [JSONValue] {
+        let pieces = chunks(text, size: maxRichText)
+        return stride(from: 0, to: pieces.count, by: maxRichTextPerBlock).map { group in
+            let rich = pieces[group..<min(group + maxRichTextPerBlock, pieces.count)].map {
+                JSONValue.object(["type": .string("text"), "text": .object(["content": .string($0)])])
+            }
+            return .object(["object": .string("block"), "type": .string("code"),
+                            "code": .object(["language": .string(language), "rich_text": .array(Array(rich))])])
+        }
+    }
+
+    /// Appends blocks a few at a time so large backups stay under Notion's request size limit.
+    private func append(_ blocks: [JSONValue], to page: String) async throws {
+        var rest = blocks[...]
         while !rest.isEmpty {
             let batch = Array(rest.prefix(Self.blocksPerRequest))
             rest = rest.dropFirst(Self.blocksPerRequest)
-            _ = try await request("blocks/\(id)/children", method: "PATCH", body: .object(["children": .array(batch)]))
+            _ = try await request("blocks/\(page)/children", method: "PATCH", body: .object(["children": .array(batch)]))
         }
-        return id
     }
 
     public func childPages(of parent: String) async throws -> [(id: String, title: String, created: Date)] {
