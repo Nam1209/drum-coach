@@ -19,7 +19,8 @@ final class MetronomeRenderer: @unchecked Sendable {
 
     let sampleRate: Double
     let state: OSAllocatedUnfairLock<Shared>
-    private var scratch: [Float] = []
+    /// Allocated once; render blocks are processed in slices of at most this many frames.
+    private var scratch = [Float](repeating: 0, count: 4096)
 
     init(settings: MetronomeSettings, sampleRate: Double) {
         self.sampleRate = sampleRate
@@ -28,13 +29,20 @@ final class MetronomeRenderer: @unchecked Sendable {
 
     /// Fill `frames` mono samples. Called on the audio thread.
     func render(frames: Int, hostTime: UInt64, into buffer: UnsafeMutablePointer<Float>) {
-        if scratch.count != frames { scratch = [Float](repeating: 0, count: frames) } else {
-            for i in 0..<frames { scratch[i] = 0 }
+        var done = 0
+        while done < frames {
+            let n = min(frames - done, scratch.count)
+            renderSlice(frames: n, hostTime: hostTime, into: buffer + done)
+            done += n
         }
+    }
+
+    private func renderSlice(frames: Int, hostTime: UInt64, into buffer: UnsafeMutablePointer<Float>) {
+        for i in 0..<frames { scratch[i] = 0 }
         state.withLock { s in
             if s.firstHostTime == nil { s.firstHostTime = HostClock.seconds(fromHostTime: hostTime) }
             let from = s.cursor, to = s.cursor + Int64(frames)
-            for e in s.schedule.events(from: from, to: to) {
+            s.schedule.forEachEvent(from: from, to: to) { e in
                 let offset = Int(e.sampleTime - from)
                 switch e.kind {
                 case .voice(let label):
@@ -49,7 +57,7 @@ final class MetronomeRenderer: @unchecked Sendable {
                     s.lastBeatSample = e.sampleTime
                 }
             }
-            s.mixer.render(into: &scratch)
+            s.mixer.render(into: &scratch, count: frames)
             s.cursor = to
         }
         for i in 0..<frames { buffer[i] = scratch[i] }

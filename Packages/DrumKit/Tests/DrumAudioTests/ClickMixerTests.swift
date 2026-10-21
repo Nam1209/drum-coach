@@ -54,3 +54,20 @@ private func impulse(_ n: Int) -> [Float] { [Float](repeating: 1, count: n) }
     let e = st.events(from: 180_000, to: 200_000)
     #expect(e.map(\.sampleTime) == [192_000])
 }
+
+@Test func forEachEventMatchesEventsWithoutSorting() {
+    var st = ScheduleState(settings: MetronomeSettings(bpm: 97, pattern: .sixteenths, voiceCount: .sixteenths), sampleRate: 48_000)
+    var st2 = st
+    var visited: [ClickEvent] = []
+    var t: Int64 = 0
+    while t < 300_000 { st.forEachEvent(from: t, to: t + 512) { visited.append($0) }; t += 512 }
+    let expected = st2.events(from: 0, to: 300_000)
+    #expect(Set(visited) == Set(expected))
+    #expect(visited.count == expected.count)
+}
+
+@Test func mixerHasFixedCapacity() {
+    var m = ClickMixer()
+    for _ in 0..<500 { m.trigger(samples: [1, 1, 1], gain: 1, atFrame: 0) }
+    #expect(m.activeCount <= ClickMixer.capacity)
+}

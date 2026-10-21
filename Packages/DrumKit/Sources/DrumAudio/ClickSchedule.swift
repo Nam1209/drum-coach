@@ -138,17 +138,29 @@ public struct ClickEvent: Sendable, Hashable {
 }
 
 public enum ClickSchedule {
-    /// All events with `from <= sampleTime < to`. Sample of tick n is round(n × samplesPerTick), so error never accumulates.
+    /// All events with `from <= sampleTime < to`, sorted. Sample of tick n is round(n × samplesPerTick), so error never accumulates.
     public static func events(settings s: MetronomeSettings, sampleRate: Double, from: Int64, to: Int64) -> [ClickEvent] {
-        guard to > from, s.bpm > 0 else { return [] }
         var out: [ClickEvent] = []
+        forEachEvent(settings: s, voiceLabels: voiceLabels(for: s), sampleRate: sampleRate, from: from, to: to) { out.append($0) }
+        out.sort { $0.sampleTime < $1.sampleTime }
+        return out
+    }
+
+    /// Syllables of one beat for the spoken count ("", "e", "&", "a"); computed off the audio thread.
+    static func voiceLabels(for s: MetronomeSettings) -> [String] {
+        s.voiceCount.map { Counting.labels(mode: $0, beats: 1).map(\.label) } ?? []
+    }
+
+    /// Visits every event in the window without building arrays (safe for the real-time render thread).
+    /// Clicks and spoken syllables are visited in two passes, so the order is not chronological.
+    static func forEachEvent(settings s: MetronomeSettings, voiceLabels: [String], sampleRate: Double,
+                             from: Int64, to: Int64, _ body: (ClickEvent) -> Void) {
+        guard to > from, s.bpm > 0 else { return }
         let beatsPerBar = s.timeSignature.beats
         let samplesPerBeat = sampleRate * s.secondsPerBeat
 
-        // Clicks.
         let slots = max(s.pattern.slots.count, 1)
-        let spt = samplesPerBeat / Double(slots)
-        forEachTick(spt: spt, from: from, to: to) { n, sample in
+        forEachTick(spt: samplesPerBeat / Double(slots), from: from, to: to) { n, sample in
             let beat = n / slots, slot = n % slots
             let bar = beat / beatsPerBar, beatInBar = beat % beatsPerBar
             guard s.gap?.isMuted(bar: bar) != true, s.beatSkip.plays(beatInBar: beatInBar) else { return }
@@ -156,25 +168,24 @@ public enum ClickSchedule {
             if s.accentBeatOne, beatInBar == 0, slot == 0 { cell.level = 5 }
             guard let tone = ToneLadder.tone(for: cell, ladder: s.ladder) else { return }
             let kind: ClickKind = slot != 0 ? .subdivision : (beatInBar == 0 ? .downbeat : .beat)
-            out.append(ClickEvent(sampleTime: sample, kind: kind, bar: bar, level: cell.level, tone: tone))
+            body(ClickEvent(sampleTime: sample, kind: kind, bar: bar, level: cell.level, tone: tone))
         }
 
         // Spoken counting runs alongside the clicks; it follows the gap but not beat skip.
-        if let mode = s.voiceCount {
-            let labels = Counting.labels(mode: mode, beats: 1)
-            let per = labels.count
-            forEachTick(spt: samplesPerBeat / Double(per), from: from, to: to) { n, sample in
-                let beat = n / per, sub = n % per
-                let bar = beat / beatsPerBar
-                guard s.gap?.isMuted(bar: bar) != true else { return }
-                let label = sub == 0 ? "\(beat % beatsPerBar + 1)" : labels[sub].label
-                let tone = LevelTone(sound: .voice, pitchHz: 0, gainDb: sub == 0 ? 0 : -4)
-                out.append(ClickEvent(sampleTime: sample, kind: .voice(label), bar: bar, level: sub == 0 ? 4 : 2, tone: tone))
-            }
+        let per = voiceLabels.count
+        guard per > 0 else { return }
+        forEachTick(spt: samplesPerBeat / Double(per), from: from, to: to) { n, sample in
+            let beat = n / per, sub = n % per
+            let bar = beat / beatsPerBar
+            guard s.gap?.isMuted(bar: bar) != true else { return }
+            let label = sub == 0 ? numberLabels[min(beat % beatsPerBar, numberLabels.count - 1)] : voiceLabels[sub]
+            let tone = LevelTone(sound: .voice, pitchHz: 0, gainDb: sub == 0 ? 0 : -4)
+            body(ClickEvent(sampleTime: sample, kind: .voice(label), bar: bar, level: sub == 0 ? 4 : 2, tone: tone))
         }
-        out.sort { $0.sampleTime < $1.sampleTime }
-        return out
     }
+
+    /// Beat numbers as preallocated strings (no string interpolation on the audio thread).
+    static let numberLabels = (1...32).map(String.init)
 
     private static func forEachTick(spt: Double, from: Int64, to: Int64, _ body: (Int, Int64) -> Void) {
         var n = max(0, Int((Double(from) / spt).rounded(.down)) - 1)
