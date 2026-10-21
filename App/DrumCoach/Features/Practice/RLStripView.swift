@@ -50,8 +50,8 @@ struct RLStripView: View {
 
             var nowLine = Path()
             nowLine.move(to: CGPoint(x: mid, y: 6)); nowLine.addLine(to: CGPoint(x: mid, y: size.height - 6))
-            ctx.stroke(nowLine, with: .color(Theme.shell), lineWidth: 2)
-            ctx.draw(Text("R").font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundColor(Theme.shell), at: CGPoint(x: 20, y: axisY - 30))
+            ctx.stroke(nowLine, with: .color(Theme.ink), lineWidth: 2)
+            ctx.draw(Text("R").font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundColor(Theme.ink), at: CGPoint(x: 20, y: axisY - 30))
             ctx.draw(Text("L").font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundColor(.secondary), at: CGPoint(x: 20, y: axisY + 30))
         }
         .frame(height: 112)

@@ -6,8 +6,8 @@
 <title>DrumCoach Prototype</title>
 <style>
 :root {
-  --shell: #2D4BD8; --shell-soft: rgba(45,75,216,.12);
-  --on: #22A35A; --off: #F08A24; --miss: #E5484D;
+  --shell: #DA5236; --shell-soft: rgba(218,82,54,.12); --ink: #585858;
+  --on: #1F9D55; --off: #D99100; --miss: #B3192F;
   --canvas: #F2F2F7; --stage: #FFFFFF; --text: #000000; --sec: rgba(60,60,67,.62); --ter: rgba(60,60,67,.3);
   --hair: rgba(0,0,0,.08); --side: #F7F7FA; --inv: #FFFFFF;
   --round: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
@@ -15,12 +15,12 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --canvas: #000000; --stage: #1C1C1E; --text: #FFFFFF; --sec: rgba(235,235,245,.6); --ter: rgba(235,235,245,.3);
-    --hair: rgba(255,255,255,.1); --side: #121214; --inv: #000000; --shell-soft: rgba(110,135,255,.18);
+    --hair: rgba(255,255,255,.1); --side: #121214; --inv: #000000; --shell: #F06A4C; --shell-soft: rgba(240,106,76,.18); --ink: #D1D1D6; --on: #30C46E; --off: #F2B233; --miss: #F0505F;
   }
 }
 :root[data-theme="dark"] {
   --canvas: #000000; --stage: #1C1C1E; --text: #FFFFFF; --sec: rgba(235,235,245,.6); --ter: rgba(235,235,245,.3);
-  --hair: rgba(255,255,255,.1); --side: #121214; --inv: #000000; --shell-soft: rgba(110,135,255,.18);
+  --hair: rgba(255,255,255,.1); --side: #121214; --inv: #000000; --shell: #F06A4C; --shell-soft: rgba(240,106,76,.18); --ink: #D1D1D6; --on: #30C46E; --off: #F2B233; --miss: #F0505F;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
@@ -114,7 +114,7 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
 .pads { display: none; gap: 16px; }
 .pads.on { display: flex; }
 .pad { flex: 1; min-height: 150px; border-radius: 24px; background: var(--stage); font-family: var(--round); font-size: 40px; font-weight: 600; color: var(--sec); transition: transform .06s; }
-.pad.r { color: var(--shell); }
+.pad.r { color: var(--ink); }
 .pad:active { transform: scale(.98); background: var(--shell-soft); }
 .auto { display: none; } .auto.on { display: block; }
 
@@ -764,7 +764,7 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
         if (n.h !== 'F') {
           const hand = flipped ? (n.h === 'R' ? 'L' : 'R') : n.h;
           const lk = top + ':' + Math.round(x), k = labelsAt[lk] = (labelsAt[lk] ?? -1) + 1;   // stack R over L when hands play together
-          s += `<text x="${x}" y="${top + 152 + k * 17}" text-anchor="middle" font-size="16" font-weight="700" font-family="ui-rounded,system-ui" fill="${hand === 'R' ? css('--shell') : sec}">${hand}</text>`;
+          s += `<text x="${x}" y="${top + 152 + k * 17}" text-anchor="middle" font-size="16" font-weight="700" font-family="ui-rounded,system-ui" fill="${hand === 'R' ? css('--ink') : sec}">${hand}</text>`;
         }
       });
       Object.values(groups).forEach(g => {
@@ -806,7 +806,7 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
         s += `<text x="16" y="${l * LINE_H + 84}" font-size="13" font-weight="600" fill="${first + l === 0 ? shell : css('--sec')}">${label}</text>`;
       }
       s += drawNotes(pos, [playing ? Math.floor(beat / lenBeats()) : 0]);
-      if (playing) { const at = pos(within); if (at) s += `<rect x="${at.x - 2}" y="${at.top + 28}" width="4" height="104" rx="2" fill="${shell}"/>`; }
+      if (playing) { const at = pos(within); if (at) s += `<rect x="${at.x - 2}" y="${at.top + 28}" width="4" height="104" rx="2" fill="${css('--ink')}"/>`; }
       const pc = pageCount();
       $('#pager').style.display = pc > 1 ? 'flex' : 'none';
       $('#pageLabel').textContent = `Trang ${page + 1}/${pc}`;
@@ -821,7 +821,7 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
       s += staff(0, 1000, 0, barXs);
       const rep = Math.floor(now / lenBeats());
       s += drawNotes(abs => pos(abs), [rep - 1, rep, rep + 1].filter(r => r >= 0));
-      s += `<rect x="${headX - 2}" y="28" width="4" height="104" rx="2" fill="${shell}"/>`;
+      s += `<rect x="${headX - 2}" y="28" width="4" height="104" rx="2" fill="${css('--ink')}"/>`;
       $('#pager').style.display = 'none';
     }
     svg.innerHTML = s;
@@ -840,8 +840,8 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
       const hand = flipped ? (n.h === 'R' ? 'L' : 'R') : n.h, r = rep >= 0 ? results[rep * 1000 + i] : null;
       s += `<rect x="${x - 3}" y="${hand === 'R' ? axis - 44 : axis + 16}" width="6" height="28" rx="3" fill="${r ? css(colors[r.g]) : sec}" fill-opacity="${r ? 1 : .25}"/>`;
     });
-    s += `<line x1="${mid}" x2="${mid}" y1="6" y2="106" stroke="${css('--shell')}" stroke-width="2"/>`;
-    s += `<text x="20" y="${axis - 24}" font-size="15" font-weight="600" fill="${css('--shell')}">R</text><text x="20" y="${axis + 36}" font-size="15" font-weight="600" fill="${sec}">L</text>`;
+    s += `<line x1="${mid}" x2="${mid}" y1="6" y2="106" stroke="${css('--ink')}" stroke-width="2"/>`;
+    s += `<text x="20" y="${axis - 24}" font-size="15" font-weight="600" fill="${css('--ink')}">R</text><text x="20" y="${axis + 36}" font-size="15" font-weight="600" fill="${sec}">L</text>`;
     svg.innerHTML = s;
   }
   $('#pagePrev').onclick = () => { manualPage = Math.max(0, manualPage - 1); drawNotation(null); };

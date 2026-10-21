@@ -2,15 +2,24 @@ import DrumAnalysis
 import DrumCore
 import SwiftUI
 
-/// DrumCoach design tokens: one action colour (drum-shell lacquer blue), three timing colours that carry meaning,
-/// rounded numerals for everything you count, and the system's own surfaces so light and dark mode just work.
+/// DrumCoach design tokens: one action colour (brand red-orange) with a charcoal ink, three timing colours that carry
+/// meaning, rounded numerals for everything you count, and the system's own surfaces so light and dark mode just work.
 enum Theme {
     /// The only accent: buttons and selection.
-    static let shell = Color(red: 0.176, green: 0.294, blue: 0.847)          // #2D4BD8
-    /// Timing — used for nothing else.
-    static let onTime = Color(red: 0.133, green: 0.639, blue: 0.353)         // #22A35A
-    static let offTime = Color(red: 0.941, green: 0.541, blue: 0.141)        // #F08A24
-    static let missed = Color(red: 0.898, green: 0.282, blue: 0.302)         // #E5484D
+    static let shell = dynamic(light: 0xDA5236, dark: 0xF06A4C)
+    /// Charcoal for the playhead and the leading hand, so they never read as a timing colour.
+    static let ink = dynamic(light: 0x585858, dark: 0xD1D1D6)
+    /// Timing — used for nothing else. Amber and crimson stay clear of the red-orange accent.
+    static let onTime = dynamic(light: 0x1F9D55, dark: 0x30C46E)
+    static let offTime = dynamic(light: 0xD99100, dark: 0xF2B233)
+    static let missed = dynamic(light: 0xB3192F, dark: 0xF0505F)
+
+    private static func dynamic(light: UInt32, dark: UInt32) -> Color {
+        func ui(_ hex: UInt32) -> UIColor {
+            UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255, blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+        }
+        return Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? ui(dark) : ui(light) })
+    }
 
     static let stage = Color(uiColor: .secondarySystemGroupedBackground)
     static let canvas = Color(uiColor: .systemGroupedBackground)

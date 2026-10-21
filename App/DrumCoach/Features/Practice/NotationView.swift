@@ -125,7 +125,7 @@ struct NotationView: View {
                              at: CGPoint(x: g.x + 6, y: y(line: g.line, step: stemTopStep + 3)))
                 }
                 if let h = g.hand, h != .foot {
-                    ctx.draw(Text(h.rawValue).font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundColor(h == .right ? Theme.shell : .secondary),
+                    ctx.draw(Text(h.rawValue).font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundColor(h == .right ? Theme.ink : .secondary),
                              at: CGPoint(x: g.x, y: y(line: g.line, step: -5)))
                 }
                 if let ms = orangeOffsetMs(g.noteIndex) {
@@ -155,6 +155,6 @@ struct NotationView: View {
         guard let beat, beat >= 0 else { return }
         let p = l.playheadX(atBeat: Rational(Int((beat * 1000).rounded()), 1000))
         let rect = CGRect(x: offset + p.x - 5, y: y(line: p.line, step: 14), width: 10, height: y(line: p.line, step: -4) - y(line: p.line, step: 14))
-        ctx.fill(Path(roundedRect: rect, cornerRadius: 5), with: .color(Theme.shell.opacity(0.14)))
+        ctx.fill(Path(roundedRect: rect, cornerRadius: 5), with: .color(Theme.ink.opacity(0.12)))
     }
 }
