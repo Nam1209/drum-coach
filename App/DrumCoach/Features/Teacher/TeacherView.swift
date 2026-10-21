@@ -23,7 +23,9 @@ struct TeacherView: View {
             } else {
                 Section {
                     Button { Task { await send() } } label: { Label("Gửi cho thầy (báo cáo tuần)", systemImage: "paperplane") }
+                        .disabled(working)
                     Button { Task { await sync() } } label: { Label("Đồng bộ kế hoạch", systemImage: "arrow.triangle.2.circlepath") }
+                        .disabled(working)
                     if let message { Text(message).font(.callout).foregroundStyle(.secondary) }
                 } footer: {
                     Text("Sau khi gửi: app Claude mở ra, lời nhắn đã được copy — dán vào Project \"Thầy dạy trống\" rồi gửi. Xong quay lại bấm Đồng bộ.")
@@ -77,6 +79,7 @@ struct TeacherView: View {
     }
 
     private func sync(quiet: Bool = false) async {
+        working = true; defer { working = false }
         do {
             let out = try await TeacherConnection.sync(context)
             if let first = out.plans.last { pending = first }

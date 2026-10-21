@@ -54,27 +54,28 @@ public struct NotionBridge: Sendable {
         return (title, ask)
     }
 
-    public func fetchNewPlans(after lastImported: Date?) async throws -> [(title: String, created: Date, report: Result<TeacherReport, BridgeError>)] {
-        let pages = try await client.childPages(of: plansPageId)
-            .filter { lastImported == nil || $0.created > lastImported! }
-            .sorted { $0.created < $1.created }
-        var out: [(title: String, created: Date, report: Result<TeacherReport, BridgeError>)] = []
-        for p in pages {
-            let blocks = try await client.codeBlocks(of: p.id)
-            out.append((p.title, p.created, Self.decodeReport(blocks)))
+    /// Plan pages not yet imported (tracked by page id, so pages created in the same minute and pages that failed
+    /// earlier — e.g. Claude was still writing — are fetched again).
+    public func fetchPlans(excluding imported: Set<String>) async throws -> [(pageId: String, title: String, created: Date, report: Result<TeacherReport, BridgeError>)] {
+        var out: [(pageId: String, title: String, created: Date, report: Result<TeacherReport, BridgeError>)] = []
+        for p in try await client.childPages(of: plansPageId).filter({ !imported.contains($0.id) }).sorted(by: { $0.created < $1.created }) {
+            out.append((p.id, p.title, p.created, Self.decodeReport(try await client.codeBlocks(of: p.id))))
         }
         return out
     }
 
-    /// DSL exercises Claude wrote (e.g. transcribed from the user's book), skipping anything that does not parse.
-    public func fetchNewExercises(after lastImported: Date?) async throws -> [String] {
+    /// DSL exercises Claude wrote (e.g. transcribed from the user's book) per page, skipping anything that does not parse.
+    /// Pages with no valid exercise yet are returned with an empty list so the caller can retry them later.
+    public func fetchExercisePages(excluding imported: Set<String>) async throws -> [(pageId: String, dsl: [String])] {
         guard let exercisesPageId else { return [] }
-        var out: [String] = []
-        for p in try await client.childPages(of: exercisesPageId).filter({ lastImported == nil || $0.created > lastImported! }) {
+        var out: [(pageId: String, dsl: [String])] = []
+        for p in try await client.childPages(of: exercisesPageId) where !imported.contains(p.id) {
+            var dsl: [String] = []
             for block in try await client.codeBlocks(of: p.id) {
                 let parts = block.components(separatedBy: "\n\n").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                out += parts.filter { !$0.isEmpty && (try? ExerciseDSL.parse($0)) != nil }
+                dsl += parts.filter { !$0.isEmpty && (try? ExerciseDSL.parse($0)) != nil }
             }
+            out.append((p.id, dsl))
         }
         return out
     }

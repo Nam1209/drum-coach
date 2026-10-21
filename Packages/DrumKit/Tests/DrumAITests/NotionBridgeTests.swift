@@ -48,8 +48,7 @@ private func codeBlock(_ text: String) -> String {
         childrenResponse([#"{"type":"paragraph","paragraph":{"rich_text":[]}}"#, codeBlock(exampleReport)]),
     ])
     let bridge = NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "inbox", plansPageId: "plans")
-    let after = ISO8601DateFormatter().date(from: "2026-10-05T00:00:00Z")
-    let plans = try await bridge.fetchNewPlans(after: after)
+    let plans = try await bridge.fetchPlans(excluding: ["old"])
     #expect(plans.count == 1)
     #expect(plans[0].title == "Kế hoạch 2026-10-20")
     if case .success(let r) = plans[0].report { #expect(!r.weekPlan.isEmpty) } else { Issue.record("expected success") }
@@ -61,7 +60,7 @@ private func codeBlock(_ text: String) -> String {
         childrenResponse([childPage("p", "Kế hoạch", "2026-10-20T10:00:00.000Z")]),
         childrenResponse([#"{"type":"paragraph","paragraph":{"rich_text":[]}}"#]),
     ])
-    let plans = try await NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "i", plansPageId: "p").fetchNewPlans(after: nil)
+    let plans = try await NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "i", plansPageId: "p").fetchPlans(excluding: [])
     #expect(plans[0].report == .failure(.noJSONBlock))
 }
 
@@ -70,7 +69,7 @@ private func codeBlock(_ text: String) -> String {
         childrenResponse([childPage("p", "Kế hoạch", "2026-10-20T10:00:00.000Z")]),
         childrenResponse([codeBlock("{not json")]),
     ])
-    let plans = try await NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "i", plansPageId: "p").fetchNewPlans(after: nil)
+    let plans = try await NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "i", plansPageId: "p").fetchPlans(excluding: [])
     if case .failure(.invalidJSON) = plans[0].report {} else { Issue.record("expected invalidJSON, got \(plans[0].report)") }
 }
 
@@ -79,7 +78,7 @@ private func codeBlock(_ text: String) -> String {
         childrenResponse([childPage("p", "Kế hoạch", "2026-10-20T10:00:00.000Z")]),
         childrenResponse([codeBlock(#"{"summary":"x"}"#)]),
     ])
-    let plans = try await NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "i", plansPageId: "p").fetchNewPlans(after: nil)
+    let plans = try await NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "i", plansPageId: "p").fetchPlans(excluding: [])
     if case .failure(.schemaMismatch) = plans[0].report {} else { Issue.record("expected schemaMismatch") }
 }
 
@@ -119,7 +118,7 @@ private func codeBlock(_ text: String) -> String {
         childrenResponse([codeBlock(good), codeBlock("garbage")]),
     ])
     let bridge = NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "i", plansPageId: "p", exercisesPageId: "ex")
-    #expect(try await bridge.fetchNewExercises(after: nil) == [good])
+    #expect(try await bridge.fetchExercisePages(excluding: []).flatMap(\.dsl) == [good])
 }
 
 @Test func bigPayloadIsSentInRequestsUnderNotionLimit() async throws {
@@ -136,4 +135,41 @@ private func codeBlock(_ text: String) -> String {
         for c in children { for r in ((c["code"] as! [String: Any])["rich_text"] as! [[String: Any]]) { joined += (r["text"] as! [String: Any])["content"] as! String } }
     }
     #expect(joined == json)
+}
+
+@Test func importedPagesAreSkippedByIdNotTime() async throws {
+    let t = FakeTransport([
+        childrenResponse([childPage("done", "Kế hoạch 1", "2026-10-20T10:00:00.000Z"),
+                          childPage("sameMinute", "Kế hoạch 2", "2026-10-20T10:00:00.000Z")]),
+        childrenResponse([codeBlock(exampleReport)]),
+    ])
+    let bridge = NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "i", plansPageId: "p")
+    let plans = try await bridge.fetchPlans(excluding: ["done"])
+    #expect(plans.map(\.pageId) == ["sameMinute"])
+}
+
+@Test func failedPageIsReturnedAgainNextTime() async throws {
+    let t = FakeTransport([
+        childrenResponse([childPage("p1", "Kế hoạch", "2026-10-20T10:00:00.000Z")]),
+        childrenResponse([]),                                    // Claude has not written the JSON yet
+        childrenResponse([childPage("p1", "Kế hoạch", "2026-10-20T10:00:00.000Z")]),
+        childrenResponse([codeBlock(exampleReport)]),
+    ])
+    let bridge = NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "i", plansPageId: "p")
+    let first = try await bridge.fetchPlans(excluding: [])
+    #expect(first[0].report == .failure(.noJSONBlock))
+    let second = try await bridge.fetchPlans(excluding: [])   // caller only excludes successfully imported pages
+    if case .success = second[0].report {} else { Issue.record("expected the plan on retry") }
+}
+
+@Test func exercisesReportTheirPage() async throws {
+    let good = "title: A\ntime: 4/4\ngrid: 1\nSN: xxxx"
+    let t = FakeTransport([
+        childrenResponse([childPage("e1", "Bài 1", "2026-10-20T10:00:00.000Z"), childPage("e2", "Bài 2", "2026-10-20T10:00:00.000Z")]),
+        childrenResponse([codeBlock(good)]),
+    ])
+    let bridge = NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "i", plansPageId: "p", exercisesPageId: "ex")
+    let pages = try await bridge.fetchExercisePages(excluding: ["e2"])
+    #expect(pages.map(\.pageId) == ["e1"])
+    #expect(pages[0].dsl == [good])
 }

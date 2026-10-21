@@ -14,8 +14,17 @@ enum TeacherConnection {
     static var inboxPageId: String? { get { d.string(forKey: "notion.inbox") } set { d.set(newValue, forKey: "notion.inbox") } }
     static var plansPageId: String? { get { d.string(forKey: "notion.plans") } set { d.set(newValue, forKey: "notion.plans") } }
     static var exercisesPageId: String? { get { d.string(forKey: "notion.exercises") } set { d.set(newValue, forKey: "notion.exercises") } }
-    static var lastPlanSync: Date? { get { d.object(forKey: "notion.lastPlanSync") as? Date } set { d.set(newValue, forKey: "notion.lastPlanSync") } }
-    static var lastExerciseSync: Date? { get { d.object(forKey: "notion.lastExSync") as? Date } set { d.set(newValue, forKey: "notion.lastExSync") } }
+    /// Notion page ids already imported successfully (plans / exercise pages).
+    static var importedPlanPages: Set<String> {
+        get { Set(d.stringArray(forKey: "notion.importedPlans") ?? []) }
+        set { d.set(Array(newValue), forKey: "notion.importedPlans") }
+    }
+    static var importedExercisePages: Set<String> {
+        get { Set(d.stringArray(forKey: "notion.importedExercises") ?? []) }
+        set { d.set(Array(newValue), forKey: "notion.importedExercises") }
+    }
+    /// One sync at a time (auto-sync on foreground + the button could otherwise race and import duplicates).
+    private static var syncing = false
 
     static var lastNotionBackup: Date? { get { d.object(forKey: "notion.lastBackup") as? Date } set { d.set(newValue, forKey: "notion.lastBackup") } }
 
@@ -71,10 +80,12 @@ enum TeacherConnection {
 
     /// Pull new plans and exercises. New plans are stored but not applied (the user confirms first).
     static func sync(_ ctx: ModelContext) async throws -> (plans: [StoredReport], exercises: Int, problems: [String]) {
-        guard let bridge else { return ([], 0, []) }
+        guard let bridge, !syncing else { return ([], 0, []) }
+        syncing = true
+        defer { syncing = false }
         let known = Set(ExerciseCatalog.all(ctx).keys)
         var stored: [StoredReport] = [], problems: [String] = []
-        for p in try await bridge.fetchNewPlans(after: lastPlanSync) {
+        for p in try await bridge.fetchPlans(excluding: importedPlanPages) {
             switch p.report {
             case .success(let r):
                 var clean = r.sanitized(knownExerciseIds: known)
@@ -82,18 +93,20 @@ enum TeacherConnection {
                 let s = StoredReport(title: p.title, created: p.created, report: clean)
                 ctx.insert(s)
                 stored.append(s)
+                importedPlanPages.insert(p.pageId)
             case .failure(let e):
-                problems.append("\(p.title): \(e.userMessage)")
+                problems.append("\(p.title): \(e.userMessage)")   // not marked imported: retried next sync
             }
-            lastPlanSync = max(lastPlanSync ?? .distantPast, p.created)
         }
-        let newExercises = try await bridge.fetchNewExercises(after: lastExerciseSync)
-        for dsl in newExercises {
-            if let e = try? DrumCore.ExerciseDSL.parse(dsl) { ctx.insert(StoredExercise(title: e.title, dsl: dsl, source: "Sách của tôi")) }
+        var added = 0
+        for page in try await bridge.fetchExercisePages(excluding: importedExercisePages) where !page.dsl.isEmpty {
+            for dsl in page.dsl {
+                if let e = try? DrumCore.ExerciseDSL.parse(dsl) { ctx.insert(StoredExercise(title: e.title, dsl: dsl, source: "Sách của tôi")); added += 1 }
+            }
+            importedExercisePages.insert(page.pageId)
         }
-        if !newExercises.isEmpty { lastExerciseSync = Date() }
         try ctx.save()
-        return (stored, newExercises.count, problems)
+        return (stored, added, problems)
     }
 
     /// API path: Claude writes the weekly report directly (needs an API key).
