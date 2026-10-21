@@ -88,6 +88,12 @@
 - Prompt caching: system prompt và ngữ pháp DSL cố định ở đầu request, đặt `cache_control: {type: "ephemeral"}`, không chèn timestamp vào system.
 - Chữ trong UI viết bằng tiếng Việt. Thuật ngữ trống giữ nguyên tiếng Anh (Hi-Hat, Snare, Kick, Paradiddle, Flam…).
 - Không ship bất kỳ văn bản hay bài nhạc nào chép từ Stick Control hoặc Rockschool.
+- **Ký app bằng Apple ID miễn phí (Personal Team), không có tài khoản Apple Developer trả phí.** Hệ quả:
+  - Không dùng capability cần tài khoản trả phí: iCloud/CloudKit, Push Notifications, App Groups. Local notification thì dùng được.
+  - Bundle ID cố định là `com.natelee.drumcoach` và **không bao giờ được đổi**. Đổi bundle ID thì iPad coi như app mới, và dữ liệu của app cũ không chuyển sang.
+  - Profile hết hạn sau 7 ngày. Bấm Run lại trong Xcode (qua cáp hoặc Wi-Fi) sẽ cài đè lên app cũ, **dữ liệu SwiftData vẫn giữ nguyên**. Dữ liệu chỉ mất khi xóa app.
+  - Backup (Task 13) gồm: tự động đẩy file JSON lên Notion mỗi lần "Gửi cho thầy" hoặc mỗi Chủ nhật; xuất thủ công ra Files bằng document picker; và `UIFileSharingEnabled` để thư mục Documents hiện trong app Files. Không dùng iCloud container.
+  - Màn hình Settings hiện "Ngày hết hạn bản cài: …" và nhắc trước 1 ngày bằng local notification.
 
 ## Review Focus
 
