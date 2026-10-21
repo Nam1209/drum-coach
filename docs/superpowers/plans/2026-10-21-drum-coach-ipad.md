@@ -243,15 +243,26 @@ public enum Counting { public static func labels(mode: CountMode, beats: Int) ->
 **Interfaces – Produces:**
 ```swift
 public enum ClickKind: Sendable, Hashable { case downbeat, beat, subdivision, voice(String) } // voice("e") = âm tiết đếm
-public struct ClickEvent: Sendable, Hashable { public let sampleTime: Int64; public let kind: ClickKind; public let bar: Int }
+public struct ClickEvent: Sendable, Hashable { public let sampleTime: Int64; public let kind: ClickKind; public let bar: Int; public let level: Int; public let sound: ClickSound }
+public enum ClickSound: String, Codable, CaseIterable, Sendable { case click, woodblock, cowbell, rimshot, hiHat, beep, voice } // voice = đọc âm tiết "1/e/&/a" ngay tại ô đó
+public struct ClickSlot: Codable, Sendable, Equatable { public var level: Int /* 0 = tắt, 1 nhỏ, 2 vừa, 3 to — giống 3 ô chồng trong Drum Journal */ ; public var sound: ClickSound }
+public struct ClickPattern: Codable, Sendable, Equatable {
+  public var slots: [ClickSlot]                 // 1 phách chia làm slots.count ô: 4 = "1 e & a", 3 = "1 trip let", 2 = "1 &", 1 = "1"
+  public static let quarter: ClickPattern       // [3]
+  public static let eighths: ClickPattern       // [3,0,2,0] (đếm "1 e & a", click vào 1 và &)
+  public static let sixteenths: ClickPattern    // [3,1,2,1]
+  public static let triplets: ClickPattern      // [3,1,1]
+  public static let offbeat: ClickPattern       // [0,0,3,0] (chỉ click vào &)
+}
+public enum BeatSkip: String, Codable, CaseIterable, Sendable { case all, oneOnOneOff /* ●○●○ */, beatOneOnly /* ●○○○ */, backbeat /* ○●○● */ }
 public struct MetronomeSettings: Sendable, Codable, Equatable {
   public var bpm: Double; public var timeSignature: TimeSignature
-  public var clickSubdivision: CountMode        // phát click ở mức chia nào
-  public var voiceCount: CountMode?             // nil = tắt giọng đếm
-  public var accentDownbeat: Bool
-  public var backbeatOnly: Bool                 // click chỉ vào phách 2 và 4
-  public var gap: GapPattern?                   // GapPattern(playBars: 2, muteBars: 2)
-  public var volume: Float; public var voiceVolume: Float
+  public var pattern: ClickPattern
+  public var accentBeatOne: Bool                // phách 1 dùng âm khác (cao hơn) và to hơn
+  public var beatSkip: BeatSkip
+  public var voiceCount: CountMode?             // giọng đếm chạy song song với click; nil = tắt
+  public var gap: GapPattern?                   // tắt theo ô nhịp: GapPattern(playBars: 2, muteBars: 2)
+  public var volume: Float; public var voiceVolume: Float; public var musicVolume: Float
 }
 public enum ClickSchedule {
   /// Các click có sampleTime nằm trong [from, to). Tuyệt đối không cộng dồn sai số: sample của click n = round(n * samplesPerTick).
@@ -278,11 +289,30 @@ public enum ClickSchedule {
 @Test func extremes() { #expect(!ClickSchedule.events(bpm 40 …).isEmpty); #expect(ClickSchedule.events(bpm 300, sixteenths, 1 giây).count == 20) }
 @Test func windowBoundariesNoDupes() { /* nối [0,1000) với [1000,2000) phải ra đúng kết quả như gọi một lần [0,2000) */ }
 @Test func gapMutesBars() { /* gap 1 chơi/1 im ở 4/4 → bar 1 không có event, bar 2 có */ }
-@Test func backbeatOnly() { /* chỉ có phách 2 và 4 */ }
+@Test func backbeatOnly() { /* beatSkip .backbeat → chỉ có phách 2 và 4 */ }
+@Test func clickPatternLevels() { // pattern [3,0,2,0] ở 60 BPM, 48 kHz
+  let e = ClickSchedule.events(settings: .init(bpm: 60, pattern: .eighths, …), sampleRate: 48000, from: 0, to: 48000)
+  #expect(e.map(\.sampleTime) == [0, 24000]); #expect(e.map(\.level) == [3, 2]) }  // ClickEvent có thêm `level: Int` và `sound: ClickSound`
+@Test func perSlotSound() { /* slot "&" chọn .cowbell → event ở 1/2 phách có sound .cowbell */ }
+@Test func beatSkipOneOnOneOff() { /* 4/4, pattern quarter → chỉ có phách 1 và 3 */ }
+@Test func beatSkipBeatOneOnly() { /* chỉ có phách 1 */ }
+@Test func tripletPatternTiming() { /* [3,1,1] ở 60 BPM → 0, 16000, 32000 */ }
 @Test func voiceSyllables() { /* voiceCount .sixteenths → kinds .voice("1"), .voice("e"), .voice("&"), .voice("a") */ }
 ```
 - [ ] **Bước 2:** `swift test --filter DrumAudioTests` → FAIL.
 - [ ] **Bước 3:** Implement `ClickSchedule` (thuần). `MetronomeEngine` dùng một `AVAudioSourceNode` render callback: mỗi buffer gọi `ClickSchedule.events` cho đoạn sample của buffer đó rồi mix sample click hoặc giọng vào đúng frame offset. Cách này cho độ chính xác tới từng sample và không phụ thuộc vào timer. `CountVoiceBank` dùng `AVSpeechSynthesizer.write(_:toBufferCallback:)` render trước các âm tiết "one…twelve, e, and, a, trip, let" thành `AVAudioPCMBuffer` ở 48 kHz, cắt bỏ khoảng lặng đầu, rồi cache vào thư mục Caches. **Giọng đếm phải liền mạch** (người dùng phàn nàn rằng tiếng đếm bị giật ở âm "&"): mỗi âm tiết có fade-in 3 ms và fade-out 15 ms, không bao giờ bị cắt cụt; nếu âm tiết dài hơn ô thời gian của nó ở tempo hiện tại thì nén thời lượng (time-compress, giữ cao độ) cho vừa 90% ô; phách chính đọc to hơn "e & a" 4 dB để nghe ra nhịp điệu nói tự nhiên. Có thêm tùy chọn **tự ghi âm giọng mình** cho từng âm tiết trong Settings. Thêm test thuần `syllableFitsSlot`: hàm `CountVoiceBank.stretchFactor(syllableDuration: 0.35, slot: 60/90/4)` phải trả về < 1 và kết quả × 0.35 ≤ 0.9 × slot. Đặt `AVAudioSession` là `.playAndRecord` với `[.defaultToSpeaker, .allowBluetoothA2DP]` và `setPreferredIOBufferDuration(0.005)`.
+  **Màn hình "Metronome & Âm thanh"** (sheet, theo mẫu Drum Journal):
+  - Preset: Quarter / 8th / 16th / Triplet / Offbeat.
+  - **Click Pattern:** mỗi ô "1 e & a" là một cột 3 ô chồng; chạm vào cột để đổi mức to 0→1→2→3→0. **Nhấn giữ** một cột để chọn âm thanh riêng cho ô đó (click, woodblock, cowbell, rimshot, hi-hat, beep, giọng đọc). Nhãn dưới cột sáng lên theo nhịp đang chạy.
+  - Đổi số ô mỗi phách: 1 / 2 / 3 / 4 / 6.
+  - Accent Beat 1.
+  - Beat Skip: Tất cả / ●○●○ / ●○○○ / ○●○●.
+  - Gap theo ô nhịp.
+  - Giọng đếm (tắt hoặc chọn kiểu đếm).
+  - Âm lượng riêng cho click, giọng đếm và nhạc nền.
+  - Lưu được preset của mình.
+
+  App tự tạo các file âm thanh (click, woodblock…) bằng DSP lúc chạy, không cần file mẫu. Mức to ánh xạ sang 1 = −14 dB, 2 = −6 dB, 3 = 0 dB.
 - [ ] **Bước 4:** Test → PASS. Kiểm tra tay trên iPad thật: so với một metronome khác ở 60 và 200 BPM, nghe thấy không lệch.
 - [ ] **Bước 5:** Commit `feat: sample-accurate metronome with spoken counting`.
 
