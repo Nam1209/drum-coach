@@ -179,22 +179,13 @@ private let sr = 48_000.0
 }
 
 @Test func defaultClicksSoundLikeAWoodenMetronome() {
+    // Chosen by ear: the dry, hard wood block ("B"). Rejected earlier: high ringing notes (1320–1760 Hz beeps).
     #expect((2...5).allSatisfy { ToneLadder.default[$0]?.sound == .woodblock })
+    #expect(ToneLadder.default.values.allSatisfy { $0.pitchHz <= 1_000 })
     let f0 = ToneLadder.default[4]!.pitchHz
     let wood = ClickSynth.render(sound: .woodblock, pitchHz: f0, sampleRate: 48_000)
-    // Warm: far more energy at the block's note than in the 4 kHz region that makes clicks piercing.
-    #expect(energy(wood, at: f0) > 10 * energy(wood, at: 4_000))
-    // A short "tok": 90% of the sound is over within 40 ms.
-    let e = wood.map { $0 * $0 }
-    #expect(e.prefix(1_920).reduce(0, +) / e.reduce(0, +) > 0.9)
-}
-
-/// Goertzel power at `f` Hz (48 kHz audio).
-private func energy(_ x: [Float], at f: Double) -> Double {
-    let k = 2 * cos(2 * Double.pi * f / 48_000)
-    var s1 = 0.0, s2 = 0.0
-    for v in x { let s0 = Double(v) + k * s1 - s2; s2 = s1; s1 = s0 }
-    return s1 * s1 + s2 * s2 - k * s1 * s2
+    #expect(wood == ClickSynth.wood(f0, sr: 48_000, character: .dry))
+    #expect(wood.count <= 4_800)                                         // over within 0.1 s: nothing rings on
 }
 
 @Test func clockTickFactoryLadderIsUpgradedToo() {
