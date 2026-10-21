@@ -15,26 +15,37 @@ public struct NotionClient: Sendable {
         self.transport = transport
     }
 
-    /// Creates a child page; when `codeBlockJSON` is given it is stored in code blocks (split into ≤ 2000-char pieces).
+    /// Notion rejects request bodies above ~500 KB; one full code block is ~200 KB, so at most 2 blocks per request.
+    static let blocksPerRequest = 2
+
+    /// Creates a child page; when `codeBlockJSON` is given it is stored in code blocks (≤ 2000-char pieces, ≤ 100 per block),
+    /// sent in several requests (create, then append) so large backups stay under Notion's size limit.
     public func createChildPage(parent: String, title: String, codeBlockJSON: String? = nil) async throws -> String {
-        var children: [JSONValue] = []
+        var blocks: [JSONValue] = []
         if let text = codeBlockJSON {
             let pieces = Self.chunks(text, size: Self.maxRichText)
             for group in stride(from: 0, to: pieces.count, by: Self.maxRichTextPerBlock) {
                 let rich = pieces[group..<min(group + Self.maxRichTextPerBlock, pieces.count)].map {
                     JSONValue.object(["type": .string("text"), "text": .object(["content": .string($0)])])
                 }
-                children.append(.object(["object": .string("block"), "type": .string("code"),
-                                          "code": .object(["language": .string("json"), "rich_text": .array(Array(rich))])]))
+                blocks.append(.object(["object": .string("block"), "type": .string("code"),
+                                       "code": .object(["language": .string("json"), "rich_text": .array(Array(rich))])]))
             }
         }
+        let first = Array(blocks.prefix(Self.blocksPerRequest))
         let body: JSONValue = .object([
             "parent": .object(["page_id": .string(parent)]),
             "properties": .object(["title": .object(["title": .array([.object(["text": .object(["content": .string(title)])])])])]),
-            "children": .array(children),
+            "children": .array(first),
         ])
         let json = try await request("pages", method: "POST", body: body)
         guard let id = json["id"] as? String else { throw NotionError.badResponse }
+        var rest = blocks.dropFirst(Self.blocksPerRequest)
+        while !rest.isEmpty {
+            let batch = Array(rest.prefix(Self.blocksPerRequest))
+            rest = rest.dropFirst(Self.blocksPerRequest)
+            _ = try await request("blocks/\(id)/children", method: "PATCH", body: .object(["children": .array(batch)]))
+        }
         return id
     }
 

@@ -121,3 +121,19 @@ private func codeBlock(_ text: String) -> String {
     let bridge = NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "i", plansPageId: "p", exercisesPageId: "ex")
     #expect(try await bridge.fetchNewExercises(after: nil) == [good])
 }
+
+@Test func bigPayloadIsSentInRequestsUnderNotionLimit() async throws {
+    let json = String(repeating: "b", count: 1_200_000)
+    let t = FakeTransport(Array(repeating: (200, #"{"id":"page-x","results":[]}"#), count: 20))
+    let id = try await NotionClient(token: "s", transport: t).createChildPage(parent: "inbox", title: "Backup", codeBlockJSON: json)
+    #expect(id == "page-x")
+    #expect(t.requests.count > 1)
+    #expect(t.requests.allSatisfy { ($0.httpBody?.count ?? 0) < 450_000 })
+    #expect(t.requests.dropFirst().allSatisfy { $0.httpMethod == "PATCH" && $0.url!.absoluteString.hasSuffix("/blocks/page-x/children") })
+    var joined = ""
+    for i in t.requests.indices {
+        let children = t.body(i)["children"] as! [[String: Any]]
+        for c in children { for r in ((c["code"] as! [String: Any])["rich_text"] as! [[String: Any]]) { joined += (r["text"] as! [String: Any])["content"] as! String } }
+    }
+    #expect(joined == json)
+}

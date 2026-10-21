@@ -17,6 +17,8 @@ enum TeacherConnection {
     static var lastPlanSync: Date? { get { d.object(forKey: "notion.lastPlanSync") as? Date } set { d.set(newValue, forKey: "notion.lastPlanSync") } }
     static var lastExerciseSync: Date? { get { d.object(forKey: "notion.lastExSync") as? Date } set { d.set(newValue, forKey: "notion.lastExSync") } }
 
+    static var lastNotionBackup: Date? { get { d.object(forKey: "notion.lastBackup") as? Date } set { d.set(newValue, forKey: "notion.lastBackup") } }
+
     static var isConfigured: Bool { Keychain.get(Keychain.notionToken) != nil && inboxPageId != nil && plansPageId != nil }
 
     static var profile: StudentProfile {
@@ -44,10 +46,14 @@ enum TeacherConnection {
     static func sendWeekly(_ ctx: ModelContext) async throws -> String {
         guard let bridge else { throw NotionError.badResponse }
         let out = try await bridge.send(kind: .weekly, payload: HistoryStore.digest(ctx), profile: profile, date: Date())
-        if let backup = try? HistoryStore.backup(ctx) {
-            _ = try? await bridge.send(kind: .backup, payload: backup, profile: profile, date: Date())
-        }
         handOff(out.prompt)
+        do {
+            _ = try await bridge.send(kind: .backup, payload: try HistoryStore.backup(ctx), profile: profile, date: Date())
+            lastNotionBackup = Date()
+        } catch {
+            // The report went through; tell the user the off-device backup did not.
+            return out.pageTitle + " (⚠️ backup lên Notion chưa được: \(Friendly.message(error)))"
+        }
         return out.pageTitle
     }
 
