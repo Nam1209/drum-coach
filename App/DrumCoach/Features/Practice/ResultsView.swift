@@ -73,6 +73,10 @@ struct ResultsView: View {
                     Text(earned >= 0 ? "+\(earned)" : "\(earned)").font(Theme.number(40))
                         .foregroundStyle(earned > 0 ? Theme.onTime : earned < 0 ? Theme.missed : .secondary)
                     Text(L("điểm lần này", "points this run")).font(.footnote).foregroundStyle(.secondary)
+                    if s.completed, s.seconds >= PracticePoints.minimumSeconds, s.missedFraction < 0.9 {
+                        Label(L("+\(PracticePoints.completionBonus) hoàn thành bài", "+\(PracticePoints.completionBonus) for finishing"), systemImage: "flag.checkered")
+                            .font(.caption.weight(.semibold)).foregroundStyle(Theme.onTime)
+                    }
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L("Hạng \(rank.level): \(rank.title)", "Rank \(rank.level): \(rank.title)")).font(.headline)
@@ -82,8 +86,14 @@ struct ResultsView: View {
                     } else {
                         Text(L("\(total) điểm, hạng cao nhất", "\(total) points, top rank")).font(.footnote).foregroundStyle(.secondary)
                     }
-                    if earned < 0 {
-                        Text(L("Dưới 60% bị trừ điểm. Giảm tempo 8–10 BPM rồi chơi lại để lấy lại điểm.", "Below 60% costs points. Lower the tempo by 8–10 BPM and play again to win them back.")).font(.footnote).foregroundStyle(.secondary)
+                    if s.seconds < PracticePoints.minimumSeconds {
+                        Text(L("Dừng trước 10 giây: lần này không tính điểm.", "Stopped within 10 seconds: this run doesn't count.")).font(.footnote).foregroundStyle(.secondary)
+                    } else if s.missedFraction >= 0.9 {
+                        Text(L("App gần như không nghe thấy cú nào nên không tính điểm. Kiểm tra micro/kết nối trống (Hiệu chỉnh → Nghe thử).", "The app heard almost nothing, so this run doesn't count. Check the mic or kit connection (Calibration → Test listening).")).font(.footnote).foregroundStyle(.secondary)
+                    } else if earned < 0 {
+                        Text(L("Dưới 40% bị trừ một ít điểm. Giảm tempo 8–10 BPM rồi chơi lại để lấy lại điểm.", "Below 40% costs a few points. Lower the tempo by 8–10 BPM and play again to win them back.")).font(.footnote).foregroundStyle(.secondary)
+                    } else if earned == 0 {
+                        Text(L("40–60%: đang học, không cộng không trừ. Từ 60% (Pass) bắt đầu được cộng điểm.", "40–60%: learning zone, no points either way. From 60% (Pass) you start earning.")).font(.footnote).foregroundStyle(.secondary)
                     }
                 }
             }

@@ -1,15 +1,30 @@
 import DrumCore
 
-/// Points for every finished run: clean playing earns, sloppy playing costs.
-/// 90%+ earns 10–20, 60–90% earns 0–5, under 60% loses up to 12. Harder timing windows earn more;
-/// passing a level test adds 50.
+/// Points for every finished run. Rewards follow the Rockschool bands; only clearly sloppy playing costs a little.
+/// 90%+ earns 10–20 (Distinction), 75–90% earns 3–8 (Merit), 60–75% earns 1–3 (Pass), 40–60% is the learning zone (0),
+/// under 40% loses 1–5. Harder timing windows earn more; passing a level test adds 50. Runs stopped within 10 s, or that
+/// the app barely heard (90%+ of notes missed — usually the mic, not the player), don't count either way. Playing an
+/// exercise through to the end adds a small bonus, so finishing always beats stopping.
 public enum PracticePoints {
     public static let levelTestBonus = 50
+    /// Shorter runs are try-outs: no reward (so it can't be farmed) and no penalty.
+    public static let minimumSeconds: Double = 10
+    /// For playing to the last note (not scaled by difficulty).
+    public static let completionBonus = 2
 
-    public static func points(score: Double, goodWindowMs: Double, isLevelTest: Bool) -> Int {
+    public static func points(score: Double, goodWindowMs: Double, isLevelTest: Bool,
+                              seconds: Double = .infinity, missedFraction: Double = 0, completed: Bool = false) -> Int {
+        guard seconds >= minimumSeconds, missedFraction < 0.9 else { return 0 }
+        return forScore(score, goodWindowMs: goodWindowMs, isLevelTest: isLevelTest) + (completed ? completionBonus : 0)
+    }
+
+    private static func forScore(_ score: Double, goodWindowMs: Double, isLevelTest: Bool) -> Int {
         let s = min(100, max(0, score))
-        if s < 60 { return -Int(((60 - s) / 5).rounded(.up)) }
-        let base = s >= 90 ? 10 + Int((s - 90).rounded()) : Int(((s - 60) / 6).rounded())
+        if s < 40 { return -Int(((40 - s) / 8).rounded(.up)) }
+        if s < 60 { return 0 }
+        let base = s >= 90 ? 10 + Int((s - 90).rounded())
+            : s >= 75 ? 3 + Int(((s - 75) / 3).rounded())
+            : 1 + Int(((s - 60) / 7.5).rounded())
         let multiplier = goodWindowMs <= 20 ? 1.5 : goodWindowMs <= 30 ? 1.0 : 0.75
         let earned = Int((Double(base) * multiplier).rounded())
         return earned + (isLevelTest && s > 90 ? levelTestBonus : 0)

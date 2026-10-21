@@ -265,6 +265,7 @@ final class PracticeViewModel: ObservableObject {
                                        skill: exercise.source, bpm: settings.bpm, seconds: Date().timeIntervalSince(startedAt),
                                        mode: mode.rawValue, goodWindowMs: rules.goodWindow * 1000, stats: stats,
                                           isLevelTest: testItem != nil, levelTestId: testItem?.id)
+            session.completed = played.count == timeline.notes.count
             ctx.insert(session)
             try? ctx.save()
             lastSession = session
