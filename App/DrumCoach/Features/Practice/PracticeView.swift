@@ -69,7 +69,7 @@ struct PracticeView: View {
     // MARK: Header
 
     private var header: some View {
-        PageHeader(title: model.exercise.title, subtitle: subtitle) {
+        PageHeader(title: ExerciseTitle.short(model.exercise.title), subtitle: subtitle) {
             HStack(spacing: 6) {
                 if exercises.count > 1 {
                     Menu {

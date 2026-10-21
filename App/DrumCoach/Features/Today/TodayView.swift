@@ -99,7 +99,7 @@ struct TodayView: View {
                         } label: {
                             HStack(spacing: 16) {
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(ex.title).foregroundStyle(.primary)
+                                    Text(ExerciseTitle.short(ex.title)).foregroundStyle(.primary)
                                     Text(item.focus).font(.footnote).foregroundStyle(.secondary)
                                 }
                                 Spacer()

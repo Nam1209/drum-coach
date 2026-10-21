@@ -50,3 +50,13 @@ private let l1 = LevelCatalog.levels[0]
     let maxima = try LevelCatalog.levels.map { level in try level.tests.map { try LevelCatalog.difficulty($0) }.max()! }
     #expect(zip(maxima, maxima.dropFirst()).allSatisfy { $0 <= $1 })
 }
+
+@Test func levelsAlreadyReachedStayPassedWhenTestIdsChange() {
+    // Grades 1–2 were passed on the default tests; a newly added book replaced their ids, so no scores match.
+    let levels = (1...4).map { g in Level(id: g, title: "G\(g)", tests: [LevelTestItem(id: "book-\(g)", dsl: "", bpm: 70, skill: "")]) }
+    let p = LevelProgress(bestScores: ["old-1": 95], levels: levels, reached: 2)
+    #expect(p.currentLevel == 2)
+    #expect(p.isPassed(levels[1]))
+    #expect(p.isUnlocked(levels[2]) && !p.isUnlocked(levels[3]))
+    #expect(LevelProgress(bestScores: ["book-3": 95, "book-1": 95, "book-2": 92], levels: levels, reached: 1).currentLevel == 3)
+}

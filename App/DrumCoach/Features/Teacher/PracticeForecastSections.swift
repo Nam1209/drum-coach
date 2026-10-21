@@ -143,7 +143,7 @@ struct PracticeForecastSections: View {
         for a in attempts { if let id = a.levelTestId { best[id] = max(best[id] ?? 0, a.score) } }
         let levels = BookLibrary.levels
         return ForecastEvidence(records: HistoryStore.records(context), levelReached: SettingsStore.levelHistory,
-                                progress: LevelProgress(bestScores: best, levels: levels), levels: levels,
+                                progress: LevelProgress(bestScores: best, levels: levels, reached: SettingsStore.levelHistory.map(\.0).max() ?? 0), levels: levels,
                                 windowDays: windowDays, now: Date(), calendar: .current)
     }
 

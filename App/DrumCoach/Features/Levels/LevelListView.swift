@@ -14,7 +14,7 @@ struct LevelListView: View {
     private var progress: LevelProgress {
         var best: [String: Double] = [:]
         for a in attempts { if let id = a.levelTestId { best[id] = max(best[id] ?? 0, a.score) } }
-        return LevelProgress(bestScores: best, levels: levels)
+        return LevelProgress(bestScores: best, levels: levels, reached: SettingsStore.levelHistory.map(\.0).max() ?? 0)
     }
 
     private let levels = BookLibrary.levels.sorted { $0.id < $1.id }
@@ -98,7 +98,7 @@ struct LevelListView: View {
                         } label: {
                             HStack(spacing: 14) {
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(shortTitle(ex.title, grade: level.id)).foregroundStyle(.primary)
+                                    Text(ExerciseTitle.short(ex.title, showingGrade: false)).foregroundStyle(.primary)
                                     Text("\(Int(item.bpm)) BPM, \(Int(item.duration)) giây").font(.footnote).foregroundStyle(.secondary)
                                 }
                                 Spacer()
@@ -117,14 +117,6 @@ struct LevelListView: View {
             .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.stage))
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-    }
-
-    /// "Grade 3 · Nhóm A · Đánh đơn" → "Nhóm A: Đánh đơn" (the grade is already in the heading).
-    private func shortTitle(_ title: String, grade: Int) -> String {
-        var parts = title.components(separatedBy: " · ")
-        if parts.first == "Grade \(grade)" { parts.removeFirst() }
-        guard parts.count > 1 else { return parts.joined() }
-        return parts[0] + ": " + parts.dropFirst().joined(separator: ", ")
     }
 
     private func scoreTag(_ score: Double?, passed: Bool) -> some View {

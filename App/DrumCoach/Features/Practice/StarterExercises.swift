@@ -2,9 +2,12 @@ import DrumCore
 
 /// A few app-authored exercises until the library (Task 8) exists.
 enum StarterExercises {
-    static let all: [Exercise] = [
+    /// Computed so titles follow the current app language.
+    static var all: [Exercise] {
+        [
         """
-        title: Single Strokes (móc đơn)
+        title: Móc đơn (single strokes)
+        title_en: Single strokes
         time: 4/4
         tempo: 50-90
         grid: 2
@@ -12,7 +15,8 @@ enum StarterExercises {
         ST: RLRLRLRL
         """,
         """
-        title: Double Strokes (móc kép)
+        title: Móc kép (double strokes)
+        title_en: Double strokes
         time: 4/4
         tempo: 50-90
         grid: 4
@@ -20,7 +24,8 @@ enum StarterExercises {
         ST: RRLLRRLLRRLLRRLL
         """,
         """
-        title: Single Paradiddle
+        title: Paradiddle đơn
+        title_en: Single paradiddle
         time: 4/4
         tempo: 50-90
         grid: 4
@@ -28,7 +33,8 @@ enum StarterExercises {
         ST: RLRRLRLLRLRRLRLL
         """,
         """
-        title: Rock Groove 8th
+        title: Groove rock móc đơn
+        title_en: Rock groove in 8ths
         time: 4/4
         tempo: 60-100
         grid: 2
@@ -37,5 +43,6 @@ enum StarterExercises {
         BD: x---xx--
         ST: RRRRRRRR
         """,
-    ].compactMap { try? ExerciseDSL.parse($0) }
+        ].compactMap { try? ExerciseDSL.parse($0) }
+    }
 }

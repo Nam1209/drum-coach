@@ -104,14 +104,17 @@ public enum LevelCatalog {
 public struct LevelProgress: Sendable {
     public let bestScores: [String: Double]
     private let levels: [Level]
+    /// Highest level ever reached (saved separately): it stays passed even if a newly added book replaces its test ids.
+    private let reached: Int
 
-    public init(bestScores: [String: Double], levels: [Level] = LevelCatalog.levels) {
+    public init(bestScores: [String: Double], levels: [Level] = LevelCatalog.levels, reached: Int = 0) {
         self.bestScores = bestScores
         self.levels = levels
+        self.reached = reached
     }
 
     public func isPassed(_ test: LevelTestItem) -> Bool { (bestScores[test.id] ?? 0) > LevelCatalog.passMark }
-    public func isPassed(_ level: Level) -> Bool { !level.tests.isEmpty && level.tests.allSatisfy(isPassed) }
+    public func isPassed(_ level: Level) -> Bool { level.id <= reached || (!level.tests.isEmpty && level.tests.allSatisfy(isPassed)) }
 
     /// Highest level whose lower levels are all passed too (0 = none).
     public var currentLevel: Int {
@@ -122,6 +125,6 @@ public struct LevelProgress: Sendable {
 
     /// Before any attempt every level is open (to find a starting point); afterwards only up to the next level.
     public func isUnlocked(_ level: Level) -> Bool {
-        bestScores.isEmpty || level.id <= currentLevel + 1
+        (bestScores.isEmpty && reached == 0) || level.id <= currentLevel + 1
     }
 }
