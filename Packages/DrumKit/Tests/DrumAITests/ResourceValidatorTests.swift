@@ -20,12 +20,25 @@ private func res(_ kind: String, _ url: String?, query: String = "paradiddle les
     #expect(out[0].url?.absoluteString == "https://www.youtube.com/watch?v=ok")
 }
 
-@Test func articleCheckedWithHead() async {
-    let t = FakeTransport([(200, ""), (500, "")])
-    let out = await ResourceValidator(transport: t).validate([res("article", "https://a.example/ok"), res("article", "https://b.example/bad")])
-    #expect(t.requests[0].httpMethod == "HEAD")
+@Test func articlesAreNeverContacted() async {
+    let t = FakeTransport([])
+    let out = await ResourceValidator(transport: t).validate([res("article", "https://a.example/ok")])
+    #expect(t.requests.isEmpty)
     #expect(out[0].url?.host == "a.example")
-    #expect(out[1].url?.absoluteString.hasPrefix("https://www.google.com/search?q=") == true)
+}
+
+@Test(arguments: ["https://192.168.1.1/admin", "https://localhost/x", "https://nas.local/", "https://router/", "https://[::1]/", "https://10.0.0.5"])
+func privateHostsBecomeSearch(link: String) async {
+    let t = FakeTransport([])
+    let out = await ResourceValidator(transport: t).validate([res("article", link)])
+    #expect(t.requests.isEmpty)
+    #expect(out[0].url?.host == "www.google.com")
+}
+
+@Test func youTubeCheckOnlyTalksToYouTube() async {
+    let t = FakeTransport([(200, "{}")])
+    _ = await ResourceValidator(transport: t).validate([res("youtube", "https://evil.example/watch?v=1")])
+    #expect(t.requests.allSatisfy { $0.url?.host == "www.youtube.com" })
 }
 
 @Test func missingUrlGetsSearchLink() async {

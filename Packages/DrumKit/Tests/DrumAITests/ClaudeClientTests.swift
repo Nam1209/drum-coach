@@ -10,7 +10,7 @@ final class FakeTransport: HTTPTransport, @unchecked Sendable {
     func send(_ req: URLRequest) async throws -> (Data, HTTPURLResponse) {
         requests.append(req)
         if let error { throw error }
-        let (status, body) = responses.removeFirst()
+        let (status, body) = responses.isEmpty ? (500, "") : responses.removeFirst()
         return (Data(body.utf8), HTTPURLResponse(url: req.url!, statusCode: status, httpVersion: nil, headerFields: nil)!)
     }
     func body(_ i: Int = 0) -> [String: Any] {
