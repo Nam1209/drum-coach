@@ -4,6 +4,7 @@ import DrumCore
 import DrumLibrary
 import SwiftData
 import SwiftUI
+import UIKit
 
 /// The practice screen: one stage with the notation and the hand lanes, one row of controls under it.
 struct PracticeView: View {
@@ -44,6 +45,7 @@ struct PracticeView: View {
                         }
                     }
                     controls(beat: beat)
+                    if model.mode == .touch { touchPads }
                     options
                     if let auto = model.autoLearn { autoLearnStatus(auto) }
                 }
@@ -57,7 +59,7 @@ struct PracticeView: View {
         .sheet(isPresented: $showCamera) { PostureCameraView(exerciseTitle: model.exercise.title) }
         .sheet(item: $model.finishedStats) { stats in
             ResultsView(stats: stats, title: model.exercise.title, bpm: model.settings.bpm,
-                        input: model.assessmentInput(for: stats), session: model.lastSession, diagnosis: model.lastDiagnosis)
+                        input: model.assessmentInput(for: stats), session: model.lastSession, diagnosis: model.lastDiagnosis, samples: model.lastSamples)
         }
         .onAppear { model.modelContext = modelContext }
         .onChange(of: model.settings) { _, new in if model.autoLearn == nil, model.testItem == nil { SettingsStore.saveMetronome(new) } }
@@ -80,6 +82,13 @@ struct PracticeView: View {
                 Button { showCalibration = true } label: { iconLabel("dot.radiowaves.left.and.right", "Hiệu chỉnh độ trễ") }
                 Button { showSound = true } label: { iconLabel("slider.horizontal.3", "Âm thanh máy nhịp") }
                     .disabled(model.isPlaying)
+                Menu {
+                    if let url = GrooveScribeExport.url(for: model.exercise, bpm: Int(model.settings.bpm)) {
+                        Link(destination: url) { Label("Mở trong GrooveScribe", systemImage: "safari") }
+                        ShareLink(item: url) { Label("Chia sẻ link GrooveScribe", systemImage: "link") }
+                    }
+                    Button { printNotation() } label: { Label("In bản nhạc (PDF)", systemImage: "printer") }
+                } label: { iconLabel("square.and.arrow.up", "Xuất bài") }
             }
         }
     }
@@ -205,6 +214,44 @@ struct PracticeView: View {
                 }
             }
         }
+    }
+
+    /// Two big pads for "Gõ màn hình": right hand, left hand (any drum counts).
+    private var touchPads: some View {
+        HStack(spacing: 16) {
+            ForEach(["L", "R"], id: \.self) { hand in
+                Text(hand)
+                    .font(Theme.number(40))
+                    .foregroundStyle(hand == "R" ? Theme.shell : .secondary)
+                    .frame(maxWidth: .infinity, minHeight: 150)
+                    .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Theme.stage))
+                    .contentShape(Rectangle())
+                    // Fire on touch-down, not release, so timing is honest.
+                    .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { v in
+                        if v.translation == .zero { model.tap(nil) }
+                    })
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityLabel(hand == "R" ? "Tay phải" : "Tay trái")
+            }
+        }
+        .disabled(!model.isPlaying)
+        .opacity(model.isPlaying ? 1 : 0.5)
+    }
+
+    @MainActor
+    private func printNotation() {
+        let renderer = ImageRenderer(content:
+            NotationView(exercise: model.playedExercise, display: .page, beat: nil, noteColor: { _ in nil }, orangeOffsetMs: { _ in nil })
+                .padding(36).frame(width: 842).background(Color.white).environment(\.colorScheme, .light))
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(model.exercise.title).pdf")
+        renderer.render { size, draw in
+            var box = CGRect(origin: .zero, size: CGSize(width: max(size.width, 842), height: max(size.height, 595)))
+            guard let ctx = CGContext(url as CFURL, mediaBox: &box, nil) else { return }
+            ctx.beginPDFPage(nil); draw(ctx); ctx.endPDFPage(); ctx.closePDF()
+        }
+        let printer = UIPrintInteractionController.shared
+        printer.printingItem = url
+        printer.present(animated: true)
     }
 
     // MARK: Helpers

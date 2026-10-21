@@ -45,6 +45,7 @@ struct LevelListView: View {
             }
             Section("Luyện các phần thi khác") {
                 NavigationLink("Ear Test (nghe rồi đánh lại)") { EarTestView(grade: max(1, p.currentLevel + 1)) }
+                NavigationLink("Nghe chép nhịp") { DictationView() }
                 NavigationLink("Câu hỏi kiến thức (GMQ)") { GMQuizView(grade: max(1, p.currentLevel + 1)) }
             }
             ForEach(levels) { level in

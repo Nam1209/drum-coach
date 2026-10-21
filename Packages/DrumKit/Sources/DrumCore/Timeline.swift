@@ -26,7 +26,8 @@ public struct Timeline: Sendable {
     public let duration: TimeInterval
     private let countInBeats: Rational
 
-    public init(exercise: Exercise, bpm: Double, repeats: Int, countInBars: Int) {
+    /// `swing` 0.5 = straight, 2/3 = triplet feel (applies to off-beat 8ths).
+    public init(exercise: Exercise, bpm: Double, repeats: Int, countInBars: Int, swing: Double = 0.5) {
         self.bpm = bpm
         let barBeats = exercise.timeSignature.beatsInQuarters
         countInBeats = barBeats * Rational(countInBars, 1)
@@ -38,7 +39,7 @@ public struct Timeline: Sendable {
             let offset = countInBeats + exerciseBeats * Rational(rep, 1)
             for (i, note) in exercise.notes.enumerated() {
                 timed.append(TimedNote(index: 0, noteIndex: i, repeatIndex: rep, note: note,
-                                       time: (offset + note.position).doubleValue * secondsPerBeat))
+                                       time: (offset.doubleValue + Swing.position(note.position, swing: swing)) * secondsPerBeat))
             }
         }
         // Stable order: by time, then repeat, then exercise order.

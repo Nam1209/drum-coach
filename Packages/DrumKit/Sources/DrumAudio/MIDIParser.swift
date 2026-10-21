@@ -8,4 +8,12 @@ enum MIDIParser {
             return (note, velocity)
         }
     }
+
+    /// Control changes (e.g. CC4 hi-hat pedal position).
+    static func controllers(words: [UInt32]) -> [(controller: UInt8, value: UInt8)] {
+        words.compactMap { w in
+            guard w >> 28 == 0x2, UInt8((w >> 16) & 0xF0) == 0xB0 else { return nil }
+            return (UInt8((w >> 8) & 0x7F), UInt8(w & 0x7F))
+        }
+    }
 }

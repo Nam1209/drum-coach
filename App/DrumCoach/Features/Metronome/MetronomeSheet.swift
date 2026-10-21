@@ -38,6 +38,12 @@ struct MetronomeSheet: View {
                 }
                 Section {
                     Toggle("Accent Beat 1", isOn: $settings.accentBeatOne)
+                    Picker("Swing / shuffle", selection: $settings.swing) {
+                        Text("Thẳng").tag(Swing.straight)
+                        Text("Nhẹ (58%)").tag(0.58)
+                        Text("Triplet (67%)").tag(2.0 / 3.0)
+                        Text("Shuffle mạnh (72%)").tag(0.72)
+                    }
                     Picker("Beat Skip", selection: $settings.beatSkip) {
                         Text("●●●●").tag(BeatSkip.all)
                         Text("●○●○").tag(BeatSkip.oneOnOneOff)

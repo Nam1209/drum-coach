@@ -102,6 +102,8 @@ public struct MetronomeSettings: Sendable, Codable, Equatable {
     public var volume: Float
     public var voiceVolume: Float
     public var musicVolume: Float
+    /// 0.5 = straight; up to 0.75. Moves the off-beat 8th click (and the spoken "&").
+    public var swing: Double = Swing.straight
 
     public init(bpm: Double, timeSignature: TimeSignature = TimeSignature(beats: 4, unit: 4),
                 pattern: ClickPattern = .quarter, accentBeatOne: Bool = false, beatSkip: BeatSkip = .all,
@@ -118,6 +120,26 @@ public struct MetronomeSettings: Sendable, Codable, Equatable {
         self.volume = volume
         self.voiceVolume = voiceVolume
         self.musicVolume = musicVolume
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case bpm, timeSignature, pattern, accentBeatOne, beatSkip, voiceCount, gap, ladder, volume, voiceVolume, musicVolume, swing
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        bpm = try c.decode(Double.self, forKey: .bpm)
+        timeSignature = try c.decode(TimeSignature.self, forKey: .timeSignature)
+        pattern = try c.decode(ClickPattern.self, forKey: .pattern)
+        accentBeatOne = try c.decode(Bool.self, forKey: .accentBeatOne)
+        beatSkip = try c.decode(BeatSkip.self, forKey: .beatSkip)
+        voiceCount = try c.decodeIfPresent(CountMode.self, forKey: .voiceCount)
+        gap = try c.decodeIfPresent(GapPattern.self, forKey: .gap)
+        ladder = try c.decode([Int: LevelTone].self, forKey: .ladder)
+        volume = try c.decode(Float.self, forKey: .volume)
+        voiceVolume = try c.decode(Float.self, forKey: .voiceVolume)
+        musicVolume = try c.decode(Float.self, forKey: .musicVolume)
+        swing = try c.decodeIfPresent(Double.self, forKey: .swing) ?? Swing.straight
     }
 
     /// Seconds per click beat (the time signature's beat unit).
@@ -168,7 +190,10 @@ public enum ClickSchedule {
             if s.accentBeatOne, beatInBar == 0, slot == 0 { cell.level = 5 }
             guard let tone = ToneLadder.tone(for: cell, ladder: s.ladder) else { return }
             let kind: ClickKind = slot != 0 ? .subdivision : (beatInBar == 0 ? .downbeat : .beat)
-            body(ClickEvent(sampleTime: sample, kind: kind, bar: bar, level: cell.level, tone: tone))
+            let at = s.swing > Swing.straight && slots % 2 == 0 && slot == slots / 2
+                ? Int64(((Double(beat) + min(0.75, s.swing)) * samplesPerBeat).rounded()) : sample
+            guard at >= from, at < to else { return }
+            body(ClickEvent(sampleTime: at, kind: kind, bar: bar, level: cell.level, tone: tone))
         }
 
         // Spoken counting runs alongside the clicks; it follows the gap but not beat skip.
@@ -180,7 +205,10 @@ public enum ClickSchedule {
             guard s.gap?.isMuted(bar: bar) != true else { return }
             let label = sub == 0 ? numberLabels[min(beat % beatsPerBar, numberLabels.count - 1)] : voiceLabels[sub]
             let tone = LevelTone(sound: .voice, pitchHz: 0, gainDb: sub == 0 ? 0 : -4)
-            body(ClickEvent(sampleTime: sample, kind: .voice(label), bar: bar, level: sub == 0 ? 4 : 2, tone: tone))
+            let at = s.swing > Swing.straight && per % 2 == 0 && sub == per / 2
+                ? Int64(((Double(beat) + min(0.75, s.swing)) * samplesPerBeat).rounded()) : sample
+            guard at >= from, at < to else { return }
+            body(ClickEvent(sampleTime: at, kind: .voice(label), bar: bar, level: sub == 0 ? 4 : 2, tone: tone))
         }
     }
 

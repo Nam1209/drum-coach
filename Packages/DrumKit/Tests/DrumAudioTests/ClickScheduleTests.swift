@@ -114,3 +114,10 @@ private let sr = 48_000.0
     #expect(f * 0.35 <= 0.9 * slot + 1e-9)
     #expect(CountVoiceBank.stretchFactor(syllableDuration: 0.1, slot: 1) == 1)
 }
+
+@Test func swungEighthClicks() {
+    var s = MetronomeSettings(bpm: 60, pattern: .eighths)
+    s.swing = 2.0 / 3.0
+    let e = ClickSchedule.events(settings: s, sampleRate: sr, from: 0, to: 48_000)
+    #expect(e.map(\.sampleTime) == [0, 32_000])
+}

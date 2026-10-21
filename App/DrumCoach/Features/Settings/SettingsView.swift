@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var refresh = 0
     @State private var error: String?
     @AppStorage("reminderHour") private var reminderHour = 19
+    @AppStorage("hiHatByPedal") private var hiHatByPedal = false
 
     var body: some View {
         Form {
@@ -31,9 +32,14 @@ struct SettingsView: View {
             Section("Nhắc tập") {
                 Stepper("Giờ nhắc hằng ngày: \(reminderHour):00", value: $reminderHour, in: 5...23)
             }
-            Section("Thiết bị") {
+            Section {
                 Button("Hiệu chỉnh độ trễ pad / trống điện") { showCalibration = true }
                 NavigationLink("MIDI learn (Roland TD-7)") { MIDILearnView() }
+                Toggle("Hi-hat mở/đóng theo pedal (CC4)", isOn: $hiHatByPedal)
+            } header: {
+                Text("Thiết bị")
+            } footer: {
+                Text("Bật nếu kit gửi cùng một nốt cho hi-hat mở và đóng: app đọc vị trí pedal để biết bạn đánh mở hay đóng.")
             }
             Section {
                 ForEach(VoiceRecorder.labels, id: \.self) { label in

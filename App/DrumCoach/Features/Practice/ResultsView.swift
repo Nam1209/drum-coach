@@ -1,5 +1,6 @@
 import DrumAI
 import DrumAnalysis
+import Charts
 import SwiftUI
 
 /// End of a run: the score, what kind of timing problem it was, and what to do next.
@@ -10,6 +11,7 @@ struct ResultsView: View {
     var input: AssessmentInput?
     var session: PracticeSession?
     var diagnosis: TimingDiagnosis?
+    var samples: [RunSample] = []
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @AppStorage("claude.model") private var model = ClaudeClient.defaultModel
@@ -25,6 +27,7 @@ struct ResultsView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     hero
                     if let d = diagnosis, d.kind != .notEnoughData { diagnosisView(d) }
+                    if samples.count >= 4 { runChart }
                     findings
                     if let a = assessment { assessmentView(a) }
                     VStack(alignment: .leading, spacing: 8) {
@@ -61,6 +64,29 @@ struct ResultsView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("\(n)").font(Theme.number(30)).foregroundStyle(color)
             Text(label).font(.footnote).foregroundStyle(.secondary)
+        }
+    }
+
+    /// Every note of the run: how early (below 0) or late (above 0), over time. Missed notes sit on the bottom edge.
+    private var runChart: some View {
+        let limit = max(60, (samples.compactMap(\.ms).map(abs).max() ?? 60).rounded(.up))
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("Từng nốt trong lần chơi").font(.headline)
+            Chart {
+                RuleMark(y: .value("Đúng nhịp", 0)).foregroundStyle(Theme.hairline)
+                ForEach(samples) { s in
+                    PointMark(x: .value("Giây", s.time), y: .value("ms", s.ms ?? -limit))
+                        .foregroundStyle(s.grade.color)
+                        .symbolSize(s.ms == nil ? 50 : 26)
+                        .symbol(s.ms == nil ? .cross : .circle)
+                }
+            }
+            .chartYScale(domain: -limit...limit)
+            .chartYAxisLabel("sớm ← ms → muộn")
+            .chartXAxisLabel("giây")
+            .frame(height: 180)
+            .padding(14)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.stage))
         }
     }
 

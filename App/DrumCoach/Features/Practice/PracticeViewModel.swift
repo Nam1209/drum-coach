@@ -9,15 +9,23 @@ import SwiftData
 import SwiftUI
 
 enum InputMode: String, CaseIterable, Identifiable {
-    case pad, eDrum, listenOnly
+    case pad, eDrum, touch, listenOnly
     var id: String { rawValue }
     var title: String {
         switch self {
         case .pad: "Pad (micro)"
         case .eDrum: "Trống điện"
+        case .touch: "Gõ màn hình"
         case .listenOnly: "Chỉ xem"
         }
     }
+}
+
+struct RunSample: Identifiable {
+    let id = UUID()
+    let time: Double
+    let ms: Double?
+    let grade: Grade
 }
 
 enum NotationDisplay: String, CaseIterable, Identifiable {
@@ -40,6 +48,8 @@ final class PracticeViewModel: ObservableObject {
     /// Set when "Học tự động" is running.
     @Published var autoLearn: AutoLearnState?
     @Published private(set) var lastDiagnosis: TimingDiagnosis?
+    /// (seconds into the run, offset ms, grade) of the last run, for the analysis chart.
+    @Published private(set) var lastSamples: [RunSample] = []
     private let listenPlayer = DrumPlayer()
     @Published var rules = SettingsStore.scoring
     @Published private(set) var isPlaying = false
@@ -90,6 +100,9 @@ final class PracticeViewModel: ObservableObject {
     }
 
     /// Play the exercise once with synthesized drums so you hear it before playing it.
+    /// Screen tap in "Gõ màn hình" mode.
+    func tap(_ voice: Voice?) { (source as? TouchHitSource)?.tap(voice) }
+
     func listen() {
         try? AudioSessionConfig.activate()
         try? listenPlayer.play(playedExercise, bpm: settings.bpm, countInBars: 1)
@@ -146,7 +159,7 @@ final class PracticeViewModel: ObservableObject {
     /// Timeline of the current run, or a preview of the first passes when stopped.
     var displayTimeline: Timeline {
         timeline.flatMap { isPlaying || !results.isEmpty ? $0 : nil }
-            ?? Timeline(exercise: playedExercise, bpm: settings.bpm, repeats: 2, countInBars: Self.countInBars)
+            ?? Timeline(exercise: playedExercise, bpm: settings.bpm, repeats: 2, countInBars: Self.countInBars, swing: settings.swing)
     }
 
     var exerciseSeconds: Double { exercise.lengthInBeats.doubleValue * 60 / settings.bpm }
@@ -168,7 +181,7 @@ final class PracticeViewModel: ObservableObject {
         let repeats = max(1, Int((durationSeconds / exerciseSeconds).rounded(.up)))
         var s = settings
         s.timeSignature = exercise.timeSignature
-        let tl = Timeline(exercise: playedExercise, bpm: s.bpm, repeats: repeats, countInBars: Self.countInBars)
+        let tl = Timeline(exercise: playedExercise, bpm: s.bpm, repeats: repeats, countInBars: Self.countInBars, swing: s.swing)
         timeline = tl
         byRepeatAndNote = [:]
         for n in tl.notes { byRepeatAndNote[n.repeatIndex, default: [:]][n.noteIndex] = n.index }
@@ -226,6 +239,10 @@ final class PracticeViewModel: ObservableObject {
         var finalResults = results
         for n in played where finalResults[n.index] == nil { finalResults[n.index] = .missed }
         let stats = SessionStats(results: finalResults, notes: played, extraHits: extraHits, rules: rules)
+        lastSamples = played.map { n in
+            let r = finalResults[n.index] ?? .missed
+            return RunSample(time: n.time - timeline.beatTime(Rational(0, 1)), ms: r.offset.map { $0 * 1000 }, grade: rules.grade(r))
+        }
         lastDiagnosis = TimingDiagnosis(samples: played.compactMap { n in finalResults[n.index]?.offset.map { (n.time, $0 * 1000) } })
         finishedStats = stats
         recordAutoLearn(score: stats.score)

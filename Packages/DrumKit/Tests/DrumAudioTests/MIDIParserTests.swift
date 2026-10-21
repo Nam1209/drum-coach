@@ -22,3 +22,10 @@ import Testing
     #expect(MIDIHitSource.hit(note: 38, velocity: 127, time: 1, overrides: [:])?.voice == .snare)
     #expect(MIDIHitSource.hit(note: 99, velocity: 64, time: 1, overrides: [99: .ride])?.voice == .ride)
 }
+
+@Test func parsesPedalController() {
+    // CC4 (foot controller) value 100 on channel 10: status 0xB9.
+    #expect(MIDIParser.controllers(words: [0x20B9_0464]).map(\.value) == [100])
+    #expect(MIDIParser.controllers(words: [0x20B9_0464]).first?.controller == 4)
+    #expect(MIDIParser.controllers(words: [0x2099_2664]).isEmpty)
+}

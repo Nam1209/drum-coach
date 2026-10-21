@@ -3,6 +3,7 @@ import DrumCore
 import DrumLibrary
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct LibraryView: View {
     let voiceBank: CountVoiceBank
@@ -13,11 +14,14 @@ struct LibraryView: View {
     @State private var editing: StoredExercise?
     @State private var creating = false
     @State private var importing = false
+    @State private var importingMIDI = false
+    @State private var midiMessage: String?
 
     var body: some View {
         List {
             Section("Bài của tôi") {
-                if mine.isEmpty { Text("Chưa có bài nào. Bấm + để soạn, hoặc nhập từ sách.").foregroundStyle(.secondary) }
+                if mine.isEmpty { Text("Chưa có bài nào. Bấm + để soạn, nhập từ sách hoặc từ file MIDI.").foregroundStyle(.secondary) }
+                if let midiMessage { Text(midiMessage).font(.callout).foregroundStyle(.secondary) }
                 ForEach(mine) { item in
                     if let ex = item.exercise {
                         practiceLink(ex)
@@ -67,12 +71,35 @@ struct LibraryView: View {
         }
         .navigationTitle("Thư viện")
         .toolbar {
+            Button { importingMIDI = true } label: { Label("Nhập MIDI", systemImage: "pianokeys") }
             Button { importing = true } label: { Label("Nhập PDF", systemImage: "doc.viewfinder") }
             Button { creating = true } label: { Image(systemName: "plus") }
         }
+        .fileImporter(isPresented: $importingMIDI, allowedContentTypes: [.midi]) { result in importMIDI(result) }
         .sheet(isPresented: $importing) { NavigationStack { PDFImportView() } }
         .sheet(isPresented: $creating) { NavigationStack { ExerciseEditorView(item: nil) } }
         .sheet(item: $editing) { item in NavigationStack { ExerciseEditorView(item: item) } }
+    }
+
+    /// Drum part of a .mid file → a new exercise in "Bài của tôi".
+    private func importMIDI(_ result: Result<URL, Error>) {
+        guard case .success(let url) = result else { return }
+        let access = url.startAccessingSecurityScopedResource()
+        defer { if access { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let data = try Data(contentsOf: url)
+            let r = try MIDIFileImporter.exercise(from: data, title: url.deletingPathExtension().lastPathComponent,
+                                                  overrides: SettingsStore.midiMap())
+            let dens = Set(r.exercise.notes.map(\.position.den))
+            let triplet = dens.contains { $0 % 3 == 0 }
+            let grid = triplet ? (dens.allSatisfy { 3 % $0 == 0 } ? 3 : 12) : (r.exercise.timeSignature.unit == 8 ? 2 : 4)
+            context.insert(StoredExercise(title: r.exercise.title, dsl: ExerciseDSL.serialize(r.exercise, grid: grid), source: "MIDI"))
+            try? context.save()
+            midiMessage = "Đã nhập \(r.exercise.title): \(r.exercise.bars) ô nhịp, \(r.bpm) BPM"
+                + (r.unmappedNotes > 0 ? ", bỏ qua \(r.unmappedNotes) nốt không phải trống." : ".")
+        } catch {
+            midiMessage = "Không đọc được file MIDI này. Hãy chọn file .mid có phần trống (kênh 10)."
+        }
     }
 
     private var readingLines: [Exercise] {

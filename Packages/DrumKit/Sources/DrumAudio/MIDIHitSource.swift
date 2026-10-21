@@ -14,10 +14,14 @@ public final class MIDIHitSource: HitSource, @unchecked Sendable {
     private let noteContinuation: AsyncStream<UInt8>.Continuation
     private let overrides: OSAllocatedUnfairLock<[UInt8: Voice]>
     private let offset: OSAllocatedUnfairLock<TimeInterval>
+    /// Last CC4 (hi-hat pedal) value, when open/closed comes from the pedal.
+    private let pedal = OSAllocatedUnfairLock<Int?>(initialState: nil)
+    private let hiHatByPedal: Bool
     private var client = MIDIClientRef()
     private var port = MIDIPortRef()
 
-    public init(overrides: [UInt8: Voice] = [:], calibrationOffset: TimeInterval = 0) {
+    public init(overrides: [UInt8: Voice] = [:], calibrationOffset: TimeInterval = 0, hiHatByPedal: Bool = false) {
+        self.hiHatByPedal = hiHatByPedal
         (hits, continuation) = AsyncStream.makeStream(of: Hit.self, bufferingPolicy: .bufferingNewest(256))
         (notes, noteContinuation) = AsyncStream.makeStream(of: UInt8.self, bufferingPolicy: .bufferingNewest(64))
         self.overrides = OSAllocatedUnfairLock(initialState: overrides)
@@ -42,16 +46,22 @@ public final class MIDIHitSource: HitSource, @unchecked Sendable {
         }
         guard status == noErr else { throw MIDIError.client(status) }
         let cont = continuation, noteCont = noteContinuation
-        status = MIDIInputPortCreateWithProtocol(client, "DrumCoach In" as CFString, ._1_0, &port) { [overrides, offset] list, _ in
+        status = MIDIInputPortCreateWithProtocol(client, "DrumCoach In" as CFString, ._1_0, &port) { [overrides, offset, pedal, hiHatByPedal] list, _ in
             for packet in list.unsafeSequence() {
                 let count = Int(packet.pointee.wordCount)
                 let words = withUnsafeBytes(of: packet.pointee.words) { Array($0.bindMemory(to: UInt32.self).prefix(count)) }
                 let stamp = packet.pointee.timeStamp
                 let host = (stamp == 0 ? HostClock.now() : HostClock.seconds(fromHostTime: stamp)) - offset.withLock { $0 }
                 let map = overrides.withLock { $0 }
+                for c in MIDIParser.controllers(words: words) where c.controller == 4 { pedal.withLock { $0 = Int(c.value) } }
                 for n in MIDIParser.noteOns(words: words) {
                     noteCont.yield(n.note)
-                    if let hit = Self.hit(note: n.note, velocity: n.velocity, time: host, overrides: map) { cont.yield(hit) }
+                    guard var hit = Self.hit(note: n.note, velocity: n.velocity, time: host, overrides: map) else { continue }
+                    if hiHatByPedal, let v = hit.voice {
+                        let voice = HiHatPedal.classify(v, pedal: pedal.withLock { $0 }, threshold: 90, higherIsClosed: true)
+                        hit = Hit(time: hit.time, voice: voice, velocity: hit.velocity)
+                    }
+                    cont.yield(hit)
                 }
             }
         }
