@@ -10,6 +10,13 @@ enum ReminderScheduler {
         set { UserDefaults.standard.set(newValue, forKey: "reminderHour") }
     }
 
+    /// Already allowed (never shows the system prompt).
+    static func isAuthorized() async -> Bool {
+        let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+        return status == .authorized || status == .provisional
+    }
+
+    /// Shows the system prompt the first time; asked when the learner starts practising, not at launch.
     static func requestPermission() async -> Bool {
         (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) ?? false
     }

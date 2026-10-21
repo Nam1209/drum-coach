@@ -49,12 +49,7 @@ struct TodayView: View {
             runner = r
             if r.isFinished { runner = nil; finished = true; reschedule() }
         }
-        .task {
-            if await ReminderScheduler.requestPermission() {
-                reschedule()
-                if let d = ReminderScheduler.installDate { ReminderScheduler.scheduleReinstallReminder(installDate: d) }
-            }
-        }
+        .task { if await ReminderScheduler.isAuthorized() { scheduleReminders() } }
     }
 
     /// Big countdown + start/skip for the structured session.
@@ -149,6 +144,8 @@ struct TodayView: View {
 
     private func start(_ day: DayPlan) {
         finished = false
+        // Ask for reminders when practice starts: the prompt then has an obvious reason.
+        Task { if await ReminderScheduler.requestPermission() { scheduleReminders() } }
         runner = SessionRunner(segments: [("Khởi động", day.warmup), ("Bài chính", day.main), ("Bài vui", day.fun)].map {
             SessionRunner.Segment(title: $0.0, minutes: Double($0.1.reduce(0) { $0 + $1.minutes }))
         })
@@ -158,6 +155,11 @@ struct TodayView: View {
         context.insert(JournalEntry(text: note))
         try? context.save()
         note = ""
+    }
+
+    private func scheduleReminders() {
+        reschedule()
+        if let d = ReminderScheduler.installDate { ReminderScheduler.scheduleReinstallReminder(installDate: d) }
     }
 
     private func reschedule() {

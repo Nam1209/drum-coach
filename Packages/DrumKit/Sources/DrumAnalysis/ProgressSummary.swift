@@ -55,9 +55,14 @@ public struct ProgressSummary: Sendable {
         offsetByPosition.filter { abs($0.value) >= 10 }.max { abs($0.value) < abs($1.value) }?.key
     }
 
+    /// Exercises for the tempo chart, most practised first. Level tests are left out: their tempo is fixed.
     public var exerciseIds: [(id: String, title: String)] {
-        var seen: [String: String] = [:]
-        for r in records { seen[r.exerciseId] = r.title }
-        return seen.map { ($0.key, $0.value) }.sorted { $0.title < $1.title }
+        var titles: [String: String] = [:], minutes: [String: Double] = [:]
+        for r in records where !r.isLevelTest {
+            titles[r.exerciseId] = r.title
+            minutes[r.exerciseId, default: 0] += r.minutes
+        }
+        return titles.map { ($0.key, $0.value) }
+            .sorted { (minutes[$0.0] ?? 0, $1.1) > (minutes[$1.0] ?? 0, $0.1) }
     }
 }

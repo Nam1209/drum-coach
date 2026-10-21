@@ -1,5 +1,6 @@
 import DrumAI
 import DrumAudio
+import SwiftData
 import SwiftUI
 
 struct SettingsView: View {
@@ -12,6 +13,7 @@ struct SettingsView: View {
     @State private var error: String?
     @AppStorage("reminderHour") private var reminderHour = 19
     @AppStorage("hiHatByPedal") private var hiHatByPedal = false
+    @Query(sort: \PracticeSession.date, order: .reverse) private var sessions: [PracticeSession]
 
     var body: some View {
         ScrollView {
@@ -26,6 +28,9 @@ struct SettingsView: View {
                         }
                         CardSection("Nhắc tập") {
                             Stepper("Giờ nhắc hằng ngày: \(reminderHour):00", value: $reminderHour, in: 5...23)
+                                .onChange(of: reminderHour) {
+                                    Task { if await ReminderScheduler.requestPermission() { ReminderScheduler.schedule(today: nil, practicedToday: sessions.first.map { Calendar.current.isDateInToday($0.date) } ?? false) } }
+                                }
                         }
                         CardSection("Bản cài", footer: "Cài bằng Apple ID miễn phí: app hết hạn sau 7 ngày. Cắm iPad vào Mac và bấm Run trong Xcode để cài lại, lịch sử tập vẫn giữ nguyên.") {
                             if let exp = ReminderScheduler.expiryDate {

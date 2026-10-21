@@ -41,3 +41,13 @@ private func rec(_ daysAgo: Double, bpm: Double = 70, andMs: Double = 0, minutes
     let p = ProgressSummary(records: [rec(3, bpm: 70), rec(2, bpm: 74), rec(1, bpm: 78)], now: now, calendar: cal)
     #expect(p.cleanTempoSeries(exerciseId: "A").map(\.bpm) == [70, 74, 78])
 }
+
+@Test func tempoChartListsPractisedExercisesMostMinutesFirst() {
+    let rs = [
+        SessionRecord(date: now, exerciseId: "B", title: "B", skill: "", bpm: 70, minutes: 5, stats: eighthStats(andMs: 0), isLevelTest: false),
+        SessionRecord(date: now, exerciseId: "A", title: "A", skill: "", bpm: 70, minutes: 30, stats: eighthStats(andMs: 0), isLevelTest: false),
+        SessionRecord(date: now, exerciseId: "T", title: "Test", skill: "", bpm: 75, minutes: 60, stats: eighthStats(andMs: 0), isLevelTest: true),
+    ]
+    let ids = ProgressSummary(records: rs, now: now, calendar: cal).exerciseIds.map(\.id)
+    #expect(ids == ["A", "B"])          // level tests (fixed tempo) are left out
+}
