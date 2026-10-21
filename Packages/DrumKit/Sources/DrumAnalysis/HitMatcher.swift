@@ -23,12 +23,15 @@ public struct HitMatcher: Sendable {
         public var offset: TimeInterval { result.offset ?? 0 }
     }
 
-    public let beatZero: TimeInterval
+    public private(set) var beatZero: TimeInterval
     public let window: TimeInterval
     private let expected: [TimedNote]
     private var pending: Set<Int>
     private var expiredUpTo = 0
     public private(set) var extraHits: [Hit] = []
+
+    /// Follow the metronome's latest estimate of beat 0 (it is refreshed as the audio and host clocks drift apart).
+    public mutating func resync(beatZero new: TimeInterval) { beatZero = new }
 
     public init(expected: [TimedNote], beatZero: TimeInterval, window: TimeInterval) {
         self.expected = expected.sorted { $0.time < $1.time }

@@ -35,17 +35,22 @@ private func impulse(_ n: Int) -> [Float] { [Float](repeating: 1, count: n) }
     #expect(out.allSatisfy { $0 == 1 })   // 1.6 clipped to 1
 }
 
-@Test func scheduleStateAppliesTempoChangeAtNextBar() {
-    // 4/4 at 60 bpm, 48 kHz: one bar = 192 000 samples.
+@Test func scheduleStateAppliesTempoChangeAtNextBeat() {
+    // 4/4 at 60 bpm, 48 kHz: one beat = 48 000 samples. Changed during beat 2 (sample 50 000).
     var st = ScheduleState(settings: MetronomeSettings(bpm: 60), sampleRate: 48_000)
     st.update(MetronomeSettings(bpm: 120), cursor: 50_000)
+    #expect(st.pendingAt == 96_000)
+    #expect(st.events(from: 40_000, to: 96_000).map(\.sampleTime) == [48_000])          // still 60 bpm
+    let after = st.events(from: 96_000, to: 150_000)
+    #expect(after.map(\.sampleTime) == [96_000, 120_000, 144_000])                     // 120 bpm from beat 3
+    #expect(after.map(\.kind) == [.beat, .beat, .downbeat])                             // the bar keeps its place
+}
+
+@Test func scheduleStateChangesMeterAtNextBar() {
+    var st = ScheduleState(settings: MetronomeSettings(bpm: 60), sampleRate: 48_000)
+    st.update(MetronomeSettings(bpm: 60, timeSignature: TimeSignature(beats: 3, unit: 4)), cursor: 50_000)
     #expect(st.pendingAt == 192_000)
-    let before = st.events(from: 140_000, to: 192_000)
-    #expect(before.map(\.sampleTime) == [192_000 - 48_000])            // still 60 bpm
-    let after = st.events(from: 192_000, to: 192_000 + 48_000)
-    #expect(after.map(\.sampleTime) == [192_000, 192_000 + 24_000])    // 120 bpm from the bar line
-    #expect(after.first?.kind == .downbeat)
-    #expect(st.origin == 192_000)
+    #expect(st.events(from: 192_000, to: 200_000).first?.kind == .downbeat)
 }
 
 @Test func scheduleStateSplitsBlockAcrossChange() {

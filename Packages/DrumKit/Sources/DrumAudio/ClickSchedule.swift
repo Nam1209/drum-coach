@@ -143,7 +143,10 @@ public struct MetronomeSettings: Sendable, Codable, Equatable {
     }
 
     /// Seconds per click beat (the time signature's beat unit).
-    public var secondsPerBeat: Double { 60.0 / bpm * 4.0 / Double(timeSignature.unit) }
+    /// Length of one counted beat (`bpm` is always quarter notes per minute); in compound meters a beat is a dotted quarter.
+    public var secondsPerBeat: Double { 60.0 / bpm * 4.0 / Double(timeSignature.unit) * (timeSignature.isCompound ? 3 : 1) }
+    /// Counted beats per bar: 4 in 4/4, 7 in 7/8, but 4 in 12/8.
+    public var beatsPerBar: Int { timeSignature.isCompound ? timeSignature.beats / 3 : timeSignature.beats }
 }
 
 public enum ClickKind: Sendable, Hashable {
@@ -178,7 +181,7 @@ public enum ClickSchedule {
     static func forEachEvent(settings s: MetronomeSettings, voiceLabels: [String], sampleRate: Double,
                              from: Int64, to: Int64, _ body: (ClickEvent) -> Void) {
         guard to > from, s.bpm > 0 else { return }
-        let beatsPerBar = s.timeSignature.beats
+        let beatsPerBar = s.beatsPerBar
         let samplesPerBeat = sampleRate * s.secondsPerBeat
 
         // Swing only makes sense for 8th notes in a quarter-note meter: it delays the "&" (slot 2 of 2).

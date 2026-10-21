@@ -8,7 +8,10 @@ final class MetronomeRenderer: @unchecked Sendable {
         var schedule: ScheduleState
         var mixer = ClickMixer()
         var cursor: Int64 = 0
-        var firstHostTime: TimeInterval?
+        /// Latest render timestamp: sample `anchorSample` is played at host time `anchorHost` (before output latency).
+        /// Refreshed every callback, so the audio clock never drifts away from the host clock.
+        var anchorHost: TimeInterval?
+        var anchorSample: Int64 = 0
         var toneCache: [LevelTone: [Float]] = [:]
         var syllableCache: [String: [Float]] = [:]
         var volume: Float = 1
@@ -29,6 +32,8 @@ final class MetronomeRenderer: @unchecked Sendable {
 
     /// Fill `frames` mono samples. Called on the audio thread.
     func render(frames: Int, hostTime: UInt64, into buffer: UnsafeMutablePointer<Float>) {
+        let host = HostClock.seconds(fromHostTime: hostTime)
+        state.withLock { $0.anchorHost = host; $0.anchorSample = $0.cursor }
         var done = 0
         while done < frames {
             let n = min(frames - done, scratch.count)
@@ -40,7 +45,6 @@ final class MetronomeRenderer: @unchecked Sendable {
     private func renderSlice(frames: Int, hostTime: UInt64, into buffer: UnsafeMutablePointer<Float>) {
         for i in 0..<frames { scratch[i] = 0 }
         state.withLock { s in
-            if s.firstHostTime == nil { s.firstHostTime = HostClock.seconds(fromHostTime: hostTime) }
             let from = s.cursor, to = s.cursor + Int64(frames)
             s.schedule.forEachEvent(from: from, to: to) { e in
                 let offset = Int(e.sampleTime - from)
@@ -61,6 +65,20 @@ final class MetronomeRenderer: @unchecked Sendable {
             s.cursor = to
         }
         for i in 0..<frames { buffer[i] = scratch[i] }
+    }
+
+    /// Host time at which beat 0 of the running schedule is heard.
+    func beatZeroHostTime(latency: TimeInterval) -> TimeInterval? {
+        state.withLock { s in
+            s.anchorHost.map { $0 - Double(s.anchorSample - s.schedule.origin) / sampleRate + latency }
+        }
+    }
+
+    /// Beats since beat 0 of the running schedule at host time `t` (nil before it); follows tempo changes.
+    func beat(atHostTime t: TimeInterval, latency: TimeInterval) -> Double? {
+        guard let zero = beatZeroHostTime(latency: latency) else { return nil }
+        let secondsPerBeat = state.withLock { $0.schedule.settings.secondsPerBeat }
+        return t < zero ? nil : (t - zero) / secondsPerBeat
     }
 }
 
@@ -92,11 +110,12 @@ public final class MetronomeEngine: ObservableObject {
 
     /// Host time (seconds) at which beat 0 of the current settings is heard; nil until audio starts.
     public var beatZeroHostTime: TimeInterval? {
-        guard let r = renderer else { return nil }
-        let latency = startLatency
-        return r.state.withLock { s in
-            s.firstHostTime.map { $0 + Double(s.schedule.origin) / r.sampleRate + latency }
-        }
+        renderer?.beatZeroHostTime(latency: startLatency)
+    }
+
+    /// Beats since beat 0 at host time `t`, using the tempo that is actually playing.
+    public func beat(atHostTime t: TimeInterval) -> Double? {
+        renderer?.beat(atHostTime: t, latency: startLatency)
     }
 
     public func start(settings: MetronomeSettings) throws {
@@ -137,7 +156,7 @@ public final class MetronomeEngine: ObservableObject {
         isRunning = false
     }
 
-    /// Change settings while running; tempo/meter changes apply from the next bar line.
+    /// Change settings while running; tempo changes apply from the next beat, meter changes from the next bar line.
     public func update(_ new: MetronomeSettings) {
         let old = settings
         settings = new
@@ -160,7 +179,7 @@ public final class MetronomeEngine: ObservableObject {
         let per = Counting.labels(mode: mode, beats: 1).count
         let slot = s.secondsPerBeat / Double(per)
         var cache: [String: [Float]] = [:]
-        let labels = (1...max(s.timeSignature.beats, 1)).map(String.init) + Counting.labels(mode: mode, beats: 1).dropFirst().map(\.label)
+        let labels = (1...max(s.beatsPerBar, 1)).map(String.init) + Counting.labels(mode: mode, beats: 1).dropFirst().map(\.label)
         for label in labels { cache[label] = voiceBank.fitted(label, slot: slot) }
         let fitted = cache
         r.state.withLock { $0.syllableCache = fitted }

@@ -144,7 +144,25 @@ private let sr = 48_000.0
     var triplet = MetronomeSettings(bpm: 60, pattern: .triplets)
     triplet.swing = 0.72
     #expect(ClickSchedule.events(settings: triplet, sampleRate: sr, from: 0, to: 48_000).map(\.sampleTime) == [0, 16_000, 32_000])
-    var sixEight = MetronomeSettings(bpm: 60, timeSignature: TimeSignature(beats: 6, unit: 8), pattern: .eighths)
-    sixEight.swing = 2.0 / 3.0
-    #expect(ClickSchedule.events(settings: sixEight, sampleRate: sr, from: 0, to: 24_000).map(\.sampleTime) == [0, 12_000])
+    var sevenEight = MetronomeSettings(bpm: 60, timeSignature: TimeSignature(beats: 7, unit: 8), pattern: .eighths)
+    sevenEight.swing = 2.0 / 3.0
+    #expect(ClickSchedule.events(settings: sevenEight, sampleRate: sr, from: 0, to: 24_000).map(\.sampleTime) == [0, 12_000])
+}
+
+@Test func compoundMetersClickOnDottedQuarters() {
+    // 12/8 at ♩=90: an 8th lasts 1/3 s, so a dotted-quarter beat lasts 1 s and a bar has 4 beats.
+    let s = MetronomeSettings(bpm: 90, timeSignature: TimeSignature(beats: 12, unit: 8), pattern: .quarter)
+    let e = ClickSchedule.events(settings: s, sampleRate: sr, from: 0, to: 48_000 * 5)
+    #expect(e.map(\.sampleTime) == [0, 48_000, 96_000, 144_000, 192_000])
+    #expect(e.map(\.kind) == [.downbeat, .beat, .beat, .beat, .downbeat])
+    #expect(s.beatsPerBar == 4)
+}
+
+@Test func compoundMetersSubdivideInThrees() {
+    // 6/8 with the triplet pattern: every 8th sounds, beats on 1 and 4.
+    let s = MetronomeSettings(bpm: 90, timeSignature: TimeSignature(beats: 6, unit: 8), pattern: .triplets, voiceCount: .triplets)
+    let clicks = ClickSchedule.events(settings: s, sampleRate: sr, from: 0, to: 96_000).filter { if case .voice = $0.kind { false } else { true } }
+    #expect(clicks.map(\.sampleTime) == [0, 16_000, 32_000, 48_000, 64_000, 80_000])
+    let voice = ClickSchedule.events(settings: s, sampleRate: sr, from: 0, to: 96_000).compactMap { if case .voice(let l) = $0.kind { l } else { nil } }
+    #expect(voice == ["1", "trip", "let", "2", "trip", "let"])
 }

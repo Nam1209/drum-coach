@@ -47,6 +47,7 @@ struct ScheduleState {
     private(set) var origin: Int64 = 0
     private(set) var pending: MetronomeSettings?
     private(set) var pendingAt: Int64?
+    private var pendingBeatInBar = 0
     private var labels: [String]
     private var pendingLabels: [String] = []
 
@@ -56,14 +57,24 @@ struct ScheduleState {
         labels = ClickSchedule.voiceLabels(for: settings)
     }
 
-    var samplesPerBar: Double { sampleRate * settings.secondsPerBeat * Double(settings.timeSignature.beats) }
+    var samplesPerBar: Double { sampleRate * settings.secondsPerBeat * Double(settings.beatsPerBar) }
 
+    /// A new tempo (or sound) starts on the next beat and keeps that beat's place in the bar;
+    /// a new meter waits for the next bar line.
     mutating func update(_ new: MetronomeSettings, cursor: Int64) {
         let elapsed = Double(max(cursor - origin, 0))
-        let barIndex = (elapsed / samplesPerBar).rounded(.down) + 1
         pending = new
         pendingLabels = ClickSchedule.voiceLabels(for: new)
-        pendingAt = origin + Int64((barIndex * samplesPerBar).rounded())
+        if new.timeSignature != settings.timeSignature {
+            let barIndex = (elapsed / samplesPerBar).rounded(.down) + 1
+            pendingAt = origin + Int64((barIndex * samplesPerBar).rounded())
+            pendingBeatInBar = 0
+        } else {
+            let samplesPerBeat = sampleRate * settings.secondsPerBeat
+            let beatIndex = Int((elapsed / samplesPerBeat).rounded(.down)) + 1
+            pendingAt = origin + Int64((Double(beatIndex) * samplesPerBeat).rounded())
+            pendingBeatInBar = beatIndex % max(settings.beatsPerBar, 1)
+        }
     }
 
     /// Real-time path: visit events in the window, switching to pending settings at their bar line.
@@ -72,7 +83,8 @@ struct ScheduleState {
             if at > from { visit(from: from, to: at, body) }
             settings = new
             labels = pendingLabels
-            origin = at
+            // Place the new schedule so that its beat `pendingBeatInBar` falls exactly at the switch.
+            origin = at - Int64((Double(pendingBeatInBar) * sampleRate * new.secondsPerBeat).rounded())
             pending = nil
             pendingAt = nil
             visit(from: max(from, at), to: to, body)
@@ -93,7 +105,8 @@ struct ScheduleState {
             var out = at > from ? segment(from: from, to: at) : []
             settings = new
             labels = pendingLabels
-            origin = at
+            // Place the new schedule so that its beat `pendingBeatInBar` falls exactly at the switch.
+            origin = at - Int64((Double(pendingBeatInBar) * sampleRate * new.secondsPerBeat).rounded())
             pending = nil
             pendingAt = nil
             out += segment(from: max(from, at), to: to)

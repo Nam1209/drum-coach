@@ -82,3 +82,11 @@ func notes(_ times: [Double], voice: Voice = .snare) -> [TimedNote] {
     #expect(m.expire(upTo: HitMatcher.expiryCutoff(now: 1.4, reportDelay: 0.35)).isEmpty)
     #expect(m.consume(Hit(time: 1.01, voice: nil, velocity: 1))?.first?.noteIndex == 0)
 }
+
+@Test func beatZeroCanBeResyncedWhileRunning() {
+    // The metronome reports that beat 0 is effectively 5 ms later than first measured (audio clock drift).
+    var m = HitMatcher(expected: notes([1.0, 2.0]), beatZero: 10, window: 0.1)
+    m.resync(beatZero: 10.005)
+    let r = m.consume(Hit(time: 11.005, voice: nil, velocity: 1))
+    if case .hit(let off, _) = r?.first?.result { #expect(abs(off) < 1e-9) } else { Issue.record("not a hit") }
+}

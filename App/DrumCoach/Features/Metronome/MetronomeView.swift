@@ -32,7 +32,7 @@ struct MetronomeView: View {
                 beats(beat)
                 VStack(spacing: 4) {
                     Text("\(Int(settings.bpm))").font(Theme.number(150, weight: .bold)).contentTransition(.numericText())
-                    Text("BPM").font(.title3).foregroundStyle(.secondary)
+                    Text(settings.timeSignature.isCompound ? "BPM, nốt đen chấm dôi = \(Int((settings.bpm * 2 / 3).rounded()))" : "BPM").font(.title3).foregroundStyle(.secondary)
                 }
                 HStack(spacing: 40) {
                     roundStep("minus") { settings.bpm = max(30, settings.bpm - 1) }
@@ -58,7 +58,7 @@ struct MetronomeView: View {
 
     /// The beats of one bar; the current one lights up.
     private func beats(_ beat: Double?) -> some View {
-        let n = settings.timeSignature.beats
+        let n = settings.beatsPerBar
         let current = beat.map { Int(floor($0)) % n }
         return HStack(spacing: 14) {
             ForEach(0..<n, id: \.self) { i in
@@ -82,9 +82,8 @@ struct MetronomeView: View {
     }
 
     private func currentBeat() -> Double? {
-        guard engine.isRunning, let zero = engine.beatZeroHostTime else { return nil }
-        let t = HostClock.now() - zero
-        return t < 0 ? nil : t / settings.secondsPerBeat
+        guard engine.isRunning else { return nil }
+        return engine.beat(atHostTime: HostClock.now())
     }
 
     private func roundStep(_ icon: String, action: @escaping () -> Void) -> some View {

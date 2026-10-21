@@ -278,6 +278,7 @@ final class PracticeViewModel: ObservableObject {
                                  window: HitMatcher.window(for: timeline.notes, goodWindow: rules.goodWindow))
         }
         guard var m = matcher else { return }
+        if let zero = engine.beatZeroHostTime { m.resync(beatZero: zero) }
         for (index, result) in m.expire(upTo: HitMatcher.expiryCutoff(now: now, reportDelay: reportDelay)) { record(index, result) }
         matcher = m
         if now - m.beatZero > timeline.duration + 0.2 + reportDelay { stop() }

@@ -34,6 +34,9 @@ public struct TimeSignature: Codable, Hashable, Sendable {
     public var beats: Int
     public var unit: Int
 
+    /// 6/8, 9/8, 12/8…: felt in dotted-quarter beats of three 8ths.
+    public var isCompound: Bool { unit == 8 && beats > 3 && beats % 3 == 0 }
+
     public init(beats: Int, unit: Int) {
         self.beats = beats
         self.unit = unit
