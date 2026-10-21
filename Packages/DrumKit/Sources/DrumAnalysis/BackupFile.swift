@@ -1,3 +1,4 @@
+import DrumCore
 import Foundation
 
 public struct BackupSession: Codable, Sendable, Equatable, Identifiable {
@@ -56,20 +57,85 @@ public struct BackupJournal: Codable, Sendable, Equatable {
     public init(id: UUID, date: Date, text: String) { self.id = id; self.date = date; self.text = text }
 }
 
+public struct BackupExercise: Codable, Sendable, Equatable {
+    public let id: UUID
+    public let title: String
+    public let dsl: String
+    public let source: String
+    public let tags: [String]
+    public let favorite: Bool
+    public let createdAt: Date
+    public init(id: UUID, title: String, dsl: String, source: String, tags: [String], favorite: Bool, createdAt: Date) {
+        self.id = id; self.title = title; self.dsl = dsl; self.source = source; self.tags = tags; self.favorite = favorite; self.createdAt = createdAt
+    }
+}
+
+public struct BackupReport: Codable, Sendable, Equatable {
+    public let id: UUID
+    public let title: String
+    public let created: Date
+    /// Encoded TeacherReport, kept opaque here.
+    public let json: Data
+    public let appliedAt: Date?
+    public init(id: UUID, title: String, created: Date, json: Data, appliedAt: Date?) {
+        self.id = id; self.title = title; self.created = created; self.json = json; self.appliedAt = appliedAt
+    }
+}
+
+public struct BackupSettings: Codable, Sendable, Equatable {
+    public let levelHistory: [String: Date]
+    public let latencyMs: [String: Double]
+    public let midiMap: [String: String]
+    public let currentGrade: Int
+    public let teacherProfile: Data?
+    public init(levelHistory: [String: Date], latencyMs: [String: Double], midiMap: [String: String], currentGrade: Int, teacherProfile: Data?) {
+        self.levelHistory = levelHistory; self.latencyMs = latencyMs; self.midiMap = midiMap; self.currentGrade = currentGrade; self.teacherProfile = teacherProfile
+    }
+}
+
 /// Whole practice history as one JSON file (Files / Notion backup, restore after reinstall).
+/// Version 2 adds the user's own exercises, teacher plans and settings; version 1 files still decode.
 public struct BackupFile: Codable, Sendable, Equatable {
-    public static let currentVersion = 1
+    public static let currentVersion = 2
     public let version: Int
     public let exportedAt: Date
     public let sessions: [BackupSession]
     public let journal: [BackupJournal]
+    public let exercises: [BackupExercise]
+    public let reports: [BackupReport]
+    public let settings: BackupSettings?
 
-    public init(exportedAt: Date, sessions: [BackupSession], journal: [BackupJournal]) {
+    public init(exportedAt: Date, sessions: [BackupSession], journal: [BackupJournal],
+                exercises: [BackupExercise] = [], reports: [BackupReport] = [], settings: BackupSettings? = nil) {
         version = Self.currentVersion
         self.exportedAt = exportedAt
         self.sessions = sessions
         self.journal = journal
+        self.exercises = exercises
+        self.reports = reports
+        self.settings = settings
     }
+
+    enum CodingKeys: String, CodingKey { case version, exportedAt, sessions, journal, exercises, reports, settings }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = try c.decode(Int.self, forKey: .version)
+        exportedAt = try c.decode(Date.self, forKey: .exportedAt)
+        sessions = try c.decode([BackupSession].self, forKey: .sessions)
+        journal = try c.decode([BackupJournal].self, forKey: .journal)
+        exercises = try c.decodeIfPresent([BackupExercise].self, forKey: .exercises) ?? []
+        reports = try c.decodeIfPresent([BackupReport].self, forKey: .reports) ?? []
+        settings = try c.decodeIfPresent(BackupSettings.self, forKey: .settings)
+    }
+
+    /// Exercises whose DSL parses, with short strings.
+    public var saneExercises: [BackupExercise] {
+        exercises.filter { $0.dsl.count <= 20_000 && $0.title.count <= 500 && $0.source.count <= 200 && (try? ExerciseDSL.parse($0.dsl)) != nil }
+    }
+
+    /// Reports of reasonable size (their JSON is sanitized again when shown).
+    public var saneReports: [BackupReport] { reports.filter { $0.json.count <= 500_000 && $0.title.count <= 500 } }
 
     public func encoded() throws -> Data {
         let e = JSONEncoder()
