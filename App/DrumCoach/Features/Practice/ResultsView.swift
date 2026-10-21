@@ -15,6 +15,8 @@ struct ResultsView: View {
     @State private var usedAI = false
     @State private var asking = false
     @State private var aiError: String?
+    @State private var note = ""
+    @Environment(\.modelContext) private var context
 
     var body: some View {
         NavigationStack {
@@ -59,6 +61,9 @@ struct ResultsView: View {
                         if let aiError { Text(aiError).font(.caption).foregroundStyle(.orange) }
                     }
                 }
+                Section("Nhật ký (tùy chọn)") {
+                    TextField("Cảm nhận, chỗ khó, đau mỏi…", text: $note, axis: .vertical)
+                }
                 Section("Nhận xét") {
                     Text(tendency)
                     if let weakest { Text(weakest) }
@@ -71,8 +76,15 @@ struct ResultsView: View {
             }
             .navigationTitle("Kết quả")
             .task { if let input, assessment == nil { assessment = AssessmentRequest.localFallback(input) } }
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Xong") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Xong") { saveNote(); dismiss() } } }
         }
+    }
+
+    private func saveNote() {
+        let t = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return }
+        context.insert(JournalEntry(text: "\(title): \(t)"))
+        try? context.save()
     }
 
     private var good: Int { Int((stats.accuracy * Double(stats.totalNotes)).rounded()) }

@@ -48,6 +48,18 @@ enum SettingsStore {
         set { UserDefaults.standard.set(newValue, forKey: "currentGrade") }
     }
 
+    /// When each level was first reached (for the journey timeline).
+    static var levelHistory: [(Int, Date)] {
+        let raw = UserDefaults.standard.dictionary(forKey: "levelHistory") as? [String: Date] ?? [:]
+        return raw.compactMap { k, v in Int(k).map { ($0, v) } }.sorted { $0.0 < $1.0 }
+    }
+
+    static func markLevelReached(_ level: Int, at date: Date = Date()) {
+        var raw = UserDefaults.standard.dictionary(forKey: "levelHistory") as? [String: Date] ?? [:]
+        if raw[String(level)] == nil { raw[String(level)] = date }
+        UserDefaults.standard.set(raw, forKey: "levelHistory")
+    }
+
     static func saveMetronome(_ s: MetronomeSettings) {
         if let data = try? JSONEncoder().encode(s) { UserDefaults.standard.set(data, forKey: metronomeKey) }
     }

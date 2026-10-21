@@ -66,6 +66,7 @@ struct LevelListView: View {
         .onChange(of: p.currentLevel, initial: true) { old, new in
             if new > SettingsStore.currentGrade, new > 0, old != new { celebrate = new }
             SettingsStore.currentGrade = new
+            if new > 0 { for l in 1...new { SettingsStore.markLevelReached(l) } }
         }
         .alert("Chúc mừng! Bạn đã đạt Level \(celebrate ?? 0) 🎉", isPresented: Binding(get: { celebrate != nil }, set: { if !$0 { celebrate = nil } })) {
             Button("Tuyệt") { celebrate = nil }
