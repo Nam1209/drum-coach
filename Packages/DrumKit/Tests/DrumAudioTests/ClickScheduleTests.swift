@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import DrumCore
 @testable import DrumAudio
@@ -165,4 +166,14 @@ private let sr = 48_000.0
     #expect(clicks.map(\.sampleTime) == [0, 16_000, 32_000, 48_000, 64_000, 80_000])
     let voice = ClickSchedule.events(settings: s, sampleRate: sr, from: 0, to: 96_000).compactMap { if case .voice(let l) = $0.kind { l } else { nil } }
     #expect(voice == ["1", "trip", "let", "2", "trip", "let"])
+}
+
+@Test func syllablesAreResampledForTheOutputDevice() {
+    // 0.1 s of a 1 kHz tone recorded at 48 kHz, played on a 44.1 kHz USB DAC.
+    let tone = (0..<4_800).map { Float(sin(2 * Double.pi * 1_000 * Double($0) / 48_000)) }
+    let out = CountVoiceBank.resample(tone, from: 48_000, to: 44_100)
+    #expect(abs(out.count - 4_410) <= 1)                                  // still 0.1 s long
+    let crossings = zip(out, out.dropFirst()).filter { $0 < 0 && $1 >= 0 }.count
+    #expect((99...101).contains(crossings))                               // still 1 kHz, not 918 Hz
+    #expect(CountVoiceBank.resample(tone, from: 48_000, to: 48_000) == tone)
 }

@@ -180,7 +180,7 @@ public final class MetronomeEngine: ObservableObject {
         let slot = s.secondsPerBeat / Double(per)
         var cache: [String: [Float]] = [:]
         let labels = (1...max(s.beatsPerBar, 1)).map(String.init) + Counting.labels(mode: mode, beats: 1).dropFirst().map(\.label)
-        for label in labels { cache[label] = voiceBank.fitted(label, slot: slot) }
+        for label in labels { cache[label] = voiceBank.fitted(label, slot: slot, outputRate: r.sampleRate) }
         let fitted = cache
         r.state.withLock { $0.syllableCache = fitted }
     }

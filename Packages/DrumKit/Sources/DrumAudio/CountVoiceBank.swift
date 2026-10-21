@@ -32,6 +32,23 @@ public final class CountVoiceBank: @unchecked Sendable {
         lock.lock(); syllables[label] = shaped; lock.unlock()
     }
 
+    /// Syllable fitted to `slot` seconds and converted to the output device's `outputRate`
+    /// (a USB headphone DAC may run at 44.1 kHz while syllables are prepared at 48 kHz).
+    public func fitted(_ label: String, slot: TimeInterval, outputRate: Double) -> [Float]? {
+        fitted(label, slot: slot).map { Self.resample($0, from: sampleRate, to: outputRate) }
+    }
+
+    /// Sample-rate conversion by linear interpolation: same duration and pitch at `to` Hz.
+    static func resample(_ s: [Float], from: Double, to: Double) -> [Float] {
+        guard from != to, from > 0, to > 0, s.count > 1 else { return s }
+        let outCount = max(1, Int((Double(s.count) * to / from).rounded()))
+        let step = from / to
+        return (0..<outCount).map { i in
+            let x = Double(i) * step, j = min(Int(x), s.count - 1), frac = Float(x - Double(j))
+            return j + 1 < s.count ? s[j] * (1 - frac) + s[j + 1] * frac : s[j]
+        }
+    }
+
     /// Syllable fitted to `slot` seconds: sped up by linear resampling when too long, never truncated.
     public func fitted(_ label: String, slot: TimeInterval) -> [Float]? {
         guard let s = samples(for: label) else { return nil }
