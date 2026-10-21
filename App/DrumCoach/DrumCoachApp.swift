@@ -12,6 +12,9 @@ struct DrumCoachApp: App {
                 Tab("Tập", systemImage: "music.note") {
                     PracticeView(exercises: StarterExercises.all, voiceBank: voiceBank)
                 }
+                Tab("Thầy AI", systemImage: "person.crop.circle.badge.checkmark") {
+                    NavigationStack { TeacherView() }
+                }
                 Tab("Level", systemImage: "trophy") {
                     NavigationStack { LevelListView(voiceBank: voiceBank) }
                 }
@@ -37,13 +40,14 @@ struct DrumCoachApp: App {
                     NavigationStack { SettingsView(voiceBank: voiceBank) }
                 }
             }
+            .tabViewStyle(.sidebarAdaptable)
             .tint(.orange)
             .modifier(AutoBackup())
             .task {
                 VoiceRecorder.loadAll(into: voiceBank)
                 await voiceBank.prepare()
             }
-            .modelContainer(for: [PracticeSession.self, StoredExercise.self, JournalEntry.self])
+            .modelContainer(for: [PracticeSession.self, StoredExercise.self, JournalEntry.self, StoredReport.self])
         }
     }
 }

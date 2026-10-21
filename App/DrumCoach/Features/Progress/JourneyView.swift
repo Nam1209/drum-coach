@@ -7,6 +7,7 @@ struct JourneyView: View {
     @Environment(\.modelContext) private var context
     @Query(filter: #Predicate<PracticeSession> { $0.isLevelTest }) private var levelAttempts: [PracticeSession]
     @State private var months = 3
+    @State private var sendMessage: String?
 
     var body: some View {
         let review = makeReview()
@@ -15,6 +16,17 @@ struct JourneyView: View {
                 Text("1 tháng").tag(1); Text("3 tháng").tag(3); Text("6 tháng").tag(6); Text("Từ đầu").tag(0)
             }
             .pickerStyle(.segmented)
+            if TeacherConnection.isConfigured {
+                Section {
+                    Button("Nhờ thầy tổng kết giai đoạn") {
+                        Task {
+                            do { sendMessage = "Đã gửi \(try await TeacherConnection.sendPeriod(review)). Dán lời nhắn vào Claude." }
+                            catch { sendMessage = "Không gửi được: \(error)" }
+                        }
+                    }
+                    if let sendMessage { Text(sendMessage).font(.callout).foregroundStyle(.secondary) }
+                }
+            }
             Section("Tổng quan") {
                 stat("Tổng giờ tập", String(format: "%.1f giờ", review.totalHours))
                 stat("Số ngày tập", "\(review.daysPracticed)")
