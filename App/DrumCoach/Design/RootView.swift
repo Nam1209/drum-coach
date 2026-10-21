@@ -12,16 +12,16 @@ struct RootView: View {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .today: "Hôm nay"
-            case .practice: "Tập"
-            case .metronome: "Máy nhịp"
-            case .counting: "Đếm nhịp"
-            case .lessons: "Bài học"
-            case .library: "Thư viện"
-            case .levels: "Cấp độ"
-            case .teacher: "Thầy AI"
-            case .progress: "Tiến độ"
-            case .settings: "Cài đặt"
+            case .today: L("Hôm nay", "Today")
+            case .practice: L("Tập", "Practice")
+            case .metronome: L("Máy nhịp", "Metronome")
+            case .counting: L("Đếm nhịp", "Counting")
+            case .lessons: L("Bài học", "Lessons")
+            case .library: L("Thư viện", "Library")
+            case .levels: L("Cấp độ", "Levels")
+            case .teacher: L("Thầy AI", "AI teacher")
+            case .progress: L("Tiến độ", "Progress")
+            case .settings: L("Cài đặt", "Settings")
             }
         }
         var icon: String {
@@ -40,13 +40,13 @@ struct RootView: View {
         }
     }
 
-    private let groups: [(String?, [Destination])] = [
+    private var groups: [(String?, [Destination])] { [
         (nil, [.today]),
-        ("Luyện tập", [.practice, .metronome, .counting]),
-        ("Học", [.lessons, .library, .levels]),
-        ("Đồng hành", [.teacher, .progress]),
+        (L("Luyện tập", "Training"), [.practice, .metronome, .counting]),
+        (L("Học", "Learn"), [.lessons, .library, .levels]),
+        (L("Đồng hành", "Coaching"), [.teacher, .progress]),
         (nil, [.settings]),
-    ]
+    ] }
 
     @State private var selection: Destination? = {
         #if DEBUG
@@ -117,9 +117,9 @@ struct ProgressHubView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                PageHeader(title: "Tiến độ") {
+                PageHeader(title: L("Tiến độ", "Progress")) {
                     Picker("", selection: $tab) {
-                        Text("Biểu đồ").tag(0); Text("Hành trình").tag(1); Text("Lịch sử").tag(2)
+                        Text(L("Biểu đồ", "Charts")).tag(0); Text(L("Hành trình", "Journey")).tag(1); Text(L("Lịch sử", "History")).tag(2)
                     }
                     .pickerStyle(.segmented).frame(width: 320)
                 }

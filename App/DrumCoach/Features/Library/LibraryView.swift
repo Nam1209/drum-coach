@@ -20,46 +20,46 @@ struct LibraryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
-                PageHeader(title: "Thư viện") {
+                PageHeader(title: L("Thư viện", "Library")) {
                     HStack(spacing: 8) {
-                        Button { importingMIDI = true } label: { Label("Nhập MIDI", systemImage: "pianokeys") }.buttonStyle(.bordered)
-                        Button { importing = true } label: { Label("Nhập PDF", systemImage: "doc.viewfinder") }.buttonStyle(.bordered)
-                        Button { creating = true } label: { Label("Soạn bài", systemImage: "plus") }.buttonStyle(.borderedProminent)
+                        Button { importingMIDI = true } label: { Label(L("Nhập MIDI", "Import MIDI"), systemImage: "pianokeys") }.buttonStyle(.bordered)
+                        Button { importing = true } label: { Label(L("Nhập PDF", "Import PDF"), systemImage: "doc.viewfinder") }.buttonStyle(.bordered)
+                        Button { creating = true } label: { Label(L("Soạn bài", "New exercise"), systemImage: "plus") }.buttonStyle(.borderedProminent)
                     }
                 }
-                CardSection("Bài của tôi", footer: midiMessage ?? (mine.isEmpty ? nil : "Nhấn giữ một bài để sửa hoặc xóa.")) {
-                    if mine.isEmpty { Text("Chưa có bài nào. Soạn bài mới, nhập từ sách PDF hoặc từ file MIDI.").foregroundStyle(.secondary) }
+                CardSection(L("Bài của tôi", "My exercises"), footer: midiMessage ?? (mine.isEmpty ? nil : L("Nhấn giữ một bài để sửa hoặc xóa.", "Press and hold an exercise to edit or delete it."))) {
+                    if mine.isEmpty { Text(L("Chưa có bài nào. Soạn bài mới, nhập từ sách PDF hoặc từ file MIDI.", "No exercises yet. Write a new one, or import from a PDF book or a MIDI file.")).foregroundStyle(.secondary) }
                     ForEach(mine) { item in
                         if let ex = item.exercise {
                             practiceLink(ex)
                                 .contextMenu {
-                                    Button("Sửa", systemImage: "pencil") { editing = item }
-                                    Button("Xóa", systemImage: "trash", role: .destructive) { context.delete(item) }
+                                    Button(L("Sửa", "Edit"), systemImage: "pencil") { editing = item }
+                                    Button(L("Xóa", "Delete"), systemImage: "trash", role: .destructive) { context.delete(item) }
                                 }
                         } else {
-                            Text("\(item.title) (lỗi cú pháp)").foregroundStyle(Theme.missed)
-                                .contextMenu { Button("Xóa", systemImage: "trash", role: .destructive) { context.delete(item) } }
+                            Text(L("\(item.title) (lỗi cú pháp)", "\(item.title) (syntax error)")).foregroundStyle(Theme.missed)
+                                .contextMenu { Button(L("Xóa", "Delete"), systemImage: "trash", role: .destructive) { context.delete(item) } }
                         }
                     }
-                    CardLink("Chơi theo nhạc", subtitle: "Mở một bài hát hoặc backing track rồi chơi theo") { PlayAlongView() }
+                    CardLink(L("Chơi theo nhạc", "Play along"), subtitle: L("Mở một bài hát hoặc backing track rồi chơi theo", "Open a song or backing track and play along")) { PlayAlongView() }
                 }
-                CardSection("Khởi động", footer: "Nhấn giữ một groove để tạo các bài hoán vị kick hoặc snare.") {
+                CardSection(L("Khởi động", "Warm-up"), footer: L("Nhấn giữ một groove để tạo các bài hoán vị kick hoặc snare.", "Press and hold a groove to make kick or snare permutation exercises.")) {
                     ForEach(StarterExercises.all) { practiceLink($0) }
                 }
                 HStack(alignment: .top, spacing: 22) {
                     CardSection("Rudiment") {
-                        CardLink("40 rudiment chuẩn PAS", value: "\(PASRudiments.all.count)") { ExerciseListPage(title: "40 rudiment chuẩn PAS", exercises: PASRudiments.all, voiceBank: voiceBank) }
+                        CardLink(L("40 rudiment chuẩn PAS", "40 PAS rudiments"), value: "\(PASRudiments.all.count)") { ExerciseListPage(title: L("40 rudiment chuẩn PAS", "40 PAS rudiments"), exercises: PASRudiments.all, voiceBank: voiceBank) }
                     }
-                    CardSection("Kiểu Stick Control (tự sinh)", footer: "Mỗi bài lặp 20 lần không dừng rồi mới sang bài kế tiếp, theo lời dặn của G. L. Stone.") {
-                        LabeledContent("Số nốt") {
-                            Picker("Số nốt", selection: $stickLength) { Text("4").tag(4); Text("8").tag(8) }.pickerStyle(.segmented).frame(width: 140)
+                    CardSection(L("Kiểu Stick Control (tự sinh)", "Stick Control style (generated)"), footer: L("Mỗi bài lặp 20 lần không dừng rồi mới sang bài kế tiếp, theo lời dặn của G. L. Stone.", "Repeat each exercise 20 times without stopping before moving on, as G. L. Stone advises.")) {
+                        LabeledContent(L("Số nốt", "Notes")) {
+                            Picker(L("Số nốt", "Notes"), selection: $stickLength) { Text("4").tag(4); Text("8").tag(8) }.pickerStyle(.segmented).frame(width: 140)
                         }
-                        Toggle("Chỉ tổ hợp cân bằng (số R bằng số L)", isOn: $balancedOnly)
-                        CardLink("Danh sách tổ hợp") {
-                            ExerciseListPage(title: "Sticking \(stickLength) nốt",
+                        Toggle(L("Chỉ tổ hợp cân bằng (số R bằng số L)", "Balanced patterns only (equal R and L)"), isOn: $balancedOnly)
+                        CardLink(L("Danh sách tổ hợp", "Pattern list")) {
+                            ExerciseListPage(title: L("Sticking \(stickLength) nốt", "\(stickLength)-note sticking"),
                                              exercises: StickingGenerator.singleBeat(length: stickLength, subdivision: 2, balancedOnly: balancedOnly), voiceBank: voiceBank)
                         }
-                        CardLink("Đọc nhạc ngẫu nhiên", value: "30 bài") { ExerciseListPage(title: "Đọc nhạc", exercises: readingLines, voiceBank: voiceBank) }
+                        CardLink(L("Đọc nhạc ngẫu nhiên", "Random reading"), value: L("30 bài", "30 exercises")) { ExerciseListPage(title: L("Đọc nhạc", "Reading"), exercises: readingLines, voiceBank: voiceBank) }
                     }
                 }
                 ForEach(Grade8Curriculum.units) { unit in
@@ -90,10 +90,10 @@ struct LibraryView: View {
                                                   overrides: SettingsStore.midiMap())
             context.insert(StoredExercise(title: r.exercise.title, dsl: ExerciseDSL.serialize(r.exercise, grid: ExerciseDSL.grid(for: r.exercise)), source: "MIDI"))
             try? context.save()
-            midiMessage = "Đã nhập \(r.exercise.title): \(r.exercise.bars) ô nhịp, \(r.bpm) BPM"
-                + (r.unmappedNotes > 0 ? ", bỏ qua \(r.unmappedNotes) nốt không phải trống." : ".")
+            midiMessage = L("Đã nhập \(r.exercise.title): \(r.exercise.bars) ô nhịp, \(r.bpm) BPM", "Imported \(r.exercise.title): \(r.exercise.bars) bars, \(r.bpm) BPM")
+                + (r.unmappedNotes > 0 ? L(", bỏ qua \(r.unmappedNotes) nốt không phải trống.", ", skipped \(r.unmappedNotes) non-drum notes.") : ".")
         } catch {
-            midiMessage = "Không đọc được file MIDI này. Hãy chọn file .mid có phần trống (kênh 10)."
+            midiMessage = L("Không đọc được file MIDI này. Hãy chọn file .mid có phần trống (kênh 10).", "Couldn't read this MIDI file. Choose a .mid file with a drum part (channel 10).")
         }
     }
 
@@ -113,8 +113,8 @@ struct LibraryView: View {
         }
         .contextMenu {
             if isGroove {
-                NavigationLink("Hoán vị kick") { ExerciseListPage(title: "Hoán vị kick", exercises: StickingGenerator.kickPermutations(ex), voiceBank: voiceBank) }
-                NavigationLink("Hoán vị snare (nốt ma)") { ExerciseListPage(title: "Hoán vị snare", exercises: StickingGenerator.snarePermutations(ex), voiceBank: voiceBank) }
+                NavigationLink(L("Hoán vị kick", "Kick permutations")) { ExerciseListPage(title: L("Hoán vị kick", "Kick permutations"), exercises: StickingGenerator.kickPermutations(ex), voiceBank: voiceBank) }
+                NavigationLink(L("Hoán vị snare (nốt ma)", "Snare permutations (ghost notes)")) { ExerciseListPage(title: L("Hoán vị snare", "Snare permutations"), exercises: StickingGenerator.snarePermutations(ex), voiceBank: voiceBank) }
             }
         }
     }
@@ -129,7 +129,7 @@ struct ExerciseListPage: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                PageHeader(title: title, subtitle: "\(exercises.count) bài")
+                PageHeader(title: title, subtitle: L("\(exercises.count) bài", exercises.count == 1 ? "1 exercise" : "\(exercises.count) exercises"))
                 CardSection {
                     ForEach(exercises) { ex in
                         CardLink(ex.title, subtitle: "\(ex.timeSignature.beats)/\(ex.timeSignature.unit), \(ex.suggestedTempo.lowerBound)–\(ex.suggestedTempo.upperBound) BPM") {

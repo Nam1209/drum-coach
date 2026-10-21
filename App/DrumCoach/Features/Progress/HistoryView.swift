@@ -1,4 +1,5 @@
 import DrumAnalysis
+import DrumCore
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
@@ -14,15 +15,15 @@ struct HistoryView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 26) {
-            CardSection("Sao lưu", footer: message ?? "Lịch sử còn nguyên khi cài lại app. Xuất file để giữ thêm một bản trong Tệp.") {
-                CardButton("Xuất toàn bộ lịch sử ra file", systemImage: "square.and.arrow.up") {
+            CardSection(L("Sao lưu", "Backup"), footer: message ?? L("Lịch sử còn nguyên khi cài lại app. Xuất file để giữ thêm một bản trong Tệp.", "Your history is kept when you reinstall the app. Export a file to keep another copy in Files.")) {
+                CardButton(L("Xuất toàn bộ lịch sử ra file", "Export all history to a file"), systemImage: "square.and.arrow.up") {
                     if let f = try? HistoryStore.backup(context) { exportDoc = BackupDocument(file: f) }
                 }
-                CardButton("Nhập lại từ file sao lưu", systemImage: "square.and.arrow.down") { importing = true }
+                CardButton(L("Nhập lại từ file sao lưu", "Restore from a backup file"), systemImage: "square.and.arrow.down") { importing = true }
             }
-            if days.isEmpty { Text("Chưa có buổi tập nào.").foregroundStyle(.secondary) }
+            if days.isEmpty { Text(L("Chưa có buổi tập nào.", "No sessions yet.")).foregroundStyle(.secondary) }
             ForEach(days, id: \.self) { day in
-                CardSection(day.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "vi_VN")))) {
+                CardSection(day.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(AppLocale.current))) {
                     ForEach(notes.filter { Calendar.current.isDate($0.date, inSameDayAs: day) }) { n in
                         Label(n.text, systemImage: "note.text").foregroundStyle(.secondary)
                     }
@@ -30,7 +31,7 @@ struct HistoryView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(s.title)
-                                Text("\(Int(s.bpm)) BPM, \(Int((s.seconds / 60).rounded(.up))) phút\(s.isLevelTest ? ", bài kiểm tra" : "")")
+                                Text(L("\(Int(s.bpm)) BPM, \(Int((s.seconds / 60).rounded(.up))) phút\(s.isLevelTest ? ", bài kiểm tra" : "")", "\(Int(s.bpm)) BPM, \(Int((s.seconds / 60).rounded(.up))) min\(s.isLevelTest ? ", level test" : "")"))
                                     .font(.footnote).foregroundStyle(.secondary)
                             }
                             Spacer()
@@ -43,7 +44,7 @@ struct HistoryView: View {
         }
         .fileExporter(isPresented: Binding(get: { exportDoc != nil }, set: { if !$0 { exportDoc = nil } }), document: exportDoc,
                       contentType: .json, defaultFilename: BackupFile.fileName(for: Date())) { result in
-            message = (try? result.get()) != nil ? "Đã xuất file backup." : nil
+            message = (try? result.get()) != nil ? L("Đã xuất file backup.", "Backup file exported.") : nil
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
             guard let url = try? result.get() else { return }
@@ -51,9 +52,9 @@ struct HistoryView: View {
             defer { if access { url.stopAccessingSecurityScopedResource() } }
             do {
                 let n = try HistoryStore.restore(BackupFile.decode(Data(contentsOf: url)), into: context)
-                message = "Đã nhập \(n) buổi tập."
+                message = L("Đã nhập \(n) buổi tập.", "Imported \(n) sessions.")
             } catch {
-                message = "File không hợp lệ: \(error.localizedDescription)"
+                message = L("File không hợp lệ: \(error.localizedDescription)", "Invalid file: \(error.localizedDescription)")
             }
         }
     }

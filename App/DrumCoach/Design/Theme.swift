@@ -1,4 +1,5 @@
 import DrumAnalysis
+import DrumCore
 import SwiftUI
 
 /// DrumCoach design tokens: one action colour (drum-shell lacquer blue), three timing colours that carry meaning,
@@ -83,7 +84,7 @@ struct PlayButton: View {
             .frame(width: size, height: size)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(isPlaying ? "Dừng" : "Bắt đầu")
+        .accessibilityLabel(isPlaying ? L("Dừng", "Stop") : L("Bắt đầu", "Start"))
         .sensoryFeedback(.impact, trigger: isPlaying)
     }
 }

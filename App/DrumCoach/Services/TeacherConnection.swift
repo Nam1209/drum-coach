@@ -61,7 +61,7 @@ enum TeacherConnection {
             lastNotionBackup = Date()
         } catch {
             // The report went through; tell the user the off-device backup did not.
-            return out.pageTitle + " (chưa sao lưu lên Notion được chưa được: \(Friendly.message(error)))"
+            return out.pageTitle + L(" (chưa sao lưu lên Notion được: \(Friendly.message(error)))", " (could not back up to Notion: \(Friendly.message(error)))")
         }
         return out.pageTitle
     }
@@ -101,7 +101,7 @@ enum TeacherConnection {
         var added = 0
         for page in try await bridge.fetchExercisePages(excluding: importedExercisePages) where !page.dsl.isEmpty {
             for dsl in page.dsl {
-                if let e = try? DrumCore.ExerciseDSL.parse(dsl) { ctx.insert(StoredExercise(title: e.title, dsl: dsl, source: "Sách của tôi")); added += 1 }
+                if let e = try? DrumCore.ExerciseDSL.parse(dsl) { ctx.insert(StoredExercise(title: e.title, dsl: dsl, source: L("Sách của tôi", "My books"))); added += 1 }
             }
             importedExercisePages.insert(page.pageId)
         }
@@ -116,7 +116,7 @@ enum TeacherConnection {
                                                client: ClaudeClient(apiKey: apiKey, model: model))
             .sanitized(knownExerciseIds: Set(catalog.keys))
         r.resources = await ResourceValidator().validate(r.resources)
-        let stored = StoredReport(title: "Kế hoạch \(NotionBridge.dayString(Date()))", created: Date(), report: r)
+        let stored = StoredReport(title: L("Kế hoạch \(NotionBridge.dayString(Date()))", "Plan \(NotionBridge.dayString(Date()))"), created: Date(), report: r)
         ctx.insert(stored)
         try ctx.save()
         return stored
@@ -132,7 +132,7 @@ enum TeacherConnection {
         guard let r = stored.report else { return }
         for item in r.weekPlan.flatMap(\.allItems) {
             if let dsl = item.newExerciseDSL, let e = try? DrumCore.ExerciseDSL.parse(dsl) {
-                ctx.insert(StoredExercise(title: e.title, dsl: dsl, source: "Thầy AI"))
+                ctx.insert(StoredExercise(title: e.title, dsl: dsl, source: L("Thầy AI", "AI teacher")))
             }
         }
         var p = profile

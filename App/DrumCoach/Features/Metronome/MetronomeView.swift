@@ -22,9 +22,9 @@ struct MetronomeView: View {
         TimelineView(.animation(paused: !engine.isRunning)) { _ in
             let beat = currentBeat()
             VStack(spacing: 36) {
-                PageHeader(title: "Máy nhịp", subtitle: summary) {
+                PageHeader(title: L("Máy nhịp", "Metronome"), subtitle: summary) {
                     Button { showSheet = true } label: {
-                        Label("Âm thanh", systemImage: "slider.horizontal.3").padding(.horizontal, 14).padding(.vertical, 9)
+                        Label(L("Âm thanh", "Sound"), systemImage: "slider.horizontal.3").padding(.horizontal, 14).padding(.vertical, 9)
                             .background(Capsule().fill(Theme.stage))
                     }
                 }
@@ -32,7 +32,7 @@ struct MetronomeView: View {
                 beats(beat)
                 VStack(spacing: 4) {
                     Text("\(Int(settings.bpm))").font(Theme.number(150, weight: .bold)).contentTransition(.numericText())
-                    Text(settings.timeSignature.isCompound ? "BPM, nốt đen chấm dôi = \(Int((settings.bpm * 2 / 3).rounded()))" : "BPM").font(.title3).foregroundStyle(.secondary)
+                    Text(settings.timeSignature.isCompound ? L("BPM, nốt đen chấm dôi = \(Int((settings.bpm * 2 / 3).rounded()))", "BPM, dotted quarter = \(Int((settings.bpm * 2 / 3).rounded()))") : "BPM").font(.title3).foregroundStyle(.secondary)
                 }
                 HStack(spacing: 40) {
                     roundStep("minus") { settings.bpm = max(30, settings.bpm - 1) }
@@ -40,7 +40,7 @@ struct MetronomeView: View {
                     roundStep("plus") { settings.bpm = min(300, settings.bpm + 1) }
                 }
                 Slider(value: $settings.bpm, in: 30...300, step: 1).frame(maxWidth: 520)
-                Button("Gõ để lấy tempo") { tapTempo() }.font(.callout.weight(.medium))
+                Button(L("Gõ để lấy tempo", "Tap tempo")) { tapTempo() }.font(.callout.weight(.medium))
                 if let error { Text(error).foregroundStyle(Theme.missed) }
                 Spacer()
             }
@@ -73,11 +73,11 @@ struct MetronomeView: View {
 
     private var summary: String {
         var parts = ["\(settings.timeSignature.beats)/\(settings.timeSignature.unit)"]
-        let names: [(ClickPattern, String)] = [(.quarter, "click nốt đen"), (.eighths, "click móc đơn"), (.sixteenths, "click móc kép"),
-                                                (.triplets, "click chùm ba"), (.offbeat, "click phách lẻ")]
-        parts.append(names.first { $0.0 == settings.pattern }?.1 ?? "click tùy chỉnh")
-        if settings.voiceCount != nil { parts.append("có giọng đếm") }
-        if settings.gap != nil { parts.append("có gap") }
+        let names: [(ClickPattern, String)] = [(.quarter, L("click nốt đen", "quarter-note click")), (.eighths, L("click móc đơn", "8th-note click")), (.sixteenths, L("click móc kép", "16th-note click")),
+                                                (.triplets, L("click chùm ba", "triplet click")), (.offbeat, L("click phách lẻ", "off-beat click"))]
+        parts.append(names.first { $0.0 == settings.pattern }?.1 ?? L("click tùy chỉnh", "custom click"))
+        if settings.voiceCount != nil { parts.append(L("có giọng đếm", "counting voice")) }
+        if settings.gap != nil { parts.append(L("có gap", "with gap")) }
         return parts.joined(separator: ", ")
     }
 
@@ -102,7 +102,7 @@ struct MetronomeView: View {
             try engine.start(settings: settings)
             error = nil
         } catch {
-            self.error = "Không mở được âm thanh: \(error.localizedDescription)"
+            self.error = L("Không mở được âm thanh: \(error.localizedDescription)", "Couldn't open audio: \(error.localizedDescription)")
         }
     }
 

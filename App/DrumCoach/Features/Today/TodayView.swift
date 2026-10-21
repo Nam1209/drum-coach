@@ -25,20 +25,20 @@ struct TodayView: View {
         let streak = ProgressSummary(records: HistoryStore.records(context), now: Date(), calendar: .current).streakDays
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
-                PageHeader(title: "Hôm nay", subtitle: Date().formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "vi_VN"))))
+                PageHeader(title: L("Hôm nay", "Today"), subtitle: Date().formatted(.dateTime.weekday(.wide).day().month(.wide).locale(AppLocale.current)))
                 HStack(alignment: .bottom, spacing: 40) {
-                    Readout(value: "\(total)", caption: "phút tập hôm nay", size: 64)
-                    Readout(value: "\(streak)", caption: "ngày liên tiếp", size: 40)
-                    Readout(value: "\(SettingsStore.currentGrade)", caption: "cấp độ hiện tại", size: 40)
-                    Readout(value: "\(rank.level)", caption: "hạng: \(rank.title)", size: 40, tint: Theme.shell)
+                    Readout(value: "\(total)", caption: L("phút tập hôm nay", "minutes planned today"), size: 64)
+                    Readout(value: "\(streak)", caption: L("ngày liên tiếp", "day streak"), size: 40)
+                    Readout(value: "\(SettingsStore.currentGrade)", caption: L("cấp độ hiện tại", "current level"), size: 40)
+                    Readout(value: "\(rank.level)", caption: L("hạng: \(rank.title)", "rank: \(rank.title)"), size: 40, tint: Theme.shell)
                     Spacer()
                     sessionControl(plan.day)
                 }
                 Text(plan.source).font(.callout).foregroundStyle(.secondary)
                 if finished { journal }
-                part("Khởi động", plan.day.warmup, catalog, segment: 0)
-                part("Bài chính", plan.day.main, catalog, segment: 1)
-                part("Bài vui", plan.day.fun, catalog, segment: 2)
+                part(L("Khởi động", "Warm-up"), plan.day.warmup, catalog, segment: 0)
+                part(L("Bài chính", "Main"), plan.day.main, catalog, segment: 1)
+                part(L("Bài vui", "Fun"), plan.day.fun, catalog, segment: 2)
             }
             .padding(Theme.pagePadding)
         }
@@ -61,12 +61,12 @@ struct TodayView: View {
                     Text(String(format: "%d:%02d", Int(runner.remaining) / 60, Int(runner.remaining) % 60)).font(Theme.number(44))
                     Text(seg.title).font(.footnote).foregroundStyle(.secondary)
                 }
-                Button("Bỏ qua") { self.runner?.skip() }.buttonStyle(.bordered)
+                Button(L("Bỏ qua", "Skip")) { self.runner?.skip() }.buttonStyle(.bordered)
                 PlayButton(isPlaying: true, size: 64) { self.runner = nil }
             }
         } else {
             HStack(spacing: 14) {
-                Text(finished ? "Xong buổi tập" : "Bắt đầu buổi tập").font(.headline)
+                Text(finished ? L("Xong buổi tập", "Session done") : L("Bắt đầu buổi tập", "Start session")).font(.headline)
                 PlayButton(isPlaying: false, size: 64) { start(day) }
             }
         }
@@ -75,9 +75,9 @@ struct TodayView: View {
     private var journal: some View {
         Stage {
             VStack(alignment: .leading, spacing: 10) {
-                Label("Xong buổi tập hôm nay", systemImage: "checkmark.seal.fill").foregroundStyle(Theme.onTime).font(.headline)
-                TextField("Ghi lại cảm nhận, chỗ khó", text: $note, axis: .vertical)
-                Button("Lưu vào nhật ký") { saveNote() }.disabled(note.isEmpty)
+                Label(L("Xong buổi tập hôm nay", "Today's session done"), systemImage: "checkmark.seal.fill").foregroundStyle(Theme.onTime).font(.headline)
+                TextField(L("Ghi lại cảm nhận, chỗ khó", "Note how it felt, what was hard"), text: $note, axis: .vertical)
+                Button(L("Lưu vào nhật ký", "Save to journal")) { saveNote() }.disabled(note.isEmpty)
             }
         }
     }
@@ -88,10 +88,10 @@ struct TodayView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(title).font(.title3.weight(.semibold)).foregroundStyle(active ? Theme.shell : .primary)
                 Spacer()
-                Text("\(items.reduce(0) { $0 + $1.minutes }) phút").font(Theme.number(15, weight: .medium)).foregroundStyle(.secondary)
+                Text(L("\(items.reduce(0) { $0 + $1.minutes }) phút", "\(items.reduce(0) { $0 + $1.minutes }) min")).font(Theme.number(15, weight: .medium)).foregroundStyle(.secondary)
             }
             VStack(spacing: 0) {
-                if items.isEmpty { Text("Không có bài").foregroundStyle(.secondary).padding(16).frame(maxWidth: .infinity, alignment: .leading) }
+                if items.isEmpty { Text(L("Không có bài", "No exercises")).foregroundStyle(.secondary).padding(16).frame(maxWidth: .infinity, alignment: .leading) }
                 ForEach(Array(items.enumerated()), id: \.offset) { k, item in
                     if let ex = exercise(item, catalog) {
                         NavigationLink {
@@ -128,17 +128,17 @@ struct TodayView: View {
     private var todayPlan: (day: DayPlan, source: String) {
         if let active = reports.first(where: { $0.appliedAt != nil }), let r = active.report, !r.weekPlan.isEmpty, let applied = active.appliedAt {
             let n = (Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: applied), to: Calendar.current.startOfDay(for: Date())).day ?? 0) % 7 + 1
-            if let d = r.weekPlan.first(where: { $0.day == n }) ?? r.weekPlan.first { return (d, "Theo \(active.title) · ngày \(d.day)") }
+            if let d = r.weekPlan.first(where: { $0.day == n }) ?? r.weekPlan.first { return (d, L("Theo \(active.title) · ngày \(d.day)", "From \(active.title) · day \(d.day)")) }
         }
-        return (defaultPlan, "Kế hoạch mặc định (chưa có kế hoạch của thầy)")
+        return (defaultPlan, L("Kế hoạch mặc định (chưa có kế hoạch của thầy)", "Default plan (no teacher plan yet)"))
     }
 
     private var defaultPlan: DayPlan {
         let levels = BookLibrary.levels
         let level = levels.first { $0.id == min(8, SettingsStore.currentGrade + 1) } ?? levels[0]
-        let warm = PlannedItem(exerciseId: "start-1", newExerciseDSL: nil, bpm: 60, minutes: 5, focus: "Khởi động, thả lỏng")
+        let warm = PlannedItem(exerciseId: "start-1", newExerciseDSL: nil, bpm: 60, minutes: 5, focus: L("Khởi động, thả lỏng", "Warm up, loosen up"))
         let main = level.tests.prefix(2).map { PlannedItem(exerciseId: $0.id, newExerciseDSL: nil, bpm: Int($0.bpm) - 6, minutes: 10, focus: $0.skill) }
-        let fun = PlannedItem(exerciseId: "start-4", newExerciseDSL: nil, bpm: 80, minutes: 5, focus: "Groove cho vui")
+        let fun = PlannedItem(exerciseId: "start-4", newExerciseDSL: nil, bpm: 80, minutes: 5, focus: L("Groove cho vui", "A groove for fun"))
         return DayPlan(day: 1, warmup: [warm], main: Array(main), fun: [fun])
     }
 
@@ -146,7 +146,7 @@ struct TodayView: View {
         finished = false
         // Ask for reminders when practice starts: the prompt then has an obvious reason.
         Task { if await ReminderScheduler.requestPermission() { scheduleReminders() } }
-        runner = SessionRunner(segments: [("Khởi động", day.warmup), ("Bài chính", day.main), ("Bài vui", day.fun)].map {
+        runner = SessionRunner(segments: [(L("Khởi động", "Warm-up"), day.warmup), (L("Bài chính", "Main"), day.main), (L("Bài vui", "Fun"), day.fun)].map {
             SessionRunner.Segment(title: $0.0, minutes: Double($0.1.reduce(0) { $0 + $1.minutes }))
         })
     }

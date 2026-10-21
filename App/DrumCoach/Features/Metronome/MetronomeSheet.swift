@@ -2,23 +2,23 @@ import DrumAudio
 import DrumCore
 import SwiftUI
 
-/// "Máy nhịp và âm thanh": click pattern grid (5 levels per slot), presets, accent, beat skip, gap, counting voice, volumes.
+/// L("Máy nhịp và âm thanh", "Metronome and sound"): click pattern grid (5 levels per slot), presets, accent, beat skip, gap, counting voice, volumes.
 struct MetronomeSheet: View {
     @Binding var settings: MetronomeSettings
     @Environment(\.dismiss) private var dismiss
     @State private var preview = TonePreview()
 
-    private static let presets: [(String, ClickPattern)] = [
-        ("Đen", .quarter), ("Móc đơn", .eighths), ("Móc kép", .sixteenths), ("Chùm ba", .triplets), ("Nghịch phách", .offbeat),
-    ]
+    private static var presets: [(String, ClickPattern)] { [
+        (L("Đen", "Quarter notes"), .quarter), (L("Móc đơn", "8th notes"), .eighths), (L("Móc kép", "16th notes"), .sixteenths), (L("Chùm ba", "Triplets"), .triplets), (L("Nghịch phách", "Off-beats"), .offbeat),
+    ] }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Mẫu có sẵn") {
-                    Picker("Mẫu có sẵn", selection: presetBinding) {
+                Section(L("Mẫu có sẵn", "Presets")) {
+                    Picker(L("Mẫu có sẵn", "Presets"), selection: presetBinding) {
                         ForEach(Self.presets.indices, id: \.self) { Text(Self.presets[$0].0).tag(Optional($0)) }
-                        Text("Tùy chỉnh").tag(Int?.none)
+                        Text(L("Tùy chỉnh", "Custom")).tag(Int?.none)
                     }
                     .pickerStyle(.segmented)
                 }
@@ -27,52 +27,52 @@ struct MetronomeSheet: View {
                         preview.play(tone, volume: settings.volume)
                     }
                     .padding(.vertical, 8)
-                    Picker("Số ô mỗi phách", selection: slotsBinding) {
+                    Picker(L("Số ô mỗi phách", "Slots per beat"), selection: slotsBinding) {
                         ForEach([1, 2, 3, 4, 6], id: \.self) { Text("\($0)").tag($0) }
                     }
-                    NavigationLink("Thang âm (5 mức)") { ToneLadderEditor(ladder: $settings.ladder, volume: settings.volume) }
+                    NavigationLink(L("Thang âm (5 mức)", "Tone ladder (5 levels)")) { ToneLadderEditor(ladder: $settings.ladder, volume: settings.volume) }
                 } header: {
-                    Text("Mẫu click")
+                    Text(L("Mẫu click", "Click pattern"))
                 } footer: {
-                    Text("Chạm ô để chọn mức 1–5, chạm lại để tắt. Nhấn giữ một cột để đổi âm cho ô đó.")
+                    Text(L("Chạm ô để chọn mức 1–5, chạm lại để tắt. Nhấn giữ một cột để đổi âm cho ô đó.", "Tap a slot to pick level 1–5, tap again to turn it off. Press and hold a column to change that slot's sound."))
                 }
                 Section {
-                    Toggle("Nhấn phách 1", isOn: $settings.accentBeatOne)
+                    Toggle(L("Nhấn phách 1", "Accent beat 1"), isOn: $settings.accentBeatOne)
                     Picker("Swing / shuffle", selection: $settings.swing) {
-                        Text("Thẳng").tag(Swing.straight)
-                        Text("Nhẹ (58%)").tag(0.58)
+                        Text(L("Thẳng", "Straight")).tag(Swing.straight)
+                        Text(L("Nhẹ (58%)", "Light (58%)")).tag(0.58)
                         Text("Triplet (67%)").tag(2.0 / 3.0)
-                        Text("Shuffle mạnh (72%)").tag(0.72)
+                        Text(L("Shuffle mạnh (72%)", "Heavy shuffle (72%)")).tag(0.72)
                     }
-                    Picker("Bỏ phách", selection: $settings.beatSkip) {
+                    Picker(L("Bỏ phách", "Beat skip"), selection: $settings.beatSkip) {
                         Text("●●●●").tag(BeatSkip.all)
                         Text("●○●○").tag(BeatSkip.oneOnOneOff)
                         Text("●○○○").tag(BeatSkip.beatOneOnly)
                         Text("○●○●").tag(BeatSkip.backbeat)
                     }
-                    Picker("Gap (tắt click theo ô nhịp)", selection: gapBinding) {
-                        Text("Tắt").tag(0)
-                        Text("2 chơi / 1 im").tag(1)
-                        Text("2 chơi / 2 im").tag(2)
-                        Text("4 chơi / 4 im").tag(3)
+                    Picker(L("Gap (tắt click theo ô nhịp)", "Gap (mute click by bar)"), selection: gapBinding) {
+                        Text(L("Tắt", "Off")).tag(0)
+                        Text(L("2 chơi / 1 im", "2 on / 1 off")).tag(1)
+                        Text(L("2 chơi / 2 im", "2 on / 2 off")).tag(2)
+                        Text(L("4 chơi / 4 im", "4 on / 4 off")).tag(3)
                     }
-                    Picker("Giọng đếm", selection: $settings.voiceCount) {
-                        Text("Tắt").tag(CountMode?.none)
+                    Picker(L("Giọng đếm", "Counting voice"), selection: $settings.voiceCount) {
+                        Text(L("Tắt", "Off")).tag(CountMode?.none)
                         Text("1 2 3 4").tag(CountMode?.some(.quarters))
                         Text("1 & 2 &").tag(CountMode?.some(.eighths))
                         Text("1 e & a").tag(CountMode?.some(.sixteenths))
                         Text("1 trip let").tag(CountMode?.some(.triplets))
                     }
                 }
-                Section("Âm lượng") {
+                Section(L("Âm lượng", "Volume")) {
                     LabeledSlider(title: "Click", value: $settings.volume)
-                    LabeledSlider(title: "Giọng đếm", value: $settings.voiceVolume)
-                    LabeledSlider(title: "Nhạc nền", value: $settings.musicVolume)
+                    LabeledSlider(title: L("Giọng đếm", "Counting voice"), value: $settings.voiceVolume)
+                    LabeledSlider(title: L("Nhạc nền", "Backing music"), value: $settings.musicVolume)
                 }
             }
-            .navigationTitle("Máy nhịp và âm thanh")
+            .navigationTitle(L("Máy nhịp và âm thanh", "Metronome and sound"))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Xong") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Xong", "Done")) { dismiss() } } }
         }
     }
 
@@ -117,7 +117,7 @@ struct ClickPatternGrid: View {
                     Text(soundName(i)).font(.caption2).foregroundStyle(.secondary)
                 }
                 .contextMenu {
-                    Button("Âm theo mức") { pattern.slots[i].sound = nil }
+                    Button(L("Âm theo mức", "Sound by level")) { pattern.slots[i].sound = nil }
                     ForEach(ClickSound.allCases, id: \.self) { s in
                         Button(Self.name(s)) { pattern.slots[i].sound = s }
                     }
@@ -140,19 +140,19 @@ struct ClickPatternGrid: View {
     }
 
     private func soundName(_ i: Int) -> String {
-        guard let tone = ToneLadder.tone(for: pattern.slots[i], ladder: ladder) else { return "tắt" }
+        guard let tone = ToneLadder.tone(for: pattern.slots[i], ladder: ladder) else { return L("tắt", "off") }
         return Self.name(tone.sound)
     }
 
     static func name(_ s: ClickSound) -> String {
         switch s {
         case .click: "click"
-        case .beep: "chuông"
+        case .beep: L("chuông", "bell")
         case .woodblock: "woodblock"
         case .cowbell: "cowbell"
         case .hiHat: "hi-hat"
         case .rimshot: "rimshot"
-        case .voice: "giọng đọc"
+        case .voice: L("giọng đọc", "voice")
         }
     }
 }
@@ -165,18 +165,18 @@ struct ToneLadderEditor: View {
     var body: some View {
         Form {
             ForEach((1...5).reversed(), id: \.self) { level in
-                Section("Mức \(level)") {
-                    Picker("Âm", selection: binding(level).sound) {
+                Section(L("Mức \(level)", "Level \(level)")) {
+                    Picker(L("Âm", "Sound"), selection: binding(level).sound) {
                         ForEach(ClickSound.allCases.filter { $0 != .voice }, id: \.self) { Text(ClickPatternGrid.name($0)).tag($0) }
                     }
-                    Stepper("Cao độ: \(Int(binding(level).wrappedValue.pitchHz)) Hz", value: binding(level).pitchHz, in: 0...3000, step: 20)
-                    Stepper("Độ to: \(Int(binding(level).wrappedValue.gainDb)) dB", value: binding(level).gainDb, in: -30...0, step: 1)
-                    Button("▶︎ Nghe thử") { preview.play(binding(level).wrappedValue, volume: volume) }
+                    Stepper(L("Cao độ: \(Int(binding(level).wrappedValue.pitchHz)) Hz", "Pitch: \(Int(binding(level).wrappedValue.pitchHz)) Hz"), value: binding(level).pitchHz, in: 0...3000, step: 20)
+                    Stepper(L("Độ to: \(Int(binding(level).wrappedValue.gainDb)) dB", "Loudness: \(Int(binding(level).wrappedValue.gainDb)) dB"), value: binding(level).gainDb, in: -30...0, step: 1)
+                    Button(L("▶︎ Nghe thử", "▶︎ Preview")) { preview.play(binding(level).wrappedValue, volume: volume) }
                 }
             }
-            Button("Khôi phục mặc định", role: .destructive) { ladder = ToneLadder.default }
+            Button(L("Khôi phục mặc định", "Restore defaults"), role: .destructive) { ladder = ToneLadder.default }
         }
-        .navigationTitle("Thang âm")
+        .navigationTitle(L("Thang âm", "Tone ladder"))
     }
 
     private func binding(_ level: Int) -> Binding<LevelTone> {

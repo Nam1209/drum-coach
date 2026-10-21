@@ -1,4 +1,5 @@
 import DrumAudio
+import DrumCore
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -18,18 +19,18 @@ struct PlayAlongView: View {
     var body: some View {
         Form {
             Section {
-                Button(name ?? "Chọn file nhạc…") { importing = true }
-                Text("Ví dụ: backing track của bài trong sách (khi bạn có bản chính hãng) hoặc bất kỳ bài hát nào.").font(.caption).foregroundStyle(.secondary)
+                Button(name ?? L("Chọn file nhạc…", "Choose a music file…")) { importing = true }
+                Text(L("Ví dụ: backing track của bài trong sách (khi bạn có bản chính hãng) hoặc bất kỳ bài hát nào.", "For example: the backing track of a book exercise (if you own the original) or any song.")).font(.caption).foregroundStyle(.secondary)
             }
             if name != nil {
                 Section("Tempo") {
-                    Stepper("Tempo gốc của bài: \(Int(originalBpm))", value: $originalBpm, in: 40...240)
-                    Stepper("Tempo tập: \(Int(targetBpm)) (\(Int(Double(BackingTrackPlan.rate(targetBpm: targetBpm, originalBpm: originalBpm)) * 100))%)",
+                    Stepper(L("Tempo gốc của bài: \(Int(originalBpm))", "Original tempo: \(Int(originalBpm))"), value: $originalBpm, in: 40...240)
+                    Stepper(L("Tempo tập: \(Int(targetBpm)) (\(Int(Double(BackingTrackPlan.rate(targetBpm: targetBpm, originalBpm: originalBpm)) * 100))%)", "Practice tempo: \(Int(targetBpm)) (\(Int(Double(BackingTrackPlan.rate(targetBpm: targetBpm, originalBpm: originalBpm)) * 100))%)"),
                             value: $targetBpm, in: 30...240)
-                    Slider(value: $volume, in: 0...1) { Text("Âm lượng") }
+                    Slider(value: $volume, in: 0...1) { Text(L("Âm lượng", "Volume")) }
                 }
-                Section("Lặp đoạn A–B") {
-                    Toggle("Bật lặp", isOn: $loop)
+                Section(L("Lặp đoạn A–B", "Loop section A–B")) {
+                    Toggle(L("Bật lặp", "Loop on"), isOn: $loop)
                     if loop {
                         Slider(value: $a, in: 0...max(1, player.duration)) { Text("A") }
                         Text("A: \(fmt(a))")
@@ -37,11 +38,11 @@ struct PlayAlongView: View {
                         Text("B: \(fmt(b))")
                     }
                 }
-                Button(player.isPlaying ? "Dừng" : "Phát") { toggle() }.buttonStyle(.borderedProminent)
+                Button(player.isPlaying ? L("Dừng", "Stop") : L("Phát", "Play")) { toggle() }.buttonStyle(.borderedProminent)
                 if let error { Text(error).foregroundStyle(.red) }
             }
         }
-        .navigationTitle("Chơi theo nhạc")
+        .navigationTitle(L("Chơi theo nhạc", "Play along"))
         .fileImporter(isPresented: $importing, allowedContentTypes: [.audio]) { result in
             guard let url = try? result.get() else { return }
             let access = url.startAccessingSecurityScopedResource()
@@ -55,7 +56,7 @@ struct PlayAlongView: View {
                 try player.load(local)
                 name = url.lastPathComponent
                 b = player.duration
-            } catch { self.error = "Không mở được file: \(error.localizedDescription)" }
+            } catch { self.error = L("Không mở được file: \(error.localizedDescription)", "Couldn't open file: \(error.localizedDescription)") }
         }
         .onDisappear { player.stop() }
     }
@@ -68,7 +69,7 @@ struct PlayAlongView: View {
                             loopA: loop ? a : nil, loopB: loop ? b : nil, volume: volume)
             error = nil
         } catch BackingTrackPlan.LoopError.badRange {
-            error = "Điểm A phải trước điểm B."
+            error = L("Điểm A phải trước điểm B.", "Point A must come before point B.")
         } catch {
             self.error = error.localizedDescription
         }

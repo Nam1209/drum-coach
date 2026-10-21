@@ -13,6 +13,7 @@ struct ExerciseEditorView: View {
         self.item = item
         _text = State(initialValue: item?.dsl ?? """
         title: Bài mới
+        title_en: New exercise
         time: 4/4
         tempo: 60-100
         grid: 4
@@ -35,9 +36,9 @@ struct ExerciseEditorView: View {
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
             } footer: {
-                Text("x/o = đánh · X/O = accent · g = ghost · f = flam · d = drag · z = buzz · - = nghỉ · | = vạch nhịp. Voice: HH OH HP SN SS BD T1 T2 FT RD CR. ST: R/L/F.")
+                Text(L("x/o = đánh · X/O = accent · g = ghost · f = flam · d = drag · z = buzz · - = nghỉ · | = vạch nhịp. Voice: HH OH HP SN SS BD T1 T2 FT RD CR. ST: R/L/F.", "x/o = hit · X/O = accent · g = ghost · f = flam · d = drag · z = buzz · - = rest · | = bar line. Voice: HH OH HP SN SS BD T1 T2 FT RD CR. ST: R/L/F."))
             }
-            Section("Xem trước") {
+            Section(L("Xem trước", "Preview")) {
                 switch parsed {
                 case .success(let ex):
                     NotationView(exercise: ex, display: .page, beat: nil)
@@ -46,11 +47,11 @@ struct ExerciseEditorView: View {
                 }
             }
         }
-        .navigationTitle(item == nil ? "Soạn bài" : "Sửa bài")
+        .navigationTitle(item == nil ? L("Soạn bài", "New exercise") : L("Sửa bài", "Edit exercise"))
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("Hủy") { dismiss() } }
+            ToolbarItem(placement: .cancellationAction) { Button(L("Hủy", "Cancel")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Lưu") { save() }.disabled((try? parsed.get()) == nil)
+                Button(L("Lưu", "Save")) { save() }.disabled((try? parsed.get()) == nil)
             }
         }
     }
@@ -69,11 +70,11 @@ struct ExerciseEditorView: View {
 
     private func message(_ e: DSLError) -> String {
         switch e {
-        case .missingHeader(let h): "Thiếu dòng \"\(h):\""
-        case .unequalLineLengths: "Các dòng nhạc phải dài bằng nhau"
-        case .unknownVoice(let v): "Không biết voice \"\(v)\""
-        case .badSymbol(let c, let line): "Ký tự \"\(c)\" không hợp lệ ở dòng \(line)"
-        case .lengthNotMultipleOfBar: "Độ dài chưa đủ trọn ô nhịp (grid × số phách)"
+        case .missingHeader(let h): L("Thiếu dòng \"\(h):\"", "Missing line \"\(h):\"")
+        case .unequalLineLengths: L("Các dòng nhạc phải dài bằng nhau", "All music lines must be the same length")
+        case .unknownVoice(let v): L("Không biết voice \"\(v)\"", "Unknown voice \"\(v)\"")
+        case .badSymbol(let c, let line): L("Ký tự \"\(c)\" không hợp lệ ở dòng \(line)", "Invalid character \"\(c)\" on line \(line)")
+        case .lengthNotMultipleOfBar: L("Độ dài chưa đủ trọn ô nhịp (grid × số phách)", "Length isn't a whole number of bars (grid × beats)")
         }
     }
 }

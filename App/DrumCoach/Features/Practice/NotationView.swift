@@ -50,11 +50,11 @@ struct NotationView: View {
             .onGeometryChange(for: Double.self) { $0.size.width } action: { width = $0 }
             if pageCount > 1 {
                 HStack(spacing: 14) {
-                    Text("Trang \(page + 1)/\(pageCount)").font(Theme.number(13, weight: .medium)).foregroundStyle(.secondary)
+                    Text(L("Trang \(page + 1)/\(pageCount)", "Page \(page + 1)/\(pageCount)")).font(Theme.number(13, weight: .medium)).foregroundStyle(.secondary)
                     Button { manualPage = max(0, page - 1) } label: { Image(systemName: "chevron.backward") }
-                        .disabled(playing || page == 0).accessibilityLabel("Trang trước")
+                        .disabled(playing || page == 0).accessibilityLabel(L("Trang trước", "Previous page"))
                     Button { manualPage = min(pageCount - 1, page + 1) } label: { Image(systemName: "chevron.forward") }
-                        .disabled(playing || page == pageCount - 1).accessibilityLabel("Trang sau")
+                        .disabled(playing || page == pageCount - 1).accessibilityLabel(L("Trang sau", "Next page"))
                 }
                 .font(.callout.weight(.semibold))
             }

@@ -25,9 +25,9 @@ struct LevelListView: View {
         let shown = levels.first { $0.id == (selected ?? min(8, p.currentLevel + 1)) } ?? levels.first
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
-                PageHeader(title: "Cấp độ", subtitle: "Đạt một bài khi trên 90%. Đạt mọi bài thì lên cấp.")
+                PageHeader(title: L("Cấp độ", "Levels"), subtitle: L("Đạt một bài khi trên 90%. Đạt mọi bài thì lên cấp.", "Pass an exercise by scoring above 90%. Pass them all to level up."))
                 if p.bestScores.isEmpty {
-                    Label("Lần đầu bạn được thử mọi cấp để tìm điểm bắt đầu. Gợi ý: bắt đầu từ Grade 1.", systemImage: "flag")
+                    Label(L("Lần đầu bạn được thử mọi cấp để tìm điểm bắt đầu. Gợi ý: bắt đầu từ Grade 1.", "The first time, you can try any level to find your starting point. Tip: start with Grade 1."), systemImage: "flag")
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 14), count: 4), spacing: 14) {
@@ -35,7 +35,7 @@ struct LevelListView: View {
                 }
                 let missing = PrivateLibraryLoader.missingGrades(available: books.map(\.grade), current: p.currentLevel)
                 if !missing.isEmpty {
-                    Label("Thêm sách Rockschool Grade \(missing.map(String.init).joined(separator: ", ")) để có bài kiểm tra đúng sách cho các cấp tiếp theo.",
+                    Label(L("Thêm sách Rockschool Grade \(missing.map(String.init).joined(separator: ", ")) để có bài kiểm tra đúng sách cho các cấp tiếp theo.", "Add the Rockschool Grade \(missing.map(String.init).joined(separator: ", ")) book to get the real tests for the next levels."),
                           systemImage: "book.closed")
                         .font(.callout).foregroundStyle(Theme.offTime)
                 }
@@ -52,8 +52,8 @@ struct LevelListView: View {
             SettingsStore.currentGrade = new
             if new > 0 { for l in 1...new { SettingsStore.markLevelReached(l) } }
         }
-        .alert("Chúc mừng! Bạn đã đạt Grade \(celebrate ?? 0)", isPresented: Binding(get: { celebrate != nil }, set: { if !$0 { celebrate = nil } })) {
-            Button("Tuyệt") { celebrate = nil }
+        .alert(L("Chúc mừng! Bạn đã đạt Grade \(celebrate ?? 0)", "Congratulations! You reached Grade \(celebrate ?? 0)"), isPresented: Binding(get: { celebrate != nil }, set: { if !$0 { celebrate = nil } })) {
+            Button(L("Tuyệt", "Great")) { celebrate = nil }
         }
     }
 
@@ -63,7 +63,7 @@ struct LevelListView: View {
         let passed = level.tests.filter(p.isPassed).count
         let done = p.isPassed(level), open = p.isUnlocked(level)
         let fraction = level.tests.isEmpty ? 0 : Double(passed) / Double(level.tests.count)
-        let status = done ? "Đã đạt" : !open ? "Chưa mở" : level.tests.isEmpty ? "Chưa có bài" : "\(passed)/\(level.tests.count) bài đạt"
+        let status = done ? L("Đã đạt", "Passed") : !open ? L("Chưa mở", "Locked") : level.tests.isEmpty ? L("Chưa có bài", "No exercises") : L("\(passed)/\(level.tests.count) bài đạt", "\(passed)/\(level.tests.count) passed")
         return Button { selected = level.id } label: {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Grade").font(.footnote).foregroundStyle(.secondary)
@@ -84,12 +84,12 @@ struct LevelListView: View {
     private func testList(_ level: Level, _ p: LevelProgress) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Bài kiểm tra Grade \(level.id)").font(.title3.weight(.semibold))
+                Text(L("Bài kiểm tra Grade \(level.id)", "Grade \(level.id) tests")).font(.title3.weight(.semibold))
                 Spacer()
-                Text("\(level.tests.filter(p.isPassed).count)/\(level.tests.count) đạt").font(Theme.number(15, weight: .medium)).foregroundStyle(.secondary)
+                Text(L("\(level.tests.filter(p.isPassed).count)/\(level.tests.count) đạt", "\(level.tests.filter(p.isPassed).count)/\(level.tests.count) passed")).font(Theme.number(15, weight: .medium)).foregroundStyle(.secondary)
             }
             VStack(spacing: 0) {
-                if level.tests.isEmpty { Text("Chưa có bài cho cấp này.").foregroundStyle(.secondary).padding(16).frame(maxWidth: .infinity, alignment: .leading) }
+                if level.tests.isEmpty { Text(L("Chưa có bài cho cấp này.", "No exercises for this level yet.")).foregroundStyle(.secondary).padding(16).frame(maxWidth: .infinity, alignment: .leading) }
                 ForEach(Array(level.tests.enumerated()), id: \.element.id) { k, item in
                     if let ex = try? ExerciseDSL.parse(item.dsl) {
                         NavigationLink {
@@ -99,7 +99,7 @@ struct LevelListView: View {
                             HStack(spacing: 14) {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(ExerciseTitle.short(ex.title, showingGrade: false)).foregroundStyle(.primary)
-                                    Text("\(Int(item.bpm)) BPM, \(Int(item.duration)) giây").font(.footnote).foregroundStyle(.secondary)
+                                    Text(L("\(Int(item.bpm)) BPM, \(Int(item.duration)) giây", "\(Int(item.bpm)) BPM, \(Int(item.duration)) sec")).font(.footnote).foregroundStyle(.secondary)
                                 }
                                 Spacer()
                                 scoreTag(p.bestScores[item.id], passed: p.isPassed(item))
@@ -120,7 +120,7 @@ struct LevelListView: View {
     }
 
     private func scoreTag(_ score: Double?, passed: Bool) -> some View {
-        Text(score.map { "\(Int($0.rounded()))%" } ?? "chưa thử")
+        Text(score.map { "\(Int($0.rounded()))%" } ?? L("chưa thử", "not tried"))
             .font(Theme.number(13, weight: .medium))
             .foregroundStyle(passed ? Theme.onTime : .secondary)
             .padding(.horizontal, 8).padding(.vertical, 3)
@@ -130,12 +130,12 @@ struct LevelListView: View {
     private func skills(_ p: LevelProgress) -> some View {
         let grade = max(1, p.currentLevel + 1)
         let rows: [(String, String, AnyView)] = [
-            ("Nghe chép nhịp", "Nghe 2 ô nhịp, chạm vào ô có tiếng trống", AnyView(DictationView())),
-            ("Ear test", "Nghe rồi đánh lại, như phần thi Rockschool", AnyView(EarTestView(grade: grade))),
-            ("Câu hỏi kiến thức (GMQ)", "Nhạc lý và tên bộ trống theo Grade \(grade)", AnyView(GMQuizView(grade: grade))),
+            (L("Nghe chép nhịp", "Rhythm dictation"), L("Nghe 2 ô nhịp, chạm vào ô có tiếng trống", "Listen to 2 bars, tap the cells where you hear a drum"), AnyView(DictationView())),
+            ("Ear test", L("Nghe rồi đánh lại, như phần thi Rockschool", "Listen and play it back, like the Rockschool exam"), AnyView(EarTestView(grade: grade))),
+            (L("Câu hỏi kiến thức (GMQ)", "Knowledge questions (GMQ)"), L("Nhạc lý và tên bộ trống theo Grade \(grade)", "Music theory and drum kit names for Grade \(grade)"), AnyView(GMQuizView(grade: grade))),
         ]
         return VStack(alignment: .leading, spacing: 10) {
-            Text("Kỹ năng nghe").font(.title3.weight(.semibold))
+            Text(L("Kỹ năng nghe", "Listening skills")).font(.title3.weight(.semibold))
             VStack(spacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.offset) { k, r in
                     NavigationLink { r.2 } label: {

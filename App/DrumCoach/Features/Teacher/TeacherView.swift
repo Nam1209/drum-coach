@@ -1,4 +1,5 @@
 import DrumAI
+import DrumCore
 import SwiftData
 import SwiftUI
 
@@ -15,35 +16,35 @@ struct TeacherView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
-                PageHeader(title: "Thầy AI", subtitle: "Claude Pro qua Notion: gửi lịch sử, thầy lên kế hoạch, app đồng bộ về") {
+                PageHeader(title: L("Thầy AI", "AI teacher"), subtitle: L("Claude Pro qua Notion: gửi lịch sử, thầy lên kế hoạch, app đồng bộ về", "Claude Pro via Notion: send your history, the teacher plans, the app syncs it back")) {
                     if TeacherConnection.isConfigured {
                         HStack(spacing: 10) {
-                            Button { Task { await send() } } label: { Label("Gửi cho thầy", systemImage: "paperplane") }
+                            Button { Task { await send() } } label: { Label(L("Gửi cho thầy", "Send to teacher"), systemImage: "paperplane") }
                                 .buttonStyle(.bordered)
-                            Button { Task { await sync() } } label: { Label("Đồng bộ", systemImage: "arrow.triangle.2.circlepath") }
+                            Button { Task { await sync() } } label: { Label(L("Đồng bộ", "Sync"), systemImage: "arrow.triangle.2.circlepath") }
                                 .buttonStyle(.borderedProminent)
                         }
                         .disabled(working)
                     }
                 }
                 if !TeacherConnection.isConfigured {
-                    CardSection(footer: "Dùng gói Claude Pro của bạn qua Notion, không tốn thêm tiền.") {
-                        CardLink("Kết nối thầy AI (một lần)", subtitle: "Hướng dẫn từng bước, khoảng 5 phút") { TeacherSetupView() }
+                    CardSection(footer: L("Dùng gói Claude Pro của bạn qua Notion, không tốn thêm tiền.", "Use your Claude Pro plan through Notion at no extra cost.")) {
+                        CardLink(L("Kết nối thầy AI (một lần)", "Connect the AI teacher (one time)"), subtitle: L("Hướng dẫn từng bước, khoảng 5 phút", "Step-by-step guide, about 5 minutes")) { TeacherSetupView() }
                     }
                 } else {
                     Stage {
                         VStack(alignment: .leading, spacing: 6) {
-                            Label(working ? "Đang làm việc với Notion…" : "Đã kết nối Notion", systemImage: "circle.fill")
+                            Label(working ? L("Đang làm việc với Notion…", "Working with Notion…") : L("Đã kết nối Notion", "Notion connected"), systemImage: "circle.fill")
                                 .labelStyle(StatusDot(color: working ? Theme.offTime : Theme.onTime))
                             if let message { Text(message).font(.callout).foregroundStyle(.secondary) }
-                            Text("Sau khi gửi: app Claude mở ra, lời nhắn đã được copy. Dán vào Project \"Thầy dạy trống\" rồi gửi, xong quay lại bấm Đồng bộ.")
+                            Text(L("Sau khi gửi: app Claude mở ra, lời nhắn đã được copy. Dán vào Project \"Thầy dạy trống\" rồi gửi, xong quay lại bấm Đồng bộ.", "After sending, the Claude app opens and the message is copied. Paste it into the \"Thầy dạy trống\" Project and send it, then come back and tap Sync."))
                                 .font(.footnote).foregroundStyle(.secondary)
                         }
                     }
                 }
                 if let key = Keychain.get(Keychain.claudeKey), !key.isEmpty {
-                    CardSection(footer: "Dùng API key trong Cài đặt, không cần dán vào app Claude.") {
-                        CardButton(working ? "Thầy đang phân tích…" : "Phân tích tự động bằng API (khoảng \(String(format: "%.2f", TeacherConnection.estimatedAPICost(context))) USD)",
+                    CardSection(footer: L("Dùng API key trong Cài đặt, không cần dán vào app Claude.", "Uses the API key from Settings, no need to paste into the Claude app.")) {
+                        CardButton(working ? L("Thầy đang phân tích…", "Teacher is analyzing…") : L("Phân tích tự động bằng API (khoảng \(String(format: "%.2f", TeacherConnection.estimatedAPICost(context))) USD)", "Analyze automatically via API (about \(String(format: "%.2f", TeacherConnection.estimatedAPICost(context))) USD)"),
                                    systemImage: "sparkles") { Task { await viaAPI(key) } }
                             .disabled(working)
                     }
@@ -54,26 +55,26 @@ struct TeacherView: View {
                         if let active = reports.first(where: { $0.appliedAt != nil }), let r = active.report {
                             ReportSections(title: active.title, report: r)
                         } else {
-                            CardSection("Kế hoạch của thầy") {
-                                Text("Chưa có kế hoạch. Gửi lịch sử cho thầy rồi bấm Đồng bộ để nhận kế hoạch tuần.").foregroundStyle(.secondary)
+                            CardSection(L("Kế hoạch của thầy", "Teacher's plan")) {
+                                Text(L("Chưa có kế hoạch. Gửi lịch sử cho thầy rồi bấm Đồng bộ để nhận kế hoạch tuần.", "No plan yet. Send your history to the teacher, then tap Sync to get a weekly plan.")).foregroundStyle(.secondary)
                             }
                         }
                     }
                     VStack(spacing: 22) {
-                        CardSection("Trò chuyện và hồ sơ") {
-                            CardLink("Hỏi thầy", subtitle: "Hỏi về kỹ thuật, bài tập, kế hoạch") { TeacherChatView() }
-                            CardLink("Hồ sơ học viên", subtitle: "Mục tiêu, phút tập mỗi ngày, ghi chú cho thầy") { ProfileEditor() }
-                            CardLink("Cài đặt kết nối") { TeacherSetupView() }
+                        CardSection(L("Trò chuyện và hồ sơ", "Chat and profile")) {
+                            CardLink(L("Hỏi thầy", "Ask the teacher"), subtitle: L("Hỏi về kỹ thuật, bài tập, kế hoạch", "Ask about technique, exercises, the plan")) { TeacherChatView() }
+                            CardLink(L("Hồ sơ học viên", "Student profile"), subtitle: L("Mục tiêu, phút tập mỗi ngày, ghi chú cho thầy", "Goal, daily minutes, notes for the teacher")) { ProfileEditor() }
+                            CardLink(L("Cài đặt kết nối", "Connection settings")) { TeacherSetupView() }
                         }
                         let fresh = reports.filter { $0.appliedAt == nil }
                         if !fresh.isEmpty {
-                            CardSection("Kế hoạch mới chưa áp dụng") {
+                            CardSection(L("Kế hoạch mới chưa áp dụng", "New plans not applied yet")) {
                                 ForEach(fresh) { s in CardButton(s.title, systemImage: "tray.and.arrow.down") { pending = s } }
                             }
                         }
                         let older = Array(reports.filter { $0.appliedAt != nil }.dropFirst())
                         if !older.isEmpty {
-                            CardSection("Các báo cáo trước") {
+                            CardSection(L("Các báo cáo trước", "Earlier reports")) {
                                 ForEach(older) { s in
                                     CardLink(s.title) {
                                         ScrollView { if let r = s.report { ReportSections(title: s.title, report: r).padding(Theme.pagePadding) } }
@@ -94,14 +95,14 @@ struct TeacherView: View {
 
     private func send() async {
         working = true; defer { working = false }
-        do { message = "Đã gửi \(try await TeacherConnection.sendWeekly(context)). Dán lời nhắn vào Claude nhé." }
-        catch { message = "Không gửi được: \(Friendly.message(error))" }
+        do { message = L("Đã gửi \(try await TeacherConnection.sendWeekly(context)). Dán lời nhắn vào Claude nhé.", "Sent \(try await TeacherConnection.sendWeekly(context)). Paste the message into Claude.") }
+        catch { message = L("Không gửi được: \(Friendly.message(error))", "Could not send: \(Friendly.message(error))") }
     }
 
     private func viaAPI(_ key: String) async {
         working = true; defer { working = false }
         do { pending = try await TeacherConnection.weeklyReportViaAPI(context, apiKey: key, model: model) }
-        catch { message = "\(Friendly.message(error)) Kế hoạch cũ vẫn giữ nguyên." }
+        catch { message = L("\(Friendly.message(error)) Kế hoạch cũ vẫn giữ nguyên.", "\(Friendly.message(error)) Your old plan is unchanged.") }
     }
 
     private func sync(quiet: Bool = false) async {
@@ -110,10 +111,10 @@ struct TeacherView: View {
             let out = try await TeacherConnection.sync(context)
             if let first = out.plans.last { pending = first }
             if !quiet || !out.plans.isEmpty || out.exercises > 0 {
-                message = "Kế hoạch mới: \(out.plans.count) · Bài tập mới: \(out.exercises)" + (out.problems.isEmpty ? "" : "\n" + out.problems.joined(separator: "\n"))
+                message = L("Kế hoạch mới: \(out.plans.count) · Bài tập mới: \(out.exercises)", "New plans: \(out.plans.count) · New exercises: \(out.exercises)") + (out.problems.isEmpty ? "" : "\n" + out.problems.joined(separator: "\n"))
             }
         } catch {
-            if !quiet { message = "Không đồng bộ được: \(Friendly.message(error))" }
+            if !quiet { message = L("Không đồng bộ được: \(Friendly.message(error))", "Could not sync: \(Friendly.message(error))") }
         }
     }
 }
@@ -124,11 +125,11 @@ struct ReportSections: View {
 
     var body: some View {
         VStack(spacing: 22) {
-            CardSection("Kế hoạch đang áp dụng", trailing: title) {
+            CardSection(L("Kế hoạch đang áp dụng", "Current plan"), trailing: title) {
                 Text(report.summary)
                 ForEach(report.progress, id: \.self) { Label($0, systemImage: "arrow.up.right").foregroundStyle(Theme.onTime) }
             }
-            CardSection("Ba điều cần sửa trước") {
+            CardSection(L("Ba điều cần sửa trước", "Three things to fix first")) {
                 ForEach(Array(report.fixFirst.enumerated()), id: \.offset) { k, item in
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         Text("\(k + 1)").font(Theme.number(17)).foregroundStyle(Theme.shell)
@@ -137,10 +138,10 @@ struct ReportSections: View {
                 }
             }
             if !report.likelyCauses.isEmpty {
-                CardSection("Nguyên nhân có thể") { ForEach(report.likelyCauses, id: \.self) { Text($0) } }
+                CardSection(L("Nguyên nhân có thể", "Likely causes")) { ForEach(report.likelyCauses, id: \.self) { Text($0) } }
             }
             if !report.resources.isEmpty {
-                CardSection("Tài liệu thầy gợi ý") {
+                CardSection(L("Tài liệu thầy gợi ý", "Resources the teacher suggests")) {
                     ForEach(report.resources, id: \.self) { r in
                         if let url = safeURL(r) {
                             Link(destination: url) {
@@ -157,7 +158,7 @@ struct ReportSections: View {
                     }
                 }
             }
-            CardSection("Mốc tiếp theo") { Text(report.nextCheckpoint) }
+            CardSection(L("Mốc tiếp theo", "Next checkpoint")) { Text(report.nextCheckpoint) }
         }
     }
 
@@ -179,17 +180,17 @@ struct ApplyPlanView: View {
         NavigationStack {
             List {
                 if let r = stored.report {
-                    Section("So với kế hoạch đang dùng") {
-                        LabeledContent("Số ngày trong kế hoạch", value: "\(current?.report?.weekPlan.count ?? 0) → \(r.weekPlan.count)")
-                        LabeledContent("Bài mới thầy soạn", value: "\(r.weekPlan.flatMap(\.allItems).filter { $0.newExerciseDSL != nil }.count)")
+                    Section(L("So với kế hoạch đang dùng", "Compared with the current plan")) {
+                        LabeledContent(L("Số ngày trong kế hoạch", "Days in the plan"), value: "\(current?.report?.weekPlan.count ?? 0) → \(r.weekPlan.count)")
+                        LabeledContent(L("Bài mới thầy soạn", "New exercises from the teacher"), value: "\(r.weekPlan.flatMap(\.allItems).filter { $0.newExerciseDSL != nil }.count)")
                     }
                     ReportSections(title: stored.title, report: r)
                 }
             }
-            .navigationTitle("Áp dụng kế hoạch mới?")
+            .navigationTitle(L("Áp dụng kế hoạch mới?", "Apply the new plan?"))
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Để sau") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Áp dụng") { TeacherConnection.apply(stored, context); dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L("Để sau", "Later")) { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button(L("Áp dụng", "Apply")) { TeacherConnection.apply(stored, context); dismiss() } }
             }
         }
     }
@@ -201,18 +202,18 @@ struct ProfileEditor: View {
 
     var body: some View {
         Form {
-            Section("Mục tiêu") {
-                TextField("Mục tiêu", text: $profile.goal)
-                Stepper("Phút tập mỗi ngày: \(profile.minutesPerDay)", value: $profile.minutesPerDay, in: 10...240, step: 5)
+            Section(L("Mục tiêu", "Goal")) {
+                TextField(L("Mục tiêu", "Goal"), text: $profile.goal)
+                Stepper(L("Phút tập mỗi ngày: \(profile.minutesPerDay)", "Minutes per day: \(profile.minutesPerDay)"), value: $profile.minutesPerDay, in: 10...240, step: 5)
             }
-            Section("Ghi chú cho thầy") {
+            Section(L("Ghi chú cho thầy", "Notes for the teacher")) {
                 ForEach(profile.notes, id: \.self) { Text($0) }.onDelete { profile.notes.remove(atOffsets: $0) }
                 HStack {
-                    TextField("Ví dụ: cổ tay trái yếu, tập buổi tối", text: $newNote)
-                    Button("Thêm") { profile.notes.append(newNote); newNote = "" }.disabled(newNote.isEmpty)
+                    TextField(L("Ví dụ: cổ tay trái yếu, tập buổi tối", "Example: weak left wrist, practice in the evening"), text: $newNote)
+                    Button(L("Thêm", "Add")) { profile.notes.append(newNote); newNote = "" }.disabled(newNote.isEmpty)
                 }
             }
-            Section("Lời khuyên thầy đã dặn") {
+            Section(L("Lời khuyên thầy đã dặn", "Advice from the teacher")) {
                 ForEach(profile.pastAdvice.reversed(), id: \.text) { a in
                     VStack(alignment: .leading) {
                         Text(a.text)
@@ -221,7 +222,7 @@ struct ProfileEditor: View {
                 }
             }
         }
-        .navigationTitle("Hồ sơ học viên")
+        .navigationTitle(L("Hồ sơ học viên", "Student profile"))
         .onChange(of: profile) { _, p in TeacherConnection.profile = p }
     }
 }

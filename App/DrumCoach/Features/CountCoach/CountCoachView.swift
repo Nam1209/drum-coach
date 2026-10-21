@@ -10,18 +10,18 @@ struct CountCoachView: View {
         var id: Int { rawValue }
         var title: String {
             switch self {
-            case .listen: "1. Nghe"
-            case .along: "2. Đếm cùng"
-            case .fade: "3. Giọng nhỏ dần"
-            case .alone: "4. Tự đếm"
+            case .listen: L("1. Nghe", "1. Listen")
+            case .along: L("2. Đếm cùng", "2. Count along")
+            case .fade: L("3. Giọng nhỏ dần", "3. Fading voice")
+            case .alone: L("4. Tự đếm", "4. Count alone")
             }
         }
         var hint: String {
             switch self {
-            case .listen: "Chỉ nghe app đếm. Để ý \"&\" nằm đúng giữa hai số."
-            case .along: "Đeo tai nghe, nói to và liền hơi cùng app, như một câu hát."
-            case .fade: "Giọng app nhỏ dần rồi tắt sau 4 ô nhịp. Bạn giữ nguyên nhịp đếm."
-            case .alone: "Chỉ còn click, và click tắt 2 ô nhịp xen kẽ. Bạn tự đếm đều."
+            case .listen: L("Chỉ nghe app đếm. Để ý \"&\" nằm đúng giữa hai số.", "Just listen to the app count. Notice the \"&\" sits exactly halfway between two numbers.")
+            case .along: L("Đeo tai nghe, nói to và liền hơi cùng app, như một câu hát.", "Put on headphones and count out loud with the app, in one breath, like a line of a song.")
+            case .fade: L("Giọng app nhỏ dần rồi tắt sau 4 ô nhịp. Bạn giữ nguyên nhịp đếm.", "The app's voice fades and cuts out after 4 bars. Keep counting at the same pace.")
+            case .alone: L("Chỉ còn click, và click tắt 2 ô nhịp xen kẽ. Bạn tự đếm đều.", "Only the click is left, and it drops out every other 2 bars. Count steadily on your own.")
             }
         }
     }
@@ -42,14 +42,14 @@ struct CountCoachView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                PageHeader(title: "Đếm nhịp", subtitle: "Đếm to theo click. App nghe giọng bạn và đo độ đều của từng âm.")
+                PageHeader(title: L("Đếm nhịp", "Counting"), subtitle: L("Đếm to theo click. App nghe giọng bạn và đo độ đều của từng âm.", "Count out loud with the click. The app listens to your voice and measures how even each syllable is."))
                 Stage {
                     VStack(alignment: .leading, spacing: 18) {
-                        Picker("Giai đoạn", selection: $stage) { ForEach(Phase.allCases) { Text($0.title).tag($0) } }
+                        Picker(L("Giai đoạn", "Phase"), selection: $stage) { ForEach(Phase.allCases) { Text($0.title).tag($0) } }
                             .pickerStyle(.segmented)
                             .disabled(running)
                         Text(stage.hint).foregroundStyle(.secondary)
-                        Picker("Cách đếm", selection: $mode) {
+                        Picker(L("Cách đếm", "Counting style"), selection: $mode) {
                             Text("1 2 3 4").tag(CountMode.quarters)
                             Text("1 & 2 &").tag(CountMode.eighths)
                             Text("1 e & a").tag(CountMode.sixteenths)
@@ -63,7 +63,7 @@ struct CountCoachView: View {
                             TempoControl(bpm: $bpm, range: 40...120, disabled: running)
                             Spacer()
                             Readout(value: running ? "\(heard)" : result.map { "\(Int((max(0, 1 - $0.gapRatioStdDev) * 100).rounded()))%" } ?? "–",
-                                    caption: running ? "âm đã nghe" : "độ đều", size: 44)
+                                    caption: running ? L("âm đã nghe", "syllables heard") : L("độ đều", "evenness"), size: 44)
                         }
                     }
                 }
@@ -97,10 +97,10 @@ struct CountCoachView: View {
 
     private func resultView(_ r: CountEvenness) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Kết quả").font(.title3.weight(.semibold))
+            Text(L("Kết quả", "Results")).font(.title3.weight(.semibold))
             labelRow(r)
             Text(advice(r)).font(.headline)
-            Text(String(format: "Độ lệch giữa các khoảng: %.0f%% (càng gần 0%% càng đều).", r.gapRatioStdDev * 100))
+            Text(String(format: L("Độ lệch giữa các khoảng: %.0f%% (càng gần 0%% càng đều).", "Interval deviation: %.0f%% (the closer to 0%%, the more even)."), r.gapRatioStdDev * 100))
                 .font(.callout).foregroundStyle(.secondary)
         }
     }
@@ -109,7 +109,7 @@ struct CountCoachView: View {
         HStack(spacing: 10) {
             ForEach(r.offsetsByLabel.sorted { $0.key < $1.key }, id: \.key) { label, ms in
                 VStack {
-                    Text(label == "number" ? "số" : label).font(Theme.number(24))
+                    Text(label == "number" ? L("số", "number") : label).font(Theme.number(24))
                     Text(String(format: "%+.0f ms", ms)).font(Theme.number(13, weight: .medium))
                 }
                 .padding(10)
@@ -120,10 +120,10 @@ struct CountCoachView: View {
 
     private func advice(_ r: CountEvenness) -> String {
         guard let (label, ms) = r.offsetsByLabel.filter({ $0.key != "number" }).max(by: { abs($0.value) < abs($1.value) }),
-              abs(ms) > 25 else { return "Rất đều! Thử giai đoạn tiếp theo hoặc tăng tempo 4 BPM." }
+              abs(ms) > 25 else { return L("Rất đều! Thử giai đoạn tiếp theo hoặc tăng tempo 4 BPM.", "Very even! Try the next phase or raise the tempo by 4 BPM.") }
         return ms > 0
-            ? "Bạn nói \"\(label)\" trễ trung bình \(Int(ms.rounded())) ms → nghĩ \"\(label)\" nằm ĐÚNG giữa hai phách, nói sớm hơn một chút."
-            : "Bạn nói \"\(label)\" sớm \(Int((-ms).rounded())) ms → đừng vội, chờ đúng giữa hai phách."
+            ? L("Bạn nói \"\(label)\" trễ trung bình \(Int(ms.rounded())) ms → nghĩ \"\(label)\" nằm ĐÚNG giữa hai phách, nói sớm hơn một chút.", "You say \"\(label)\" late by \(Int(ms.rounded())) ms on average. Think of \"\(label)\" as sitting exactly halfway between two beats and say it a bit earlier.")
+            : L("Bạn nói \"\(label)\" sớm \(Int((-ms).rounded())) ms → đừng vội, chờ đúng giữa hai phách.", "You say \"\(label)\" early by \(Int((-ms).rounded())) ms. Don't rush, wait for the exact middle between two beats.")
     }
 
     private func start() {
@@ -153,7 +153,7 @@ struct CountCoachView: View {
             if stage != .listen { try mic.start() }
             try metro.start(settings: s)
         } catch {
-            self.error = "Không mở được âm thanh: \(error.localizedDescription)"
+            self.error = L("Không mở được âm thanh: \(error.localizedDescription)", "Couldn't open audio: \(error.localizedDescription)")
             mic.stop()
             return
         }
@@ -180,6 +180,6 @@ struct CountCoachView: View {
         }
         let r = CountEvenness(onsets: onsets, expected: expected)
         result = r.matched > 0 ? r : nil
-        if result == nil { error = "Không nghe thấy tiếng đếm. Nói to hơn hoặc đưa iPad lại gần." }
+        if result == nil { error = L("Không nghe thấy tiếng đếm. Nói to hơn hoặc đưa iPad lại gần.", "Couldn't hear any counting. Speak louder or move the iPad closer.") }
     }
 }

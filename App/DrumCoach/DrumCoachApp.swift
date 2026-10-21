@@ -6,15 +6,19 @@ import SwiftUI
 @main
 struct DrumCoachApp: App {
     private let voiceBank = CountVoiceBank()
+    /// "system" follows the device language.
+    @AppStorage(AppLocale.key) private var language = "system"
 
     init() {
-        // The interface is Vietnamese until its English translation ships; keep content in the same language.
-        Lang.current = .vi
+        AppLocale.apply(UserDefaults.standard.string(forKey: AppLocale.key) ?? "system")
     }
 
     var body: some Scene {
         WindowGroup {
             RootView(voiceBank: voiceBank)
+            // Rebuild every screen in the new language when it changes in Settings.
+            .id(AppLocale.apply(language))
+            .environment(\.locale, AppLocale.current)
             .modifier(AutoBackup())
             .task {
                 VoiceRecorder.loadAll(into: voiceBank)

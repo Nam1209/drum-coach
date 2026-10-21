@@ -1,4 +1,5 @@
 import DrumAI
+import DrumCore
 import DrumAnalysis
 import Charts
 import SwiftUI
@@ -32,8 +33,8 @@ struct ResultsView: View {
                     findings
                     if let a = assessment { assessmentView(a) }
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Nhật ký").font(.headline)
-                        TextField("Cảm nhận, chỗ khó, đau mỏi (tùy chọn)", text: $note, axis: .vertical)
+                        Text(L("Nhật ký", "Journal")).font(.headline)
+                        TextField(L("Cảm nhận, chỗ khó, đau mỏi (tùy chọn)", "How it felt, tricky parts, aches (optional)"), text: $note, axis: .vertical)
                             .padding(12)
                             .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.stage))
                     }
@@ -41,10 +42,10 @@ struct ResultsView: View {
                 .padding(Theme.pagePadding)
             }
             .background(Theme.canvas)
-            .navigationTitle("Kết quả")
+            .navigationTitle(L("Kết quả", "Results"))
             .navigationBarTitleDisplayMode(.inline)
             .task { if let input, assessment == nil { assessment = AssessmentRequest.localFallback(input) } }
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Xong") { saveNote(); dismiss() } } }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Xong", "Done")) { saveNote(); dismiss() } } }
         }
     }
 
@@ -54,10 +55,10 @@ struct ResultsView: View {
         HStack(alignment: .bottom, spacing: 32) {
             Readout(value: "\(Int(stats.score.rounded()))%", caption: "\(title), \(Int(bpm)) BPM", size: 84, tint: scoreTint)
             Spacer()
-            tally(good, "đúng", Theme.onTime)
-            tally(stats.totalNotes - good - stats.missed, "sớm/muộn", Theme.offTime)
-            tally(stats.missed, "trượt", Theme.missed)
-            tally(stats.extra, "thừa", .secondary)
+            tally(good, L("đúng", "on time"), Theme.onTime)
+            tally(stats.totalNotes - good - stats.missed, L("sớm/muộn", "early/late"), Theme.offTime)
+            tally(stats.missed, L("trượt", "missed"), Theme.missed)
+            tally(stats.extra, L("thừa", "extra"), .secondary)
         }
     }
 
@@ -71,18 +72,18 @@ struct ResultsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(earned >= 0 ? "+\(earned)" : "\(earned)").font(Theme.number(40))
                         .foregroundStyle(earned > 0 ? Theme.onTime : earned < 0 ? Theme.missed : .secondary)
-                    Text("điểm lần này").font(.footnote).foregroundStyle(.secondary)
+                    Text(L("điểm lần này", "points this run")).font(.footnote).foregroundStyle(.secondary)
                 }
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Hạng \(rank.level): \(rank.title)").font(.headline)
+                    Text(L("Hạng \(rank.level): \(rank.title)", "Rank \(rank.level): \(rank.title)")).font(.headline)
                     if let next = rank.next {
                         ProgressView(value: Double(total - rank.floor), total: Double(next - rank.floor)).tint(Theme.shell)
-                        Text("\(total) điểm, còn \(next - total) điểm lên hạng \(rank.level + 1)").font(.footnote).foregroundStyle(.secondary)
+                        Text(L("\(total) điểm, còn \(next - total) điểm lên hạng \(rank.level + 1)", "\(total) points, \(next - total) to rank \(rank.level + 1)")).font(.footnote).foregroundStyle(.secondary)
                     } else {
-                        Text("\(total) điểm, hạng cao nhất").font(.footnote).foregroundStyle(.secondary)
+                        Text(L("\(total) điểm, hạng cao nhất", "\(total) points, top rank")).font(.footnote).foregroundStyle(.secondary)
                     }
                     if earned < 0 {
-                        Text("Dưới 60% bị trừ điểm. Giảm tempo 8–10 BPM rồi chơi lại để lấy lại điểm.").font(.footnote).foregroundStyle(.secondary)
+                        Text(L("Dưới 60% bị trừ điểm. Giảm tempo 8–10 BPM rồi chơi lại để lấy lại điểm.", "Below 60% costs points. Lower the tempo by 8–10 BPM and play again to win them back.")).font(.footnote).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -100,19 +101,19 @@ struct ResultsView: View {
     private var runChart: some View {
         let limit = max(60, (samples.compactMap(\.ms).map(abs).max() ?? 60).rounded(.up))
         return VStack(alignment: .leading, spacing: 8) {
-            Text("Từng nốt trong lần chơi").font(.headline)
+            Text(L("Từng nốt trong lần chơi", "Every note in this run")).font(.headline)
             Chart {
-                RuleMark(y: .value("Đúng nhịp", 0)).foregroundStyle(Theme.hairline)
+                RuleMark(y: .value(L("Đúng nhịp", "On time"), 0)).foregroundStyle(Theme.hairline)
                 ForEach(samples) { s in
-                    PointMark(x: .value("Giây", s.time), y: .value("ms", s.ms ?? -limit))
+                    PointMark(x: .value(L("Giây", "Seconds"), s.time), y: .value("ms", s.ms ?? -limit))
                         .foregroundStyle(s.grade.color)
                         .symbolSize(s.ms == nil ? 50 : 26)
                         .symbol(s.ms == nil ? .cross : .circle)
                 }
             }
             .chartYScale(domain: -limit...limit)
-            .chartYAxisLabel("sớm ← ms → muộn")
-            .chartXAxisLabel("giây")
+            .chartYAxisLabel(L("sớm ← ms → muộn", "early ← ms → late"))
+            .chartXAxisLabel(L("giây", "seconds"))
             .frame(height: 180)
             .padding(14)
             .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.stage))
@@ -136,19 +137,19 @@ struct ResultsView: View {
         let mean = Int(d.meanMs.rounded()), drift = Int(abs(d.driftMsPerMinute).rounded()), spread = Int(d.spreadMs.rounded())
         switch d.kind {
         case .steady:
-            return ("checkmark.circle", "Nhịp vững", "Lệch trung bình \(mean) ms, dao động ±\(spread) ms. Có thể tăng tempo.")
+            return ("checkmark.circle", L("Nhịp vững", "Steady timing"), L("Lệch trung bình \(mean) ms, dao động ±\(spread) ms. Có thể tăng tempo.", "Average offset \(mean) ms, spread ±\(spread) ms. You can raise the tempo."))
         case .constantOffset:
-            return ("dot.radiowaves.left.and.right", "Lệch đều \(mean > 0 ? "+" : "")\(mean) ms từ đầu đến cuối",
-                    "Lỗi đều thường do cài đặt chứ không phải do bạn. Chạy lại Hiệu chỉnh độ trễ rồi chơi lại.")
+            return ("dot.radiowaves.left.and.right", L("Lệch đều \(mean > 0 ? "+" : "")\(mean) ms từ đầu đến cuối", "Constant offset \(mean > 0 ? "+" : "")\(mean) ms throughout"),
+                    L("Lỗi đều thường do cài đặt chứ không phải do bạn. Chạy lại Hiệu chỉnh độ trễ rồi chơi lại.", "A steady offset is usually a setup issue, not you. Re-run Latency calibration and play again."))
         case .dragging:
-            return ("tortoise", "Chậm dần khoảng \(drift) ms mỗi phút",
-                    "Bạn bắt đầu đúng rồi trễ dần. Đếm thành tiếng và để tiếng click \"chìm\" vào cú đánh.")
+            return ("tortoise", L("Chậm dần khoảng \(drift) ms mỗi phút", "Dragging by about \(drift) ms per minute"),
+                    L("Bạn bắt đầu đúng rồi trễ dần. Đếm thành tiếng và để tiếng click \"chìm\" vào cú đánh.", "You start on time, then fall behind. Count out loud and let the click sink into your stroke."))
         case .rushing:
-            return ("hare", "Nhanh dần khoảng \(drift) ms mỗi phút",
-                    "Bạn bắt đầu đúng rồi vội dần. Thả lỏng vai, chờ click, thử bật Gap để giữ nhịp trong đầu.")
+            return ("hare", L("Nhanh dần khoảng \(drift) ms mỗi phút", "Rushing by about \(drift) ms per minute"),
+                    L("Bạn bắt đầu đúng rồi vội dần. Thả lỏng vai, chờ click, thử bật Gap để giữ nhịp trong đầu.", "You start on time, then rush. Relax your shoulders, wait for the click, and try Gap to keep the beat in your head."))
         case .uneven:
-            return ("waveform.path", "Nhịp chưa đều (±\(spread) ms)",
-                    "Không lệch hẳn về một phía nhưng dao động nhiều. Giảm 8 BPM và tập Count Coach.")
+            return ("waveform.path", L("Nhịp chưa đều (±\(spread) ms)", "Uneven timing (±\(spread) ms)"),
+                    L("Không lệch hẳn về một phía nhưng dao động nhiều. Giảm 8 BPM và tập Count Coach.", "Not off to one side, but it swings a lot. Drop 8 BPM and practice Count Coach."))
         case .notEnoughData:
             return ("questionmark.circle", "", "")
         }
@@ -156,13 +157,13 @@ struct ResultsView: View {
 
     private var findings: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Nhận xét").font(.headline)
+            Text(L("Nhận xét", "Feedback")).font(.headline)
             Text(tendency)
             if let weakest { Text(weakest) }
             if let hands { Text(hands) }
             if let accent = stats.accentContrastDb {
-                Text(accent < 4 ? "Accent chưa rõ: chỉ to hơn nốt thường \(Int(accent.rounded())) dB. Nhấc dùi cao hơn ở nốt accent."
-                                : "Accent rõ ràng, to hơn nốt thường \(Int(accent.rounded())) dB.")
+                Text(accent < 4 ? L("Accent chưa rõ: chỉ to hơn nốt thường \(Int(accent.rounded())) dB. Nhấc dùi cao hơn ở nốt accent.", "Accent is weak: only \(Int(accent.rounded())) dB louder than normal notes. Lift the stick higher on accents.")
+                                : L("Accent rõ ràng, to hơn nốt thường \(Int(accent.rounded())) dB.", "Clear accent, \(Int(accent.rounded())) dB louder than normal notes."))
             }
         }
         .foregroundStyle(.primary)
@@ -175,16 +176,16 @@ struct ResultsView: View {
                     Text(bandName(a.band)).font(.title2.weight(.bold))
                         .foregroundStyle(a.band == "Distinction" ? Theme.onTime : a.band == "Below Pass" ? Theme.missed : Theme.offTime)
                     Spacer()
-                    Text("Khoảng Grade \(a.estimatedGrade)").font(Theme.number(17)).foregroundStyle(.secondary)
+                    Text(L("Khoảng Grade \(a.estimatedGrade)", "About Grade \(a.estimatedGrade)")).font(Theme.number(17)).foregroundStyle(.secondary)
                 }
-                Text(usedAI ? "Nhận xét của Claude theo chuẩn Rockschool" : "Chấm theo chuẩn Rockschool trên máy")
+                Text(usedAI ? L("Nhận xét của Claude theo chuẩn Rockschool", "Claude's feedback, Rockschool standard") : L("Chấm theo chuẩn Rockschool trên máy", "Scored on-device, Rockschool standard"))
                     .font(.footnote).foregroundStyle(.secondary)
                 Text(a.timingComment)
                 ForEach(a.strengths, id: \.self) { Label($0, systemImage: "checkmark").foregroundStyle(Theme.onTime) }
                 ForEach(a.weaknesses, id: \.self) { Label($0, systemImage: "exclamationmark").foregroundStyle(Theme.offTime) }
                 ForEach(a.nextSteps, id: \.self) { Label($0, systemImage: "arrow.forward") }
                 if let key = Keychain.get(Keychain.claudeKey), !key.isEmpty, !usedAI, let input {
-                    Button(asking ? "Claude đang xem…" : "Nhờ Claude nhận xét chi tiết") {
+                    Button(asking ? L("Claude đang xem…", "Claude is reviewing…") : L("Nhờ Claude nhận xét chi tiết", "Ask Claude for detailed feedback")) {
                         Task {
                             asking = true; defer { asking = false }
                             let out = await AssessmentRequest.runOrFallback(input, client: ClaudeClient(apiKey: key, model: model))
@@ -206,10 +207,10 @@ struct ResultsView: View {
 
     private func bandName(_ band: String) -> String {
         switch band {
-        case "Distinction": "Xuất sắc (Distinction)"
-        case "Merit": "Khá (Merit)"
-        case "Pass": "Đạt (Pass)"
-        default: "Chưa đạt"
+        case "Distinction": L("Xuất sắc (Distinction)", "Distinction")
+        case "Merit": L("Khá (Merit)", "Merit")
+        case "Pass": L("Đạt (Pass)", "Pass")
+        default: L("Chưa đạt", "Not passed")
         }
     }
 
@@ -224,19 +225,19 @@ struct ResultsView: View {
 
     private var tendency: String {
         let m = stats.meanOffsetMs
-        if abs(m) < 8 { return "Bám tempo tốt: lệch trung bình \(String(format: "%+.0f", m)) ms, dao động ±\(Int(stats.stdDevMs.rounded())) ms." }
-        return m < 0 ? "Bạn hay đánh sớm khoảng \(Int((-m).rounded())) ms. Thả lỏng, chờ click."
-                     : "Bạn hay đánh muộn khoảng \(Int(m.rounded())) ms. Chuẩn bị dùi sớm hơn một chút."
+        if abs(m) < 8 { return L("Bám tempo tốt: lệch trung bình \(String(format: "%+.0f", m)) ms, dao động ±\(Int(stats.stdDevMs.rounded())) ms.", "Good tempo: average offset \(String(format: "%+.0f", m)) ms, spread ±\(Int(stats.stdDevMs.rounded())) ms.") }
+        return m < 0 ? L("Bạn hay đánh sớm khoảng \(Int((-m).rounded())) ms. Thả lỏng, chờ click.", "You tend to play early by about \(Int((-m).rounded())) ms. Relax and wait for the click.")
+                     : L("Bạn hay đánh muộn khoảng \(Int(m.rounded())) ms. Chuẩn bị dùi sớm hơn một chút.", "You tend to play late by about \(Int(m.rounded())) ms. Get your stick ready a bit earlier.")
     }
 
     private var weakest: String? {
         guard let (label, ms) = stats.byBeatPosition.max(by: { abs($0.value) < abs($1.value) }), abs(ms) >= 10 else { return nil }
-        let name = label == "1" ? "trên phách" : "ở \"\(label)\""
-        return "Vị trí yếu nhất \(name): \(ms < 0 ? "sớm" : "muộn") \(Int(abs(ms).rounded())) ms."
+        let name = label == "1" ? L("trên phách", "on the beat") : L("ở \"\(label)\"", "on \"\(label)\"")
+        return L("Vị trí yếu nhất \(name): \(ms < 0 ? "sớm" : "muộn") \(Int(abs(ms).rounded())) ms.", "Weakest spot \(name): \(ms < 0 ? "early" : "late") by \(Int(abs(ms).rounded())) ms.")
     }
 
     private var hands: String? {
         guard let r = stats.byHand[.right], let l = stats.byHand[.left], abs(r - l) >= 10 else { return nil }
-        return "Tay \(abs(l) > abs(r) ? "trái" : "phải") lệch nhiều hơn (\(String(format: "%+.0f", abs(l) > abs(r) ? l : r)) ms)."
+        return L("Tay \(abs(l) > abs(r) ? "trái" : "phải") lệch nhiều hơn (\(String(format: "%+.0f", abs(l) > abs(r) ? l : r)) ms).", "Your \(abs(l) > abs(r) ? "left" : "right") hand is off more (\(String(format: "%+.0f", abs(l) > abs(r) ? l : r)) ms).")
     }
 }

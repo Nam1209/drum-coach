@@ -13,10 +13,10 @@ enum InputMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .pad: "Pad (micro)"
-        case .eDrum: "Trống điện"
-        case .touch: "Gõ màn hình"
-        case .listenOnly: "Chỉ xem"
+        case .pad: L("Pad (micro)", "Pad (mic)")
+        case .eDrum: L("Trống điện", "E-drum kit")
+        case .touch: L("Gõ màn hình", "Tap screen")
+        case .listenOnly: L("Chỉ xem", "View only")
         }
     }
 }
@@ -31,7 +31,7 @@ struct RunSample: Identifiable {
 enum NotationDisplay: String, CaseIterable, Identifiable {
     case page, scroll
     var id: String { rawValue }
-    var title: String { self == .page ? "Trang" : "Cuộn" }
+    var title: String { self == .page ? L("Trang", "Page") : L("Cuộn", "Scroll") }
 }
 
 
@@ -103,7 +103,7 @@ final class PracticeViewModel: ObservableObject {
     /// Swing for this exercise: the setting, or straight when the exercise has 16ths, triplets or an x/8 meter.
     var swing: Double { Swing.effective(settings.swing, for: playedExercise) }
 
-    /// Screen tap in "Gõ màn hình" mode.
+    /// Screen tap in L("Gõ màn hình", "Tap screen") mode.
     func tap(_ voice: Voice?) { (source as? TouchHitSource)?.tap(voice) }
 
     func listen() {
@@ -195,13 +195,13 @@ final class PracticeViewModel: ObservableObject {
             // The mic would hear the click from the speaker: blanking around clicks also drops on-time strokes,
             // so with the speaker the run is played without scoring instead of being scored wrongly.
             scoringOffReason = mode == .pad && AudioSessionConfig.isUsingSpeaker
-                ? "Đang phát ra loa nên app không chấm điểm (micro sẽ nghe lẫn tiếng click). Cắm tai nghe để được chấm." : nil
+                ? L("Đang phát ra loa nên app không chấm điểm (micro sẽ nghe lẫn tiếng click). Cắm tai nghe để được chấm.", "Sound is coming from the speaker, so the app won't score this run (the mic would pick up the click). Plug in headphones to be scored.") : nil
             source = scoringOffReason == nil ? HitSources.make(for: mode) : nil
             reportDelay = source?.reportDelay ?? 0
             try source?.start()
             try engine.start(settings: s)
         } catch {
-            self.error = "Không mở được âm thanh/MIDI: \(error.localizedDescription)"
+            self.error = L("Không mở được âm thanh/MIDI: \(error.localizedDescription)", "Couldn't open audio/MIDI: \(error.localizedDescription)")
             source?.stop()
             source = nil
             return
@@ -324,7 +324,7 @@ final class PracticeViewModel: ObservableObject {
                        let raw = reasonRaw, let reason = AVAudioSession.RouteChangeReason(rawValue: raw),
                        ![.newDeviceAvailable, .oldDeviceUnavailable].contains(reason) { return }
                     self.stop(save: false)
-                    self.error = "Âm thanh bị gián đoạn (đổi tai nghe/loa hoặc cuộc gọi). Lần chơi này không được lưu — bấm Bắt đầu để chơi lại."
+                    self.error = L("Âm thanh bị gián đoạn (đổi tai nghe/loa hoặc cuộc gọi). Lần chơi này không được lưu — bấm Bắt đầu để chơi lại.", "Audio was interrupted (headphones/speaker change or a call). This run wasn't saved. Tap Start to play again.")
                 }
             }
         }

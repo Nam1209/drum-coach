@@ -74,30 +74,30 @@ struct PracticeView: View {
                 if exercises.count > 1 {
                     Menu {
                         ForEach(exercises) { ex in Button(ex.title) { model.stop(); model.exercise = ex } }
-                    } label: { iconLabel("list.bullet", "Chọn bài") }
+                    } label: { iconLabel("list.bullet", L("Chọn bài", "Choose exercise")) }
                 }
-                Button { model.listen() } label: { iconLabel("speaker.wave.2", "Nghe mẫu") }
+                Button { model.listen() } label: { iconLabel("speaker.wave.2", L("Nghe mẫu", "Listen")) }
                     .disabled(model.isPlaying)
-                Button { showCamera = true } label: { iconLabel("camera", "Soi tư thế") }
-                Button { showCalibration = true } label: { iconLabel("dot.radiowaves.left.and.right", "Hiệu chỉnh độ trễ") }
-                Button { showSound = true } label: { iconLabel("slider.horizontal.3", "Âm thanh máy nhịp") }
+                Button { showCamera = true } label: { iconLabel("camera", L("Soi tư thế", "Check posture")) }
+                Button { showCalibration = true } label: { iconLabel("dot.radiowaves.left.and.right", L("Hiệu chỉnh độ trễ", "Latency calibration")) }
+                Button { showSound = true } label: { iconLabel("slider.horizontal.3", L("Âm thanh máy nhịp", "Metronome sound")) }
                     .disabled(model.isPlaying)
                 Menu {
                     if let url = GrooveScribeExport.url(for: model.exercise, bpm: Int(model.settings.bpm)) {
-                        Link(destination: url) { Label("Mở trong GrooveScribe", systemImage: "safari") }
-                        ShareLink(item: url) { Label("Chia sẻ link GrooveScribe", systemImage: "link") }
+                        Link(destination: url) { Label(L("Mở trong GrooveScribe", "Open in GrooveScribe"), systemImage: "safari") }
+                        ShareLink(item: url) { Label(L("Chia sẻ link GrooveScribe", "Share GrooveScribe link"), systemImage: "link") }
                     }
-                    Button { printNotation() } label: { Label("In bản nhạc (PDF)", systemImage: "printer") }
-                } label: { iconLabel("square.and.arrow.up", "Xuất bài") }
+                    Button { printNotation() } label: { Label(L("In bản nhạc (PDF)", "Print notation (PDF)"), systemImage: "printer") }
+                } label: { iconLabel("square.and.arrow.up", L("Xuất bài", "Export exercise")) }
             }
         }
     }
 
     private var subtitle: String {
         let e = model.exercise
-        var parts = ["\(e.timeSignature.beats)/\(e.timeSignature.unit)", "\(e.bars) ô nhịp"]
-        if let r = model.loopBars { parts.append("đang lặp ô \(r.lowerBound)–\(r.upperBound)") }
-        if model.testItem != nil { parts.append("bài kiểm tra cấp độ") }
+        var parts = ["\(e.timeSignature.beats)/\(e.timeSignature.unit)", L("\(e.bars) ô nhịp", e.bars == 1 ? "1 bar" : "\(e.bars) bars")]
+        if let r = model.loopBars { parts.append(L("đang lặp ô \(r.lowerBound)–\(r.upperBound)", "looping bar \(r.lowerBound)–\(r.upperBound)")) }
+        if model.testItem != nil { parts.append(L("bài kiểm tra cấp độ", "level test")) }
         return parts.joined(separator: ", ")
     }
 
@@ -111,9 +111,9 @@ struct PracticeView: View {
         if let e = model.error { return (e, "exclamationmark.circle", Theme.missed) }
         if let r = model.scoringOffReason, model.isPlaying { return (r, "speaker.wave.2", Theme.offTime) }
         if model.showHeadphoneWarning {
-            return ("Âm thanh đang ra loa. Cắm tai nghe để app chấm điểm khi tập với pad.", "headphones", .secondary)
+            return (L("Âm thanh đang ra loa. Cắm tai nghe để app chấm điểm khi tập với pad.", "Sound is coming from the speaker. Plug in headphones so the app can score you on a pad."), "headphones", .secondary)
         }
-        if model.testItem != nil { return ("Tempo, thời lượng và độ khó cố định. Cần trên 90% để đạt.", "lock", .secondary) }
+        if model.testItem != nil { return (L("Tempo, thời lượng và độ khó cố định. Cần trên 90% để đạt.", "Tempo, length and difficulty are fixed. You need above 90% to pass."), "lock", .secondary) }
         return nil
     }
 
@@ -122,7 +122,7 @@ struct PracticeView: View {
     private func controls(beat: Double?) -> some View {
         HStack(alignment: .center, spacing: 28) {
             TempoControl(bpm: $model.settings.bpm, disabled: model.isPlaying || model.testItem != nil || model.autoLearn != nil)
-            Button("Gõ") { tapTempo() }
+            Button(L("Gõ", "Tap")) { tapTempo() }
                 .font(.callout.weight(.medium))
                 .disabled(model.isPlaying || model.testItem != nil)
             Spacer()
@@ -131,7 +131,7 @@ struct PracticeView: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 8) {
-                Readout(value: model.liveScore.map { "\(Int($0.rounded()))%" } ?? "–", caption: "Điểm", size: 44,
+                Readout(value: model.liveScore.map { "\(Int($0.rounded()))%" } ?? "–", caption: L("Điểm", "Score"), size: 44,
                         tint: model.liveScore.map { $0 > 90 ? Theme.onTime : $0 >= 60 ? Theme.offTime : Theme.missed } ?? .primary)
                 TimingStrip(recent: model.recent).frame(width: 220)
             }
@@ -140,40 +140,40 @@ struct PracticeView: View {
 
     private var options: some View {
         HStack(spacing: 10) {
-            optionMenu("Thời lượng", value: label(forSeconds: model.durationSeconds)) {
+            optionMenu(L("Thời lượng", "Length"), value: label(forSeconds: model.durationSeconds)) {
                 ForEach([30.0, 60, 120, 300], id: \.self) { s in Button(label(forSeconds: s)) { model.durationSeconds = s } }
             }
             .disabled(model.testItem != nil || model.autoLearn != nil)
-            optionMenu("Nhận tiếng", value: model.mode.title) {
+            optionMenu(L("Nhận tiếng", "Input"), value: model.mode.title) {
                 ForEach(InputMode.allCases) { m in Button(m.title) { model.mode = m } }
             }
-            optionMenu("Độ khó", value: difficultyText) {
-                Button("Dễ, ±45 ms") { setDifficulty(45) }
-                Button("Vừa, ±30 ms") { setDifficulty(30) }
-                Button("Khó, ±20 ms") { setDifficulty(20) }
+            optionMenu(L("Độ khó", "Difficulty"), value: difficultyText) {
+                Button(L("Dễ, ±45 ms", "Easy, ±45 ms")) { setDifficulty(45) }
+                Button(L("Vừa, ±30 ms", "Medium, ±30 ms")) { setDifficulty(30) }
+                Button(L("Khó, ±20 ms", "Hard, ±20 ms")) { setDifficulty(20) }
             }
             .disabled(model.testItem != nil)
-            optionMenu("Lặp", value: model.loopBars.map { "Ô \($0.lowerBound)–\($0.upperBound)" } ?? "Cả bài") {
-                Button("Cả bài") { model.loopBars = nil }
-                ForEach(1...max(1, model.exercise.bars), id: \.self) { b in Button("Ô \(b)") { model.loopBars = b...b } }
+            optionMenu(L("Lặp", "Loop"), value: model.loopBars.map { L("Ô \($0.lowerBound)–\($0.upperBound)", "Bar \($0.lowerBound)–\($0.upperBound)") } ?? L("Cả bài", "Whole exercise")) {
+                Button(L("Cả bài", "Whole exercise")) { model.loopBars = nil }
+                ForEach(1...max(1, model.exercise.bars), id: \.self) { b in Button(L("Ô \(b)", "Bar \(b)")) { model.loopBars = b...b } }
                 if model.exercise.bars >= 2 {
                     ForEach(Array(stride(from: 1, to: model.exercise.bars, by: 2)), id: \.self) { b in
-                        Button("Ô \(b)–\(min(b + 1, model.exercise.bars))") { model.loopBars = b...min(b + 1, model.exercise.bars) }
+                        Button(L("Ô \(b)–\(min(b + 1, model.exercise.bars))", "Bar \(b)–\(min(b + 1, model.exercise.bars))")) { model.loopBars = b...min(b + 1, model.exercise.bars) }
                     }
                 }
             }
             .disabled(model.testItem != nil || model.autoLearn != nil)
-            Toggle(isOn: $model.flipped) { Text("Đổi tay") }
+            Toggle(isOn: $model.flipped) { Text(L("Đổi tay", "Switch hands")) }
                 .toggleStyle(.button)
                 .disabled(model.testItem != nil)
             Spacer()
             if model.testItem == nil {
-                Button(model.autoLearn == nil ? "Học tự động" : "Thoát học tự động") {
+                Button(model.autoLearn == nil ? L("Học tự động", "Auto-learn") : L("Thoát học tự động", "Exit auto-learn")) {
                     model.autoLearn == nil ? model.startAutoLearn() : model.stopAutoLearn()
                 }
                 .buttonStyle(.bordered)
             }
-            Picker("Hiển thị", selection: $model.display) {
+            Picker(L("Hiển thị", "Display"), selection: $model.display) {
                 ForEach(NotationDisplay.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented).frame(width: 150)
@@ -197,20 +197,20 @@ struct PracticeView: View {
         Stage {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Học tự động").font(.headline)
+                    Text(L("Học tự động", "Auto-learn")).font(.headline)
                     Spacer()
                     if let step = a.step {
-                        Text("Bước \(a.stepIndex + 1)/\(a.plan.steps.count): \(step.title)").foregroundStyle(.secondary)
+                        Text(L("Bước \(a.stepIndex + 1)/\(a.plan.steps.count): \(step.title)", "Step \(a.stepIndex + 1)/\(a.plan.steps.count): \(step.title)")).foregroundStyle(.secondary)
                     }
                 }
                 if a.finished {
-                    Label("Xong! Bạn đã chơi cả bài không cần click ở tempo mục tiêu.", systemImage: "checkmark.seal.fill")
+                    Label(L("Xong! Bạn đã chơi cả bài không cần click ở tempo mục tiêu.", "Done! You played the whole exercise without a click at the target tempo."), systemImage: "checkmark.seal.fill")
                         .foregroundStyle(Theme.onTime)
                 } else {
                     ProgressView(value: Double(a.stepIndex), total: Double(a.plan.steps.count)).tint(Theme.shell)
-                    Text("Tempo \(a.tempo.bpm)/\(a.tempo.target) BPM. Trên 90% thì tăng 5 BPM; trượt 3 lần liền thì giảm 10. Đạt tempo mục tiêu trên 90% thì sang bước sau.")
+                    Text(L("Tempo \(a.tempo.bpm)/\(a.tempo.target) BPM. Trên 90% thì tăng 5 BPM; trượt 3 lần liền thì giảm 10. Đạt tempo mục tiêu trên 90% thì sang bước sau.", "Tempo \(a.tempo.bpm)/\(a.tempo.target) BPM. Above 90% raises it by 5 BPM; 3 misses in a row lowers it by 10. Reach the target tempo above 90% to move to the next step."))
                         .font(.callout).foregroundStyle(.secondary)
-                    if let s = a.lastScore { Text("Lần vừa rồi: \(Int(s.rounded()))%").font(.callout) }
+                    if let s = a.lastScore { Text(L("Lần vừa rồi: \(Int(s.rounded()))%", "Last run: \(Int(s.rounded()))%")).font(.callout) }
                 }
             }
         }
@@ -231,7 +231,7 @@ struct PracticeView: View {
                         if v.translation == .zero { model.tap(nil) }
                     })
                     .accessibilityAddTraits(.isButton)
-                    .accessibilityLabel(hand == "R" ? "Tay phải" : "Tay trái")
+                    .accessibilityLabel(hand == "R" ? L("Tay phải", "Right hand") : L("Tay trái", "Left hand"))
             }
         }
         .disabled(!model.isPlaying)
@@ -257,13 +257,13 @@ struct PracticeView: View {
 
     // MARK: Helpers
 
-    private func label(forSeconds s: Double) -> String { s < 60 ? "\(Int(s)) giây" : "\(Int(s / 60)) phút" }
+    private func label(forSeconds s: Double) -> String { s < 60 ? L("\(Int(s)) giây", "\(Int(s)) sec") : L("\(Int(s / 60)) phút", "\(Int(s / 60)) min") }
 
     private var difficultyText: String {
         switch Int((model.rules.goodWindow * 1000).rounded()) {
-        case 45: "Dễ"
-        case 20: "Khó"
-        default: "Vừa"
+        case 45: L("Dễ", "Easy")
+        case 20: L("Khó", "Hard")
+        default: L("Vừa", "Medium")
         }
     }
 

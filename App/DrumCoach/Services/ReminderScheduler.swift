@@ -1,4 +1,5 @@
 import DrumAI
+import DrumCore
 import Foundation
 import UserNotifications
 
@@ -62,8 +63,8 @@ enum ReminderScheduler {
     /// Free Apple ID builds expire 7 days after install: remind a day before.
     static func scheduleReinstallReminder(installDate: Date) {
         let content = UNMutableNotificationContent()
-        content.title = "Cài lại DrumCoach"
-        content.body = "Bản cài hết hạn ngày mai. Cắm iPad vào Mac và bấm Run trong Xcode — lịch sử vẫn giữ nguyên."
+        content.title = L("Cài lại DrumCoach", "Reinstall DrumCoach")
+        content.body = L("Bản cài hết hạn ngày mai. Cắm iPad vào Mac và bấm Run trong Xcode — lịch sử vẫn giữ nguyên.", "This install expires tomorrow. Plug the iPad into your Mac and press Run in Xcode. Your history stays intact.")
         let fire = installDate.addingTimeInterval(6 * 86_400)
         guard fire > Date() else { return }
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: fire.timeIntervalSinceNow, repeats: false)

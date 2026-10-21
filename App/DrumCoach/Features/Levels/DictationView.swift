@@ -21,7 +21,7 @@ struct DictationView: View {
         let perBar = Int(ex.timeSignature.beatsInQuarters.doubleValue) * grid
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                PageHeader(title: "Nghe chép nhịp", subtitle: "Nghe \(bars) ô nhịp nốt móc đơn, chạm vào ô có tiếng trống")
+                PageHeader(title: L("Nghe chép nhịp", "Rhythm dictation"), subtitle: L("Nghe \(bars) ô nhịp nốt móc đơn, chạm vào ô có tiếng trống", "Listen to \(bars) bars of 8th notes, tap the cells where you hear a drum"))
                 HStack(spacing: 16) {
                     PlayButton(isPlaying: false, size: 64) {
                         try? AudioSessionConfig.activate()
@@ -29,8 +29,8 @@ struct DictationView: View {
                     }
                     TempoControl(bpm: $bpm, disabled: false)
                     Spacer()
-                    Button("Bài khác") { seed &+= 1; answer = []; checked = nil }.buttonStyle(.bordered)
-                    Button("Kiểm tra") { checked = DictationCheck.bars(answer: answer, expected: ex, grid: grid) }
+                    Button(L("Bài khác", "Another one")) { seed &+= 1; answer = []; checked = nil }.buttonStyle(.bordered)
+                    Button(L("Kiểm tra", "Check")) { checked = DictationCheck.bars(answer: answer, expected: ex, grid: grid) }
                         .buttonStyle(.borderedProminent).disabled(answer.isEmpty)
                 }
                 Stage {
@@ -47,7 +47,7 @@ struct DictationView: View {
                     }
                 }
                 if let checked, checked.contains(false) {
-                    Button("Hiện đáp án") { answer = DictationCheck.cells(of: ex, grid: grid); self.checked = nil }
+                    Button(L("Hiện đáp án", "Show answer")) { answer = DictationCheck.cells(of: ex, grid: grid); self.checked = nil }
                 }
             }
             .padding(Theme.pagePadding)
@@ -70,6 +70,6 @@ struct DictationView: View {
             .frame(maxWidth: .infinity, minHeight: 64)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Ô \(label)\(on ? ", có nốt" : "")")
+        .accessibilityLabel(L("Ô \(label)\(on ? ", có nốt" : "")", "Cell \(label)\(on ? ", has note" : "")"))
     }
 }

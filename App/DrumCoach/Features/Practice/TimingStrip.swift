@@ -1,4 +1,5 @@
 import DrumAnalysis
+import DrumCore
 import SwiftUI
 
 /// Last 16 hits as dots around a centre line: left = early, right = late (±60 ms).
@@ -11,8 +12,8 @@ struct TimingStrip: View {
             ZStack {
                 Capsule().fill(Theme.hairline)
                 Rectangle().fill(Color.primary.opacity(0.5)).frame(width: 1.5).position(x: mid, y: geo.size.height / 2)
-                Text("sớm").font(.caption2).foregroundStyle(.secondary).position(x: 24, y: geo.size.height / 2)
-                Text("muộn").font(.caption2).foregroundStyle(.secondary).position(x: w - 28, y: geo.size.height / 2)
+                Text(L("sớm", "early")).font(.caption2).foregroundStyle(.secondary).position(x: 24, y: geo.size.height / 2)
+                Text(L("muộn", "late")).font(.caption2).foregroundStyle(.secondary).position(x: w - 28, y: geo.size.height / 2)
                 ForEach(Array(recent.enumerated()), id: \.offset) { i, r in
                     Circle().fill(r.grade.color.opacity(0.35 + 0.65 * Double(i + 1) / Double(max(recent.count, 1))))
                         .frame(width: 9, height: 9)

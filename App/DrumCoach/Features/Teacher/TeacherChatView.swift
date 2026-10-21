@@ -1,4 +1,5 @@
 import DrumAI
+import DrumCore
 import SwiftData
 import SwiftUI
 
@@ -28,17 +29,17 @@ struct TeacherChatView: View {
                 .padding()
             }
             HStack {
-                TextField("Hỏi thầy, ví dụ: tại sao tôi hay trễ ở \"&\"?", text: $input, axis: .vertical)
+                TextField(L("Hỏi thầy, ví dụ: tại sao tôi hay trễ ở \"&\"?", "Ask the teacher, e.g. why am I often late on the \"&\"?"), text: $input, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
-                Button("Gửi") { Task { await send() } }.disabled(input.isEmpty || waiting)
+                Button(L("Gửi", "Send")) { Task { await send() } }.disabled(input.isEmpty || waiting)
             }
             .padding()
         }
-        .navigationTitle("Hỏi thầy")
+        .navigationTitle(L("Hỏi thầy", "Ask the teacher"))
     }
 
     private func send() async {
-        guard let key = Keychain.get(Keychain.claudeKey), !key.isEmpty else { error = "Cần API key trong Cài đặt (hoặc hỏi thầy trong Project trên Claude)."; return }
+        guard let key = Keychain.get(Keychain.claudeKey), !key.isEmpty else { error = L("Cần API key trong Cài đặt (hoặc hỏi thầy trong Project trên Claude).", "You need an API key in Settings (or ask the teacher in the Project on Claude)."); return }
         if chat == nil {
             let active = (try? context.fetch(FetchDescriptor<StoredReport>(sortBy: [SortDescriptor(\.created, order: .reverse)])))?
                 .first { $0.appliedAt != nil }?.report

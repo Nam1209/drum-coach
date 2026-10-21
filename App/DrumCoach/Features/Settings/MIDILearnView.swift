@@ -15,27 +15,27 @@ struct MIDILearnView: View {
     var body: some View {
         Form {
             Section {
-                Text("Nguồn MIDI đang kết nối: \(MIDIHitSource.sourceCount)").foregroundStyle(MIDIHitSource.sourceCount > 0 ? .green : .orange)
-                if MIDIHitSource.sourceCount == 0 { Text("Cắm cáp USB-MIDI từ cổng MIDI OUT của TD-7 vào iPad.").font(.callout) }
+                Text(L("Nguồn MIDI đang kết nối: \(MIDIHitSource.sourceCount)", "Connected MIDI sources: \(MIDIHitSource.sourceCount)")).foregroundStyle(MIDIHitSource.sourceCount > 0 ? .green : .orange)
+                if MIDIHitSource.sourceCount == 0 { Text(L("Cắm cáp USB-MIDI từ cổng MIDI OUT của TD-7 vào iPad.", "Connect a USB-MIDI cable from the TD-7 MIDI OUT port to the iPad.")).font(.callout) }
                 if let lastNote {
                     let v = DrumCore.Voice.from(midiNote: lastNote, overrides: learn.map)
-                    Text("Nốt \(lastNote) → \(v?.localizedName ?? "chưa gán, sẽ bị bỏ qua khi chấm")").font(Theme.number(17, weight: .medium))
+                    Text(L("Nốt \(lastNote) → \(v?.localizedName ?? "chưa gán, sẽ bị bỏ qua khi chấm")", "Note \(lastNote) → \(v?.localizedName ?? "not mapped, ignored when scoring")")).font(Theme.number(17, weight: .medium))
                         .foregroundStyle(v == nil ? Theme.offTime : .primary)
                 }
             }
-            Section("Bấm một bộ phận rồi đánh vào pad đó") {
+            Section(L("Bấm một bộ phận rồi đánh vào pad đó", "Tap a drum, then hit that pad")) {
                 ForEach(pads, id: \.self) { v in
                     Button { learn.expect(v); waitingFor = v } label: {
                         HStack {
                             Text(v.displayName)
                             Spacer()
-                            if waitingFor == v { Text("Đánh pad…").foregroundStyle(.orange) }
-                            else if let n = learn.map.first(where: { $0.value == v })?.key { Text("nốt \(n)").foregroundStyle(.secondary) }
+                            if waitingFor == v { Text(L("Đánh pad…", "Hit the pad…")).foregroundStyle(.orange) }
+                            else if let n = learn.map.first(where: { $0.value == v })?.key { Text(L("nốt \(n)", "note \(n)")).foregroundStyle(.secondary) }
                         }
                     }
                 }
             }
-            Button("Khôi phục mặc định (General MIDI)", role: .destructive) { learn = MIDILearn(); SettingsStore.saveMidiMap([:]) }
+            Button(L("Khôi phục mặc định (General MIDI)", "Restore defaults (General MIDI)"), role: .destructive) { learn = MIDILearn(); SettingsStore.saveMidiMap([:]) }
         }
         .navigationTitle("MIDI learn")
         .onAppear(perform: start)
