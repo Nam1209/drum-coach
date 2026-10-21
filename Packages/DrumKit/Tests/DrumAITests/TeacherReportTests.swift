@@ -31,3 +31,15 @@ private func report(_ items: [PlannedItem]) -> TeacherReport {
     #expect(NotionClient.pageId(fromLink: "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d") == "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d")
     #expect(NotionClient.pageId(fromLink: "https://example.com") == nil)
 }
+
+@Test func sanitizeDropsNonHttpsLinksAndCapsText() {
+    let bad = Resource(kind: "youtube", title: String(repeating: "t", count: 5_000), url: URL(string: "javascript:alert(1)"), why: "w",
+                       searchQuery: String(repeating: "q", count: 5_000))
+    let custom = Resource(kind: "article", title: "a", url: URL(string: "myapp://open"), why: "w", searchQuery: "q")
+    let ok = Resource(kind: "youtube", title: "b", url: URL(string: "https://www.youtube.com/watch?v=x"), why: "w", searchQuery: "q")
+    let r = TeacherReport(summary: "s", progress: [], fixFirst: [], likelyCauses: [], weekPlan: [], resources: [bad, custom, ok], nextCheckpoint: "n")
+        .sanitized(knownExerciseIds: [])
+    #expect(r.resources[0].url == nil && r.resources[1].url == nil)
+    #expect(r.resources[2].url?.absoluteString == "https://www.youtube.com/watch?v=x")
+    #expect(r.resources[0].title.count <= 200 && r.resources[0].searchQuery.count <= 200)
+}

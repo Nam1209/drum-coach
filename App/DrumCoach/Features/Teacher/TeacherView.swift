@@ -10,6 +10,7 @@ struct TeacherView: View {
     @State private var working = false
     @State private var message: String?
     @State private var pending: StoredReport?
+    @AppStorage("claude.model") private var model = ClaudeClient.defaultModel
 
     var body: some View {
         List {
@@ -26,6 +27,17 @@ struct TeacherView: View {
                     if let message { Text(message).font(.callout).foregroundStyle(.secondary) }
                 } footer: {
                     Text("Sau khi gửi: app Claude mở ra, lời nhắn đã được copy — dán vào Project \"Thầy dạy trống\" rồi gửi. Xong quay lại bấm Đồng bộ.")
+                }
+            }
+            if let key = Keychain.get(Keychain.claudeKey), !key.isEmpty {
+                Section {
+                    Button { Task { await viaAPI(key) } } label: {
+                        Label(working ? "Thầy đang phân tích…" : "Phân tích tự động bằng API (~$\(String(format: "%.2f", TeacherConnection.estimatedAPICost(context))))",
+                              systemImage: "sparkles")
+                    }
+                    .disabled(working)
+                } footer: {
+                    Text("Dùng API key trong Cài đặt — không cần dán vào app Claude.")
                 }
             }
             if let active = reports.first(where: { $0.appliedAt != nil }), let r = active.report {
@@ -57,6 +69,12 @@ struct TeacherView: View {
         catch { message = "Không gửi được: \(error)" }
     }
 
+    private func viaAPI(_ key: String) async {
+        working = true; defer { working = false }
+        do { pending = try await TeacherConnection.weeklyReportViaAPI(context, apiKey: key, model: model) }
+        catch { message = "Claude chưa trả lời được: \(error). Kế hoạch cũ vẫn giữ nguyên." }
+    }
+
     private func sync(quiet: Bool = false) async {
         do {
             let out = try await TeacherConnection.sync(context)
@@ -81,7 +99,7 @@ struct ReportSections: View {
         if !report.likelyCauses.isEmpty { Section("Nguyên nhân có thể") { ForEach(report.likelyCauses, id: \.self) { Text($0) } } }
         Section("Tài liệu") {
             ForEach(report.resources, id: \.self) { r in
-                if let url = r.url ?? URL(string: "https://www.youtube.com/results?search_query=\(r.searchQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")") {
+                if let url = safeURL(r) {
                     Link(destination: url) {
                         VStack(alignment: .leading) {
                             Label(r.title, systemImage: r.kind == "youtube" ? "play.rectangle" : "book")
@@ -92,6 +110,13 @@ struct ReportSections: View {
             }
         }
         Section("Mốc tiếp theo") { Text(report.nextCheckpoint) }
+    }
+
+    /// Only https links are opened; anything else falls back to a YouTube search for the resource.
+    private func safeURL(_ r: Resource) -> URL? {
+        if let u = r.url, u.scheme?.lowercased() == "https", u.host != nil { return u }
+        let q = r.searchQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        return URL(string: "https://www.youtube.com/results?search_query=\(q)")
     }
 }
 

@@ -71,7 +71,9 @@ enum TeacherConnection {
         for p in try await bridge.fetchNewPlans(after: lastPlanSync) {
             switch p.report {
             case .success(let r):
-                let s = StoredReport(title: p.title, created: p.created, report: r.sanitized(knownExerciseIds: known))
+                var clean = r.sanitized(knownExerciseIds: known)
+                clean.resources = await ResourceValidator().validate(clean.resources)
+                let s = StoredReport(title: p.title, created: p.created, report: clean)
                 ctx.insert(s)
                 stored.append(s)
             case .failure(let e):
@@ -86,6 +88,24 @@ enum TeacherConnection {
         if !newExercises.isEmpty { lastExerciseSync = Date() }
         try ctx.save()
         return (stored, newExercises.count, problems)
+    }
+
+    /// API path: Claude writes the weekly report directly (needs an API key).
+    static func weeklyReportViaAPI(_ ctx: ModelContext, apiKey: String, model: String) async throws -> StoredReport {
+        let catalog = ExerciseCatalog.titles(ctx)
+        var r = try await Teacher.weeklyReport(digest: HistoryStore.digest(ctx), profile: profile, library: catalog,
+                                               client: ClaudeClient(apiKey: apiKey, model: model))
+            .sanitized(knownExerciseIds: Set(catalog.keys))
+        r.resources = await ResourceValidator().validate(r.resources)
+        let stored = StoredReport(title: "Kế hoạch \(NotionBridge.dayString(Date()))", created: Date(), report: r)
+        ctx.insert(stored)
+        try ctx.save()
+        return stored
+    }
+
+    static func estimatedAPICost(_ ctx: ModelContext) -> Double {
+        let bytes = (try? JSONEncoder().encode(HistoryStore.digest(ctx)).count) ?? 10_000
+        return Teacher.estimatedCostUSD(inputBytes: bytes)
     }
 
     /// Make a plan active: its new exercises join the library and its "fix first" items become remembered advice.

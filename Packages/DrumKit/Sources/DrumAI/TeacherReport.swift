@@ -72,8 +72,13 @@ extension TeacherReport {
         func short(_ xs: [String], _ n: Int) -> [String] { Array(xs.prefix(n).map { String($0.prefix(600)) }) }
         let days = weekPlan.filter { (1...7).contains($0.day) }
             .map { DayPlan(day: $0.day, warmup: $0.warmup.filter(ok), main: $0.main.filter(ok), fun: $0.fun.filter(ok)) }
+        let links = resources.prefix(10).map { r in
+            Resource(kind: ["youtube", "article", "book"].contains(r.kind) ? r.kind : "article", title: String(r.title.prefix(200)),
+                     url: r.url.flatMap { $0.scheme?.lowercased() == "https" && $0.host != nil ? $0 : nil },
+                     why: String(r.why.prefix(500)), searchQuery: String(r.searchQuery.prefix(200)))
+        }
         return TeacherReport(summary: String(summary.prefix(2_000)), progress: short(progress, 10), fixFirst: short(fixFirst, 3),
-                             likelyCauses: short(likelyCauses, 5), weekPlan: days, resources: Array(resources.prefix(10)),
+                             likelyCauses: short(likelyCauses, 5), weekPlan: days, resources: links,
                              nextCheckpoint: String(nextCheckpoint.prefix(600)))
     }
 }
