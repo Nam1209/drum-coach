@@ -93,6 +93,8 @@ public final class MetronomeEngine: ObservableObject {
     private var renderer: MetronomeRenderer?
     private var sourceNode: AVAudioSourceNode?
     private var startLatency: TimeInterval = 0
+    /// Watches for the output device changing (headphones or a USB DAC plugged in or out).
+    private var configObserver: NSObjectProtocol?
 
     public init(voiceBank: CountVoiceBank, settings: MetronomeSettings = MetronomeSettings(bpm: 70)) {
         self.voiceBank = voiceBank
@@ -145,9 +147,18 @@ public final class MetronomeEngine: ObservableObject {
         startLatency = outputLatency
         try engine.start()
         isRunning = true
+        // iOS stops the engine when the output device changes; start again with the new device's rate and latency.
+        configObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.isRunning else { return }
+                try? self.start(settings: self.settings)
+            }
+        }
     }
 
     public func stop() {
+        if let configObserver { NotificationCenter.default.removeObserver(configObserver) }
+        configObserver = nil
         guard let node = sourceNode else { return }
         engine.stop()
         engine.detach(node)
