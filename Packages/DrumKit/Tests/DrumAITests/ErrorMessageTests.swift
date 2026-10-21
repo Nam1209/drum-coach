@@ -1,7 +1,7 @@
 import Testing
 @testable import DrumAI
 
-@Test func claudeErrorsReadableInVietnamese() {
+@Test(.vietnamese) func claudeErrorsReadableInVietnamese() {
     #expect(ClaudeError.network("x").userMessage.contains("mạng"))
     #expect(ClaudeError.http(401, "invalid x-api-key").userMessage.contains("API key"))
     #expect(ClaudeError.http(529, "overloaded").userMessage.contains("bận"))
@@ -11,7 +11,7 @@ import Testing
     #expect(ClaudeError.missingKey.userMessage.contains("Cài đặt"))
 }
 
-@Test func notionErrorsReadable() {
+@Test(.vietnamese) func notionErrorsReadable() {
     #expect(NotionError.http(401, "x").userMessage.contains("token"))
     #expect(NotionError.http(404, "x").userMessage.contains("Connections"))
     #expect(NotionError.http(413, "x").userMessage.contains("lớn"))

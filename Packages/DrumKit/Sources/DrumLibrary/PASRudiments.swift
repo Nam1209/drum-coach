@@ -1,6 +1,6 @@
 import DrumCore
 
-/// The 40 PAS International Drum Rudiments, written by the app in its DSL (names and stickings are common knowledge).
+/// The 40 PAS International Drum Rudiments (Vietnamese name first, original name in parentheses), written by the app in its DSL (names and stickings are common knowledge).
 /// Grace notes are shown as articulations: f = flam, d = drag; rolls written as doubles, z = multiple bounce.
 public enum PASRudiments {
     static let source: [(String, String, Int, String, String)] = [
@@ -47,7 +47,13 @@ public enum PASRudiments {
         ("Triple Ratamacue", "2/4", 8, "dddxxxX-dddxxxX-", "RRRLRLR-LLLRLRL-"),
     ]
 
-    public static let all: [Exercise] = source.enumerated().compactMap { i, r in
-        try? ExerciseDSL.parse("title: \(i + 1). \(r.0)\ntime: \(r.1)\ntempo: 50-120\ngrid: \(r.2)\nSN: \(r.3)\nST: \(r.4)")
+    /// Vietnamese names, in the same order as `source`.
+    static let vietnamese = ["Cuộn đơn", "Bốn nốt đơn", "Bảy nốt đơn", "Cuộn nảy (buzz)", "Cuộn ba", "Cuộn kép mở", "Cuộn 5 nét", "Cuộn 6 nét", "Cuộn 7 nét", "Cuộn 9 nét", "Cuộn 10 nét", "Cuộn 11 nét", "Cuộn 13 nét", "Cuộn 15 nét", "Cuộn 17 nét", "Paradiddle đơn", "Paradiddle đôi", "Paradiddle ba", "Paradiddle-diddle", "Flam đơn", "Flam có nhấn", "Flam gõ kép", "Flam nhấn lệch", "Paradiddle có flam", "Mill có flam", "Paradiddle-diddle có flam", "Bốn flam xen kẽ", "Chùm ba kiểu Thụy Sĩ", "Flam tap đảo", "Flam kèm drag", "Drag đơn", "Drag gõ đơn", "Drag gõ đôi", "Bài 25", "Dragadiddle đơn", "Paradiddle có drag số 1", "Paradiddle có drag số 2", "Ratamacue đơn", "Ratamacue đôi", "Ratamacue ba"]
+
+    /// Recomputed on access so titles follow the current app language.
+    public static var all: [Exercise] {
+        source.enumerated().compactMap { i, r in
+            try? ExerciseDSL.parse("title: \(i + 1). \(vietnamese[i]) (\(r.0))\ntitle_en: \(i + 1). \(r.0)\ntime: \(r.1)\ntempo: 50-120\ngrid: \(r.2)\nSN: \(r.3)\nST: \(r.4)")
+        }
     }
 }

@@ -65,7 +65,7 @@ public struct SessionStats: Codable, Sendable, Equatable {
         case Rational(3, 4): return "a"
         case Rational(1, 3): return "trip"
         case Rational(2, 3): return "let"
-        default: return "khác"
+        default: return L("khác", "other")
         }
     }
 

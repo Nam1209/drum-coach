@@ -5,13 +5,13 @@ import DrumCore
 public enum StickingGenerator {
     public static func singleBeat(length: Int, subdivision: Int, voice: Voice = .snare, balancedOnly: Bool) -> [Exercise] {
         combinations(length: length, balancedOnly: balancedOnly).enumerated().map { i, hands in
-            make(hands: hands, subdivision: subdivision, voice: voice, title: "Sticking #\(i + 1): \(spaced(hands, every: subdivision))")
+            make(hands: hands, subdivision: subdivision, voice: voice, title: L("Tổ hợp tay", "Sticking") + " #\(i + 1): \(spaced(hands, every: subdivision))")
         }
     }
 
     public static func triplets(length: Int) -> [Exercise] {
         combinations(length: length, balancedOnly: false).enumerated().map { i, hands in
-            make(hands: hands, subdivision: 3, voice: .snare, title: "Triplet #\(i + 1): \(spaced(hands, every: 3))")
+            make(hands: hands, subdivision: 3, voice: .snare, title: L("Chùm ba", "Triplet") + " #\(i + 1): \(spaced(hands, every: 3))")
         }
     }
 
@@ -21,7 +21,7 @@ public enum StickingGenerator {
         for (k, i) in order.enumerated() where accentEvery > 0 && k % accentEvery == offset {
             e.notes[i].articulation = .accent
         }
-        e.title += " · accent"
+        e.title += L(" · có nhấn", " · accented")
         e.id = Exercise.stableID(for: "\(base.id)|accent|\(accentEvery)|\(offset)")
         return e
     }
@@ -36,7 +36,7 @@ public enum StickingGenerator {
             default: break
             }
         }
-        e.title += " · \(rightHand.displayName)/\(leftHand.displayName)"
+        e.title += L(" · tay phải \(rightHand.localizedName), tay trái \(leftHand.localizedName)", " · right hand \(rightHand.localizedName), left hand \(leftHand.localizedName)")
         e.id = Exercise.stableID(for: "\(base.id)|orchestrate|\(rightHand.rawValue)|\(leftHand.rawValue)")
         return e
     }
@@ -55,7 +55,7 @@ public enum StickingGenerator {
                 right.toggle()
             }
         }
-        return Exercise(id: Exercise.stableID(for: "random|\(seed)|\(bars)|\(subdivision)|\(rests)"), title: "Đọc nhạc #\(seed)", source: "Generated", timeSignature: TimeSignature(beats: 4, unit: 4),
+        return Exercise(id: Exercise.stableID(for: "random|\(seed)|\(bars)|\(subdivision)|\(rests)"), title: L("Đọc nhạc", "Reading") + " #\(seed)", source: "Generated", timeSignature: TimeSignature(beats: 4, unit: 4),
                         bars: bars, suggestedTempo: 60...90, notes: notes)
     }
 

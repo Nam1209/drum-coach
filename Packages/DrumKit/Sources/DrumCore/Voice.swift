@@ -24,19 +24,23 @@ public enum Voice: String, Codable, CaseIterable, Sendable {
         }
     }
 
-    public var displayName: String {
+    /// Short uppercase label drawn on the staff.
+    public var displayName: String { localizedName.uppercased() }
+
+    /// Name in the app language (English drum terms kept in Vietnamese where drummers use them).
+    public var localizedName: String {
         switch self {
-        case .kick: "KICK"
-        case .snare: "SNARE"
-        case .hiHat: "HI-HAT"
-        case .hiHatOpen: "OPEN HI-HAT"
-        case .hiHatPedal: "HI-HAT FOOT"
-        case .tom1: "TOM 1"
-        case .tom2: "TOM 2"
-        case .floorTom: "FLOOR TOM"
-        case .ride: "RIDE"
-        case .crash: "CRASH"
-        case .sideStick: "SIDE STICK"
+        case .kick: L("Trống bass", "Bass drum")
+        case .snare: "Snare"
+        case .hiHat: "Hi-hat"
+        case .hiHatOpen: L("Hi-hat mở", "Open hi-hat")
+        case .hiHatPedal: L("Hi-hat chân", "Hi-hat foot")
+        case .tom1: L("Tom cao", "High tom")
+        case .tom2: L("Tom giữa", "Mid tom")
+        case .floorTom: L("Tom sàn", "Floor tom")
+        case .ride: "Ride"
+        case .crash: "Crash"
+        case .sideStick: L("Gõ vành", "Side stick")
         }
     }
 

@@ -11,10 +11,17 @@ public enum BridgeError: Error, Equatable, Sendable {
 /// Notion connector) writes plans to "Kế hoạch" and new exercises to "Bài tập mới"; the app syncs them back.
 public struct NotionBridge: Sendable {
     public enum Kind: String, Sendable {
-        case weekly = "Báo cáo"
-        case period = "Tổng kết"
-        case posture = "Tư thế"
-        case backup = "Backup"
+        case weekly, period, posture, backup
+
+        /// Page-title prefix in the app language.
+        public var title: String {
+            switch self {
+            case .weekly: L("Báo cáo", "Report")
+            case .period: L("Tổng kết", "Review")
+            case .posture: L("Tư thế", "Posture")
+            case .backup: "Backup"
+            }
+        }
     }
 
     let client: NotionClient
@@ -39,16 +46,16 @@ public struct NotionBridge: Sendable {
     /// Uploads a report page; returns its title and the short message to paste into the Claude Project.
     public func send<Payload: Encodable & Sendable>(kind: Kind, payload: Payload, profile: StudentProfile, date: Date) async throws -> (pageTitle: String, prompt: String) {
         let day = Self.dayString(date)
-        let title = "\(kind.rawValue) \(day)"
+        let title = "\(kind.title) \(day)"
         let enc = JSONEncoder()
         enc.dateEncodingStrategy = .iso8601
         let json = String(data: try enc.encode(Envelope(kind: kind.rawValue, date: day, profile: profile, data: payload)), encoding: .utf8) ?? "{}"
         _ = try await client.createChildPage(parent: inboxPageId, title: title, codeBlockJSON: json)
         let ask: String
         switch kind {
-        case .weekly: ask = "Thầy ơi, xem \(title) trong Hộp thư và viết Kế hoạch \(day) giúp em."
-        case .period: ask = "Thầy ơi, xem \(title) trong Hộp thư và tổng kết giai đoạn, đặt mục tiêu 3 tháng tới (ghi vào Kế hoạch \(day))."
-        case .posture: ask = "Thầy ơi, xem \(title) trong Hộp thư và nhận xét cách cầm dùi, tư thế của em."
+        case .weekly: ask = L("Thầy ơi, xem \(title) trong Hộp thư và viết Kế hoạch \(day) giúp em.", "Hi teacher, please read \(title) in the Inbox and write Plan \(day) for me.")
+        case .period: ask = L("Thầy ơi, xem \(title) trong Hộp thư và tổng kết giai đoạn, đặt mục tiêu 3 tháng tới (ghi vào Kế hoạch \(day)).", "Hi teacher, please read \(title) in the Inbox, review this period and set goals for the next 3 months (write them in Plan \(day)).")
+        case .posture: ask = L("Thầy ơi, xem \(title) trong Hộp thư và nhận xét cách cầm dùi, tư thế của em.", "Hi teacher, please read \(title) in the Inbox and review my grip and posture.")
         case .backup: ask = ""
         }
         return (title, ask)

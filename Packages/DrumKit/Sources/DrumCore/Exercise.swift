@@ -80,7 +80,9 @@ public struct Exercise: Codable, Identifiable, Hashable, Sendable {
     /// Deterministic UUID for a piece of text (FNV-1a, two lanes), so the same built-in or teacher-written
     /// exercise keeps the same id across launches and history stays grouped per exercise.
     public static func stableID(for text: String) -> UUID {
-        let normalized = text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.joined(separator: "\n")
+        // Titles are left out so renaming or switching language never changes an exercise's identity.
+        let normalized = text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !$0.lowercased().hasPrefix("title") }.joined(separator: "\n")
         var a: UInt64 = 0xcbf2_9ce4_8422_2325, b: UInt64 = 0x8422_2325_cbf2_9ce4
         for byte in normalized.utf8 {
             a = (a ^ UInt64(byte)) &* 0x0000_0100_0000_01B3

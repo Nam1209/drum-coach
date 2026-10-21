@@ -35,7 +35,7 @@ public enum ExerciseDSL {
             let key = String(line[..<colon]).trimmingCharacters(in: .whitespaces)
             let value = String(line[line.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
             let lower = key.lowercased()
-            if ["title", "time", "tempo", "grid"].contains(lower) {
+            if ["title", "title_en", "time", "tempo", "grid"].contains(lower) {
                 headers[lower] = value
             } else if key == "ST" {
                 sticking = value.filter { $0 != "|" && $0 != " " }.map { $0 }
@@ -83,7 +83,8 @@ public enum ExerciseDSL {
         }
         notes.sort { $0.position == $1.position ? $0.voice.staffStep > $1.voice.staffStep : $0.position < $1.position }
 
-        return Exercise(id: Exercise.stableID(for: text), title: headers["title"] ?? "Untitled", source: "User", timeSignature: ts,
+        let title = Lang.current == .en ? (headers["title_en"] ?? headers["title"]) : (headers["title"] ?? headers["title_en"])
+        return Exercise(id: Exercise.stableID(for: text), title: title ?? L("Bài chưa đặt tên", "Untitled"), source: "User", timeSignature: ts,
                         bars: length / cellsPerBar, suggestedTempo: parseTempo(headers["tempo"]), notes: notes)
     }
 

@@ -45,9 +45,9 @@ enum TeacherConnection {
         guard let root = NotionClient.pageId(fromLink: rootLink) else { throw NotionError.badResponse }
         Keychain.set(token, for: Keychain.notionToken)
         let client = NotionClient(token: token)
-        inboxPageId = try await client.createChildPage(parent: root, title: "Hộp thư")
-        plansPageId = try await client.createChildPage(parent: root, title: "Kế hoạch")
-        exercisesPageId = try await client.createChildPage(parent: root, title: "Bài tập mới")
+        inboxPageId = try await client.createChildPage(parent: root, title: L("Hộp thư", "Inbox"))
+        plansPageId = try await client.createChildPage(parent: root, title: L("Kế hoạch", "Plans"))
+        exercisesPageId = try await client.createChildPage(parent: root, title: L("Bài tập mới", "New exercises"))
         rootPageId = root
     }
 

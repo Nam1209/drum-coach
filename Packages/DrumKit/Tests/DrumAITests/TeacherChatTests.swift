@@ -31,7 +31,7 @@ private func textReply(_ s: String) -> (Int, String) {
     #expect(msgs.first?["role"] as? String == "user")
 }
 
-@Test func reminderContent() {
+@Test(.vietnamese) func reminderContent() {
     let plan = DayPlan(day: 1, warmup: [PlannedItem(exerciseId: "x", newExerciseDSL: nil, bpm: 60, minutes: 5, focus: "Khởi động")],
                        main: [PlannedItem(exerciseId: "y", newExerciseDSL: nil, bpm: 70, minutes: 20, focus: "Paradiddle 70 BPM")], fun: [])
     let c = ReminderContent.daily(plan)

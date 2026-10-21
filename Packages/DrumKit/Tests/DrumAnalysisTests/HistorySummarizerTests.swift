@@ -31,7 +31,7 @@ func record(daysAgo: Double, bpm: Double, andMs: Double = 0, exercise: String = 
     #expect(size < 24_000, "digest is \(size) bytes")
 }
 
-@Test func recurringWeaknessNeedsSixOfEightWeeks() {
+@Test(.vietnamese) func recurringWeaknessNeedsSixOfEightWeeks() {
     var rs: [SessionRecord] = []
     for w in 0..<8 { rs.append(record(daysAgo: Double(w * 7) + 1, bpm: 70, andMs: w < 6 ? 30 : 0)) }
     let d = HistorySummarizer.digest(rs, journal: [], currentLevel: 1, now: now, calendar: cal)
@@ -60,7 +60,7 @@ func record(daysAgo: Double, bpm: Double, andMs: Double = 0, exercise: String = 
     #expect(d.journal.count == 1 && d.journal[0].contains("mỏi tay trái"))
 }
 
-@Test func periodReviewShowsProgress() {
+@Test(.vietnamese) func periodReviewShowsProgress() {
     var rs: [SessionRecord] = []
     for day in 0..<90 {
         let bpm = 60 + Double(day) * 24 / 89          // 60 → 84 over 90 days

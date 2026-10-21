@@ -1,3 +1,4 @@
+import DrumCore
 import Foundation
 
 public protocol HTTPTransport: Sendable {
@@ -90,11 +91,11 @@ public struct ClaudeClient: Sendable {
                 messages.append(.object(["role": .string("assistant"), "content": reply.rawContent]))
                 continue
             default:
-                guard let text = reply.lastText else { throw .decoding("Không có nội dung trả về") }
+                guard let text = reply.lastText else { throw .decoding(L("Không có nội dung trả về", "Empty reply")) }
                 do { return try JSONDecoder().decode(T.self, from: Data(text.utf8)) } catch { throw .decoding(String(describing: error)) }
             }
         }
-        throw .decoding("Claude chưa trả lời xong")
+        throw .decoding(L("Claude chưa trả lời xong", "Claude did not finish its reply"))
     }
 
     /// Plain-text conversation turn (teacher chat).
@@ -108,11 +109,11 @@ public struct ClaudeClient: Sendable {
             case "refusal": throw .refused(reply.refusalExplanation)
             case "pause_turn": msgs.append(.object(["role": .string("assistant"), "content": reply.rawContent])); continue
             default:
-                guard let t = reply.allText, !t.isEmpty else { throw .decoding("Không có nội dung trả về") }
+                guard let t = reply.allText, !t.isEmpty else { throw .decoding(L("Không có nội dung trả về", "Empty reply")) }
                 return t
             }
         }
-        throw .decoding("Claude chưa trả lời xong")
+        throw .decoding(L("Claude chưa trả lời xong", "Claude did not finish its reply"))
     }
 
     private struct Reply {

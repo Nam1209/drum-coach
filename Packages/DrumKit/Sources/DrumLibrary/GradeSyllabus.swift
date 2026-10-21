@@ -49,7 +49,7 @@ extension LevelCatalog {
     public static func levels(with books: [GradeSyllabus]) -> [Level] {
         levels.map { level in
             guard let book = books.first(where: { $0.grade == level.id }), !book.techGroups.isEmpty else { return level }
-            return Level(id: level.id, title: "Level \(level.id) · Rockschool Grade \(level.id) (sách của bạn)", tests: book.techGroups + book.fills)
+            return Level(id: level.id, title: L("Cấp độ \(level.id) · Rockschool Grade \(level.id) (sách của bạn)", "Level \(level.id) · Rockschool Grade \(level.id) (your book)"), tests: book.techGroups + book.fills)
         }
     }
 }

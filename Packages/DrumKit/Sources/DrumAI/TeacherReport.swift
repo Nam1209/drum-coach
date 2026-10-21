@@ -11,7 +11,7 @@ public struct AdviceItem: Codable, Sendable, Equatable {
 /// What the teacher remembers about the student between reports.
 public struct StudentProfile: Codable, Sendable, Equatable {
     public var goal = "Rockschool Grade 8"
-    public var instruments = ["pad 12\"", "Roland TD-7", "dùi 5A"]
+    public var instruments = ["pad 12\"", "Roland TD-7", "5A sticks"]
     public var minutesPerDay = 30
     public var notes: [String] = []
     public var pastAdvice: [AdviceItem] = []

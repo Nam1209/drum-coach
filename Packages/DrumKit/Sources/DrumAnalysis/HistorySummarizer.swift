@@ -141,7 +141,7 @@ public enum HistorySummarizer {
             }
         }
         return counts.filter { $0.value.weeks >= 6 }.sorted { $0.key < $1.key }.map { key, v in
-            describe(key, ms: v.sum / Double(v.weeks)) + " trong \(v.weeks)/8 tuần"
+            describe(key, ms: v.sum / Double(v.weeks)) + L(" trong \(v.weeks)/8 tuần", " in \(v.weeks) of 8 weeks")
         }
     }
 
@@ -157,12 +157,15 @@ public enum HistorySummarizer {
         return groups.compactMapValues { mean($0) }.filter { abs($0.value) >= weakMs }
     }
 
-    static func describe(_ key: String, ms: Double) -> String {
-        let dir = ms > 0 ? "trễ" : "sớm"
+    public static func describe(_ key: String, ms: Double) -> String {
+        let dir = ms > 0 ? L("trễ", "late") : L("sớm", "early")
         let amount = String(format: "%+.0f ms", ms)
         if key.hasPrefix("pos:") { return "\"\(key.dropFirst(4))\" \(dir) \(amount)" }
-        if key.hasPrefix("hand:") { return "tay \(key.hasSuffix("L") ? "trái" : "phải") \(dir) \(amount)" }
-        return "nhìn chung đánh \(dir) \(amount)"
+        if key.hasPrefix("hand:") {
+            let left = key.hasSuffix("L")
+            return L("tay \(left ? "trái" : "phải") \(dir) \(amount)", "\(left ? "left" : "right") hand \(dir) \(amount)")
+        }
+        return L("nhìn chung đánh \(dir) \(amount)", "overall \(dir) \(amount)")
     }
 
     public static func periodReview(_ records: [SessionRecord], levelHistory: [(Int, Date)], from: Date, to: Date,

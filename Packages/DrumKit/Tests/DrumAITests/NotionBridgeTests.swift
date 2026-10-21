@@ -92,7 +92,7 @@ private func codeBlock(_ text: String) -> String {
     #expect(t.requests[1].url!.absoluteString.contains("start_cursor=c2"))
 }
 
-@Test func sendBuildsPromptAndPage() async throws {
+@Test(.vietnamese) func sendBuildsPromptAndPage() async throws {
     let t = FakeTransport([(200, #"{"id":"r1"}"#)])
     let bridge = NotionBridge(client: NotionClient(token: "s", transport: t), inboxPageId: "inbox", plansPageId: "plans")
     let digest = HistorySummarizer.digest([], journal: [], currentLevel: 1, now: Date(timeIntervalSince1970: 1_792_000_000), calendar: .current)

@@ -1,4 +1,5 @@
 import DrumAnalysis
+import DrumCore
 import Foundation
 
 /// Free-form questions to the teacher over the API ("Tại sao tôi hay trễ ở &?"), with the student's history as context.
@@ -15,11 +16,15 @@ public struct TeacherChat: Sendable {
         enc.dateEncodingStrategy = .iso8601
         enc.outputFormatting = .sortedKeys
         let ctx = (try? enc.encode(Context(digest: digest, profile: profile, lastReport: lastReport))).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-        system = """
+        system = L("""
         Bạn là thầy dạy trống 1-1 của học viên tự học, mục tiêu Rockschool Grade 8. Trả lời tiếng Việt, ngắn gọn, cụ thể,
         dựa trên dữ liệu tập luyện dưới đây (lệch ms: âm = sớm, dương = muộn). Có thể dùng web search khi cần tài liệu.
         Dữ liệu học viên (JSON): \(ctx)
-        """
+        """, """
+        You are the one-to-one drum teacher of a self-taught student aiming for Rockschool Grade 8. Answer in English, briefly and
+        concretely, based on the practice data below (offset ms: negative = early, positive = late). Use web search when you need resources.
+        Student data (JSON): \(ctx)
+        """)
     }
 
     public mutating func ask(_ question: String) async throws(ClaudeError) -> String {
@@ -41,11 +46,11 @@ public struct TeacherChat: Sendable {
 public enum ReminderContent {
     public static func daily(_ plan: DayPlan?) -> (title: String, body: String) {
         guard let plan, !plan.allItems.isEmpty else {
-            return ("Đến giờ tập trống 🥁", "Khởi động single stroke 5 phút rồi làm bài test level tiếp theo nhé.")
+            return (L("Đến giờ tập trống 🥁", "Time to practise drums 🥁"), L("Khởi động single stroke 5 phút rồi làm bài test level tiếp theo nhé.", "Warm up with single strokes for 5 minutes, then take your next level test."))
         }
         let minutes = plan.allItems.reduce(0) { $0 + $1.minutes }
         let focus = plan.main.map(\.focus).prefix(2).joined(separator: ", ")
-        return ("Hôm nay tập gì 🥁", "Hôm nay: \(focus.isEmpty ? "theo kế hoạch của thầy" : focus) — \(minutes) phút")
+        return (L("Hôm nay tập gì 🥁", "Today's practice 🥁"), L("Hôm nay: \(focus.isEmpty ? "theo kế hoạch của thầy" : focus) — \(minutes) phút", "Today: \(focus.isEmpty ? "your teacher's plan" : focus) — \(minutes) min"))
     }
 
     /// Which days (0 = today) get a one-shot reminder, so reminders keep coming even if the app is not opened.
@@ -53,5 +58,5 @@ public enum ReminderContent {
         practicedToday ? Array(1...count) : Array(0..<count)
     }
 
-    public static let weekly = (title: "Buổi gặp thầy hằng tuần", body: "Gửi báo cáo tuần cho thầy AI để nhận kế hoạch tuần mới.")
+    public static var weekly: (title: String, body: String) { (title: L("Buổi gặp thầy hằng tuần", "Weekly lesson with your teacher"), body: L("Gửi báo cáo tuần cho thầy AI để nhận kế hoạch tuần mới.", "Send your weekly report to the AI teacher to get next week's plan.")) }
 }
