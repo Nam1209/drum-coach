@@ -25,6 +25,7 @@ struct SettingsView: View {
                     VStack(spacing: 26) {
                         CardSection(L("Thiết bị", "Devices"), footer: L("Bật hi-hat theo pedal nếu kit gửi cùng một nốt cho hi-hat mở và đóng: app đọc vị trí pedal để biết bạn đánh mở hay đóng.", "Turn on hi-hat by pedal if your kit sends the same note for open and closed hi-hat: the app reads the pedal position to tell which one you played.")) {
                             DrumStatusPill(inCard: true)
+                            BluetoothMIDIButton()
                             CardButton(L("Hiệu chỉnh độ trễ pad và trống điện", "Latency calibration for pad and e-drum kit"), systemImage: "dot.radiowaves.left.and.right") { showCalibration = true }
                             CardLink("MIDI learn (Roland TD-4K)", subtitle: L("Gán nốt MIDI cho từng trống, xem nốt đang đánh", "Map MIDI notes to each drum and see the note you hit")) { MIDILearnView() }
                             Toggle(L("Hi-hat mở/đóng theo pedal (CC4)", "Open/closed hi-hat by pedal (CC4)"), isOn: $hiHatByPedal)

@@ -38,14 +38,14 @@ struct DrumStatusPill: View {
     private var title: String {
         switch monitor.state {
         case .notConnected: L("Chưa kết nối trống", "Kit not connected")
-        case .cableOnly(let name): L("Đã thấy cáp \(name)", "Cable found: \(name)")
+        case .cableOnly(let name): L("Đã thấy \(name)", "Found \(name)")
         case .receiving: L("Trống đang gửi nốt", "Kit is sending notes")
         }
     }
 
     private var detail: String {
         switch monitor.state {
-        case .notConnected: L("Cắm cáp USB-MIDI từ MIDI OUT của TD-4 vào iPad", "Plug the USB-MIDI cable from the TD-4's MIDI OUT into the iPad")
+        case .notConnected: L("Ghép MIDI Bluetooth trong Cài đặt, hoặc cắm cáp USB-MIDI", "Pair Bluetooth MIDI in Settings, or plug in a USB-MIDI cable")
         case .cableOnly: L("Bật trống rồi đánh thử một pad", "Turn the kit on and hit a pad")
         case .receiving:
             monitor.lastNote.map { n in
