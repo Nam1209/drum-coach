@@ -63,3 +63,29 @@ func makeSMF() -> Data {
     #expect(url.contains("S=%7C--O---g-%7C"))
     #expect(url.contains("K=%7Co---o---%7C"))
 }
+
+private func smf(_ track: [UInt8]) -> Data {
+    var data: [UInt8] = Array("MThd".utf8) + [0, 0, 0, 6, 0, 0, 0, 1, 0x01, 0xE0]
+    data += Array("MTrk".utf8) + withUnsafeBytes(of: UInt32(track.count).bigEndian) { Array($0) } + track
+    return Data(data)
+}
+
+@Test func midiFileTooLongIsRejected() {
+    // One note ~1 million beats in: must not build a million-bar exercise.
+    let far: [UInt8] = [0xFF, 0xFF, 0xFF, 0x7F]                       // max VLQ delta
+    let track = [0x00, 0x99, 38, 90] + far + [0x99, 38, 90] + far + [0x99, 38, 90]
+    #expect(throws: MIDIFileImporter.ImportError.tooLong) { try MIDIFileImporter.exercise(from: smf(track), title: "x") }
+}
+
+@Test func truncatedMetaDoesNotCrash() {
+    // Tempo meta claims 3 bytes but the file ends after 1.
+    let track: [UInt8] = [0x00, 0x99, 38, 90, 0x00, 0xFF, 0x51, 0x03, 0x07]
+    #expect((try? MIDIFileImporter.exercise(from: smf(track), title: "x"))?.bpm == 120)
+}
+
+@Test func zeroTempoAndBadMeterAreIgnored() {
+    let track: [UInt8] = [0x00, 0xFF, 0x51, 0x03, 0, 0, 0, 0x00, 0xFF, 0x58, 0x04, 0, 200, 24, 8, 0x00, 0x99, 38, 90]
+    let r = try? MIDIFileImporter.exercise(from: smf(track), title: "x")
+    #expect(r?.bpm == 120)
+    #expect(r?.exercise.timeSignature == TimeSignature(beats: 4, unit: 4))
+}

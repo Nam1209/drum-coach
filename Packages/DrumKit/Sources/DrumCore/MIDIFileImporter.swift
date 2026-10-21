@@ -2,7 +2,10 @@ import Foundation
 
 /// Reads a Standard MIDI File's drum part (channel 10, or every note when the file has none there) into an exercise.
 public enum MIDIFileImporter {
-    public enum ImportError: Error, Equatable { case notMIDI, noNotes, unsupported(String) }
+    public enum ImportError: Error, Equatable { case notMIDI, noNotes, tooLong, unsupported(String) }
+
+    /// Longest import (a whole song at 4/4 is ~100–200 bars).
+    public static let maxBars = 256
 
     public struct Result: Sendable {
         public let exercise: Exercise
@@ -14,6 +17,12 @@ public enum MIDIFileImporter {
     public static func exercise(from data: Data, title: String, overrides: [UInt8: Voice] = [:]) throws(ImportError) -> Result {
         let b = [UInt8](data)
         guard b.count >= 14, Array(b[0..<4]) == Array("MThd".utf8) else { throw .notMIDI }
+        // Variable-length quantity, never reading past `end`.
+        func vlq(_ i: inout Int, _ end: Int) -> Int {
+            var v = 0
+            while i < end { let byte = b[i]; i += 1; v = v << 7 | Int(byte & 0x7F); if byte & 0x80 == 0 { break } }
+            return v
+        }
         func u16(_ i: Int) -> Int { Int(b[i]) << 8 | Int(b[i + 1]) }
         func u32(_ i: Int) -> Int { Int(b[i]) << 24 | Int(b[i + 1]) << 16 | Int(b[i + 2]) << 8 | Int(b[i + 3]) }
         let headerLength = u32(4)
@@ -24,36 +33,42 @@ public enum MIDIFileImporter {
         var notes: [(tick: Int, note: UInt8, velocity: UInt8, channel: UInt8)] = []
 
         var p = 8 + headerLength
-        while p + 8 <= b.count {
+        while p >= 0, p + 8 <= b.count {
             let chunkLength = u32(p + 4)
             let isTrack = Array(b[p..<p + 4]) == Array("MTrk".utf8)
             let end = min(p + 8 + chunkLength, b.count)
             var i = p + 8, tick = 0, running: UInt8 = 0
             while isTrack && i < end {
-                var delta = 0
-                repeat { delta = delta << 7 | Int(b[i] & 0x7F); i += 1 } while i < end && b[i - 1] & 0x80 != 0
-                tick += delta
+                tick += vlq(&i, end)
                 guard i < end else { break }
                 var status = b[i]
                 if status & 0x80 != 0 { i += 1; if status < 0xF0 { running = status } } else { status = running }
                 switch status {
                 case 0xFF:
-                    guard i + 1 < end else { break }
+                    guard i < end else { break }
                     let type = b[i]; i += 1
-                    var len = 0
-                    repeat { len = len << 7 | Int(b[i] & 0x7F); i += 1 } while i < end && b[i - 1] & 0x80 != 0
-                    if type == 0x51, len == 3, !gotTempo { tempo = Int(b[i]) << 16 | Int(b[i + 1]) << 8 | Int(b[i + 2]); gotTempo = true }
-                    if type == 0x58, len >= 2, !gotSig { timeSig = TimeSignature(beats: Int(b[i]), unit: 1 << Int(b[i + 1])); gotSig = true }
+                    let len = vlq(&i, end)
+                    guard len <= end - i else { i = end; break }
+                    if type == 0x51, len == 3, !gotTempo {
+                        let t = Int(b[i]) << 16 | Int(b[i + 1]) << 8 | Int(b[i + 2])
+                        if t >= 100_000 { tempo = t; gotTempo = true }        // ≤ 600 BPM
+                    }
+                    if type == 0x58, len >= 2, !gotSig, (1...32).contains(b[i]), b[i + 1] <= 5 {
+                        timeSig = TimeSignature(beats: Int(b[i]), unit: 1 << Int(b[i + 1])); gotSig = true
+                    }
                     i += len
                 case 0xF0, 0xF7:
-                    var len = 0
-                    repeat { len = len << 7 | Int(b[i] & 0x7F); i += 1 } while i < end && b[i - 1] & 0x80 != 0
-                    i += len
+                    let len = vlq(&i, end)
+                    i += min(len, end - i)
                 default:
                     let kind = status & 0xF0, ch = status & 0x0F
                     let size = (kind == 0xC0 || kind == 0xD0) ? 1 : 2
                     guard i + size <= end else { i = end; break }
-                    if kind == 0x90, b[i + 1] > 0 { notes.append((tick, b[i], b[i + 1], ch)) }
+                    if kind == 0x90, b[i + 1] > 0 {
+                        // Past the longest import: stop before building a huge exercise.
+                        guard Double(tick) / Double(division) <= Double(maxBars * 8) else { throw .tooLong }
+                        notes.append((tick, b[i], b[i + 1], ch))
+                    }
                     i += size
                 }
             }
@@ -75,6 +90,7 @@ public enum MIDIFileImporter {
         events.sort { $0.position < $1.position }
         let barBeats = timeSig.beatsInQuarters.doubleValue
         let bars = max(1, Int((events.last!.position.doubleValue / barBeats).rounded(.down)) + 1)
+        guard bars <= maxBars else { throw .tooLong }
         let bpm = Int((60_000_000 / Double(tempo)).rounded())
         let ex = Exercise(id: Exercise.stableID(for: "midi|\(title)|\(events.count)|\(bars)"), title: title, source: "MIDI",
                           timeSignature: timeSig, bars: bars, suggestedTempo: max(30, bpm / 2)...max(30, bpm), notes: events)
