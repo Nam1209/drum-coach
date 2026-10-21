@@ -93,7 +93,7 @@ struct ResultsView: View {
                     } else if earned < 0 {
                         Text(L("Dưới 40% bị trừ một ít điểm. Giảm tempo 8–10 BPM rồi chơi lại để lấy lại điểm.", "Below 40% costs a few points. Lower the tempo by 8–10 BPM and play again to win them back.")).font(.footnote).foregroundStyle(.secondary)
                     } else if earned == 0 {
-                        Text(L("40–60%: đang học, không cộng không trừ. Từ 60% (Pass) bắt đầu được cộng điểm.", "40–60%: learning zone, no points either way. From 60% (Pass) you start earning.")).font(.footnote).foregroundStyle(.secondary)
+                        Text(L("40–60%: đang học, không cộng không trừ. Từ 60% (Pass) mới được cộng điểm và thưởng hoàn thành bài.", "40–60%: learning zone, no points either way. From 60% (Pass) you earn points and the finishing bonus.")).font(.footnote).foregroundStyle(.secondary)
                     }
                 }
             }

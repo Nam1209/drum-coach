@@ -11,8 +11,8 @@ public enum PracticePoints {
     public static let minimumSeconds: Double = 10
     /// For playing to the last note: +1 per 30 s, at least 2 and at most 10, so sticking with a long exercise pays more
     /// (not scaled by difficulty).
-    /// Finishing only earns the bonus from this score up (a run that is mostly wrong isn't rewarded for lasting).
-    public static let completionMinScore: Double = 40
+    /// Finishing only earns the bonus at Pass (60%) or better: lasting through a run is rewarded only when it was decent.
+    public static let completionMinScore: Double = 60
 
     public static func completionBonus(seconds: Double) -> Int {
         min(10, max(2, Int((seconds / 30).rounded())))

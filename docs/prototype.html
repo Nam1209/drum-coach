@@ -599,7 +599,7 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
         <div class="r"><span>60% đến dưới 75% (Pass)</span><b class="num" style="color:var(--off)">+1 đến +3</b></div>
         <div class="r"><span>40% đến dưới 60%</span><b class="num">0</b></div>
         <div class="r"><span>Dưới 40%</span><b class="num" style="color:var(--miss)">−1 đến −5</b></div>
-        <div class="r"><span>Chơi hết bài, từ 40% (+1 mỗi 30 giây)</span><b class="num" style="color:var(--on)">+2 đến +10</b></div>
+        <div class="r"><span>Chơi hết bài, đạt từ 60% (+1 mỗi 30 giây)</span><b class="num" style="color:var(--on)">+2 đến +10</b></div>
         <div class="r"><span>Dừng trong 10 giây, hoặc app không nghe được</span><b class="num">không tính</b></div>
         <div class="r"><span>Đạt bài kiểm tra cấp độ</span><b class="num" style="color:var(--on)">+50</b></div>
       </div>
@@ -1072,7 +1072,7 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
   // ---------- Points (same rule as PracticePoints in the app) ----------
   const RANKS = [[0, 'Mới cầm dùi'], [100, 'Giữ được nhịp'], [250, 'Tay đều'], [500, 'Vững tempo'], [900, 'Groove ổn'], [1500, 'Tay lụa'], [2500, 'Biểu diễn'], [4000, 'Bậc thầy']];
   function points(score, windowMs, levelTest, completed = true) {
-    const bonus = completed && score >= 40 ? 2 : 0;
+    const bonus = completed && score >= 60 ? 2 : 0;
     if (score < 40) return -Math.ceil((40 - score) / 8) + bonus;
     if (score < 60) return bonus;
     const base = score >= 90 ? 10 + Math.round(score - 90) : score >= 75 ? 3 + Math.round((score - 75) / 3) : 1 + Math.round((score - 60) / 7.5);
