@@ -18,20 +18,34 @@ public enum ClickSynth {
         }
     }
 
-    /// A struck wooden block: a 1 ms noise strike rings three damped resonators (the block's note, a hollow body
-    /// below it and a little brightness above), like a real wood metronome rather than a sine "beep".
-    private static func wood(_ f0: Double, sr: Double) -> [Float] {
-        let count = Int(0.07 * sr)
+    /// How a wooden block rings: the strike, and its resonant modes as (frequency ratio, decay seconds, level).
+    struct WoodCharacter: Sendable {
+        var strikeMs: Double
+        var click: Double            // unfiltered share of the strike: the hard "knock" at the start
+        var modes: [(Double, Double, Double)]
+        var length: Double
+
+        /// Hard wood with uneven overtones and a short ring, like a mechanical wooden metronome.
+        static let hard = WoodCharacter(strikeMs: 0.4, click: 0.12,
+                                        modes: [(1, 0.045, 1), (2.62, 0.022, 0.55), (4.16, 0.010, 0.25), (0.52, 0.030, 0.35)], length: 0.12)
+        static let dry = WoodCharacter(strikeMs: 0.3, click: 0.15,
+                                       modes: [(1, 0.025, 1), (2.62, 0.012, 0.5), (4.16, 0.006, 0.25), (0.52, 0.018, 0.3)], length: 0.08)
+        static let hollow = WoodCharacter(strikeMs: 0.6, click: 0.06,
+                                          modes: [(1, 0.070, 1), (2.48, 0.030, 0.4), (3.9, 0.012, 0.15), (0.5, 0.050, 0.55)], length: 0.16)
+    }
+
+    /// A struck wooden block: a short strike rings damped resonators (the block's note, uneven overtones and a hollow
+    /// body below), like a real wood metronome rather than a sine "beep".
+    static func wood(_ f0: Double, sr: Double, character c: WoodCharacter = .hard) -> [Float] {
+        let count = Int(c.length * sr)
         var rng = SplitMix(seed: 0x00d)
-        let strike = Int(0.001 * sr)
+        let strike = max(1, Int(c.strikeMs / 1000 * sr))
         let excitation: [Double] = (0..<count).map { i in
             guard i < strike else { return 0 }
-            return (rng.nextUnit() * 2 - 1) * (0.5 - 0.5 * cos(2 * .pi * Double(i) / Double(max(strike, 1))))
+            return (rng.nextUnit() * 2 - 1) * (0.5 - 0.5 * cos(2 * .pi * Double(i) / Double(strike)))
         }
-        // (frequency ratio, decay seconds, level)
-        let modes: [(Double, Double, Double)] = [(1, 0.022, 1), (0.55, 0.014, 0.45), (2.3, 0.006, 0.18)]
-        var out = [Double](repeating: 0, count: count)
-        for (ratio, decay, level) in modes {
+        var out = excitation.map { $0 * c.click * 8 }
+        for (ratio, decay, level) in c.modes where f0 * ratio < sr / 2 {
             let w = 2 * Double.pi * f0 * ratio / sr, r = exp(-1 / (decay * sr))
             let a1 = 2 * r * cos(w), a2 = -r * r
             var y1 = 0.0, y2 = 0.0
