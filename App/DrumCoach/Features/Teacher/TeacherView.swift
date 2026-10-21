@@ -37,7 +37,7 @@ struct TeacherView: View {
                             Label(working ? L("Đang làm việc với Notion…", "Working with Notion…") : L("Đã kết nối Notion", "Notion connected"), systemImage: "circle.fill")
                                 .labelStyle(StatusDot(color: working ? Theme.offTime : Theme.onTime))
                             if let message { Text(message).font(.callout).foregroundStyle(.secondary) }
-                            Text(L("Sau khi gửi: app Claude mở ra, lời nhắn đã được copy. Dán vào Project \"Thầy dạy trống\" rồi gửi, xong quay lại bấm Đồng bộ.", "After sending, the Claude app opens and the message is copied. Paste it into the \"Thầy dạy trống\" Project and send it, then come back and tap Sync."))
+                            Text(L("Sau khi gửi: claude.ai mở ra, lời nhắn đã được copy. Dán vào một chat mới rồi gửi, chờ thầy viết xong Kế hoạch, quay lại bấm Đồng bộ.", "After sending, claude.ai opens and the message is copied. Paste it into a new chat and send it, wait for the teacher to finish the Plan, then come back and tap Sync."))
                                 .font(.footnote).foregroundStyle(.secondary)
                         }
                     }
