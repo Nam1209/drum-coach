@@ -193,3 +193,13 @@ private func codeBlock(_ text: String) -> String {
     #expect(pages.map(\.pageId) == ["e1"])
     #expect(pages[0].dsl == [good])
 }
+
+@Test(.vietnamese) func guideUsesTheUsersPageNameAndTheirProjectBooks() {
+    let text = TeacherProjectKit.projectInstructions(exerciseCatalog: ["start-1": "Móc đơn"], rootTitle: "Drum")
+    #expect(text.contains("\"Drum › Hộp thư\""))
+    #expect(text.contains("\"Drum › Kế hoạch\""))
+    #expect(!text.contains("DrumCoach ›"))
+    #expect(text.contains("Rockschool") && text.contains("Stick Control"))
+    #expect(text.contains("Tài liệu trong Project"))
+    #expect(text.contains("hướng dẫn kỹ thuật"))
+}

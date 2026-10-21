@@ -61,10 +61,13 @@ enum TeacherConnection {
         try await publishGuide(catalog: catalog)
     }
 
+    /// Bump when the guide's wording changes, so the page in Notion is rewritten on the next sync.
+    static let guideVersion = 2
+
     /// Puts the guide back if it is missing (e.g. deleted in Notion, or lost to an earlier failed update).
     static func ensureGuide(catalog: @autoclosure () -> [String: String]) async throws {
         guard let token = Keychain.get(Keychain.notionToken), let root = rootPageId else { return }
-        let text = TeacherProjectKit.projectInstructions(exerciseCatalog: catalog())
+        let text = TeacherProjectKit.projectInstructions(exerciseCatalog: catalog(), rootTitle: rootTitle)
         _ = try await NotionSetup.ensureGuide(client: NotionClient(token: token), root: root, title: guideTitle, text: { text })
     }
 
@@ -72,7 +75,8 @@ enum TeacherConnection {
     static func publishGuide(catalog: [String: String]) async throws {
         guard let token = Keychain.get(Keychain.notionToken), let root = rootPageId else { return }
         try await NotionSetup.publishGuide(client: NotionClient(token: token), root: root, title: guideTitle,
-                                           text: TeacherProjectKit.projectInstructions(exerciseCatalog: catalog))
+                                           text: TeacherProjectKit.projectInstructions(exerciseCatalog: catalog, rootTitle: rootTitle))
+        d.set(guideVersion, forKey: "notion.guideVersion")
     }
 
     /// Upload the weekly digest (plus a full backup), copy the message, and open the Claude app.
@@ -110,7 +114,11 @@ enum TeacherConnection {
         guard let bridge, !syncing else { return ([], 0, []) }
         syncing = true
         defer { syncing = false }
-        try? await ensureGuide(catalog: ExerciseCatalog.titles(ctx))
+        if d.integer(forKey: "notion.guideVersion") < guideVersion {
+            try? await publishGuide(catalog: ExerciseCatalog.titles(ctx))
+        } else {
+            try? await ensureGuide(catalog: ExerciseCatalog.titles(ctx))
+        }
         let known = Set(ExerciseCatalog.all(ctx).keys)
         var stored: [StoredReport] = [], problems: [String] = []
         for p in try await bridge.fetchPlans(excluding: importedPlanPages) {
