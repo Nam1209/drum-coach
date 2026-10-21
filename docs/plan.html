@@ -106,6 +106,7 @@ footer{color:var(--muted);font-size:.85rem;text-align:center;margin-top:24px}
   <a href="#cham-diem">Chấm điểm</a>
   <a href="#metronome">Metronome</a>
   <a href="#level">Test level</a>
+  <a href="#thay-ai">Thầy AI</a>
   <a href="#dem">Đếm nhịp</a>
   <a href="#lo-trinh">Lộ trình build</a>
   <a href="#ky-thuat">Kỹ thuật</a>
@@ -247,6 +248,31 @@ footer{color:var(--muted);font-size:.85rem;text-align:center;margin-top:24px}
   <p>Mỗi level hiện trạng thái 🔒 / đang làm / ✅, và mỗi bài hiện % tốt nhất. Có nút "Nhờ Claude nhận xét" để nhận <b>lộ trình 4 tuần</b> cho level kế tiếp.</p>
 </section>
 
+<section id="thay-ai">
+  <h2>🧑‍🏫 Giáo viên AI – trung tâm của app</h2>
+  <p>Bạn không có thầy dạy trực tiếp, nên app có một "thầy AI" đọc <b>toàn bộ lịch sử tập</b> của bạn (nhiều tháng, nhiều năm), chỉ ra cần sửa gì, lên kế hoạch tập và gợi ý video hoặc tài liệu.</p>
+  <div class="mock" style="margin:14px 0">
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:.92rem">
+      <div class="card" style="background:var(--surface)"><b>① Bạn tập</b> → mỗi lần chơi đều được lưu: bài, BPM, %, sớm/muộn theo "1 e &amp; a" và theo tay R/L, ghi chú cảm nhận</div>
+      <div style="text-align:center;color:var(--muted)">↓</div>
+      <div class="card" style="background:var(--surface)"><b>② Tóm tắt lịch sử</b> → nhiều tháng dữ liệu được nén lại: xu hướng theo tuần, tempo sạch của từng bài, những lỗi lặp đi lặp lại</div>
+      <div style="text-align:center;color:var(--muted)">↓</div>
+      <div class="card" style="background:var(--surface)"><b>③ Thầy AI (Claude)</b> đọc bản tóm tắt cùng hồ sơ học viên và những lời đã dặn bạn trước đây, rồi viết báo cáo tuần</div>
+      <div style="text-align:center;color:var(--muted)">↓</div>
+      <div class="card" style="background:var(--accent-soft)"><b>④ Báo cáo tuần:</b> bạn tiến bộ ở đâu · <b>tối đa 3 điều cần sửa</b> · nguyên nhân có thể · <b>kế hoạch 7 ngày</b> · <b>video YouTube / tài liệu</b> (link đã được kiểm tra là có thật)</div>
+      <div style="text-align:center;color:var(--muted)">↓</div>
+      <div class="card" style="background:var(--surface)"><b>⑤ "Hôm nay tập gì"</b> → bấm Bắt đầu, app chạy lần lượt: Khởi động → Bài chính → Bài vui, với tempo đặt sẵn → quay lại ①</div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h4>Thầy có trí nhớ</h4>Hồ sơ học viên gồm mục tiêu (Grade 8), số phút tập mỗi ngày, ghi chú của bạn ("cổ tay trái yếu"), và mọi lời khuyên đã đưa. Tuần sau thầy kiểm tra bạn đã làm theo chưa.</div>
+    <div class="card"><h4>Không bịa link</h4>Claude dùng web search để tìm video thật. App kiểm tra lại từng link YouTube; link hỏng được thay bằng link tìm kiếm YouTube với đúng từ khóa.</div>
+    <div class="card"><h4>Hỏi thầy bất cứ lúc nào</h4>Chat tự do, ví dụ "Tại sao tôi hay trễ ở &amp;?". Thầy thấy được lịch sử của bạn và báo cáo gần nhất.</div>
+    <div class="card"><h4>Lịch sử không bao giờ mất</h4>Lưu trên máy từ buổi tập đầu tiên. Mỗi Chủ nhật tự backup ra file JSON (Files / iCloud Drive), và nhập lại được khi đổi máy.</div>
+  </div>
+  <p class="muted">Mặc định dùng Claude Sonnet cho nhanh và rẻ; nút "Phân tích sâu" dùng Opus. App hiện ước tính chi phí trước khi gửi. Claude chỉ nhận bản tóm tắt, không nhận dữ liệu thô.</p>
+</section>
+
 <section id="dem">
   <h2>Đếm nhịp</h2>
   <ul>
@@ -274,12 +300,13 @@ BD: o-------o-o-----
 ST: RLRRLRLLRLRRLRLL</pre><div class="tasks"><span>Task 1 Project + model</span><span>Task 2 DSL, timeline, nhãn đếm</span></div></div></div>
     <div class="ms"><div class="num">2</div><div><h4>Metronome và giọng đếm</h4>Click pattern, âm riêng cho từng ô, beat skip, gap, tempo ramp<div class="tasks"><span>Task 3 Metronome</span><span>Task 4 Tempo ramp</span></div></div></div>
     <div class="ms"><div class="num">3</div><div><h4>Khuông nhạc chạy</h4>Playhead, dải R/L, FLIP<div class="tasks"><span>Task 5 Notation + màn hình tập</span></div></div></div>
-    <div class="ms"><div class="num">4</div><div><h4>Nghe và chấm điểm</h4>Micro (và MIDI nếu có), hiệu chỉnh độ trễ, xanh/cam/đỏ, %<div class="tasks"><span>Task 6 Bắt tiếng đánh</span><span>Task 7 Chấm điểm sớm/muộn</span><span>Task 7A Count Coach</span></div></div></div>
+    <div class="ms"><div class="num">4</div><div><h4>Nghe và chấm điểm</h4>Micro (và MIDI nếu có), hiệu chỉnh độ trễ, xanh/cam/đỏ, %, <b>lưu lịch sử từ buổi đầu tiên</b><div class="tasks"><span>Task 6 Bắt tiếng đánh</span><span>Task 7 Chấm điểm sớm/muộn</span><span>Task 7A Count Coach</span></div></div></div>
   </div>
   <div class="ms"><div class="num">5</div><div><h4>Thư viện bài tập</h4>Generator kiểu Stick Control (256 tổ hợp 8 nốt), giáo trình Grade 8 do app tự soạn, trình soạn bài<div class="tasks"><span>Task 8</span></div></div></div>
   <div class="ms"><div class="num">6</div><div><h4>Claude AI</h4>Nhập bài từ trang PDF sách của bạn, đánh giá theo Rockschool, test level<div class="tasks"><span>Task 9 Claude + PDF</span><span>Task 10 Đánh giá</span><span>Task 10A Test level</span></div></div></div>
-  <div class="ms"><div class="num">7</div><div><h4>Tiến độ</h4>Biểu đồ tempo sạch theo thời gian, heatmap sớm/muộn theo "1 e &amp; a", chuỗi ngày tập<div class="tasks"><span>Task 11</span></div></div></div>
-  <div class="ms"><div class="num">8</div><div><h4>Play-along (tùy chọn)</h4>Chơi theo backing track, đổi tempo, lặp đoạn A–B, ghi âm để nghe lại<div class="tasks"><span>Task 12</span></div></div></div>
+  <div class="ms"><div class="num">7</div><div><h4>🧑‍🏫 Giáo viên AI</h4>Lịch sử dài hạn và backup, báo cáo tuần, kế hoạch 7 ngày, video/tài liệu, "Hôm nay tập gì", chat với thầy, 40 rudiment PAS<div class="tasks"><span>Task 13 Lịch sử + backup</span><span>Task 14 Báo cáo tuần</span><span>Task 15 Hôm nay tập gì + chat</span></div></div></div>
+  <div class="ms"><div class="num">8</div><div><h4>Tiến độ</h4>Biểu đồ tempo sạch theo thời gian, heatmap sớm/muộn theo "1 e &amp; a", chuỗi ngày tập<div class="tasks"><span>Task 11</span></div></div></div>
+  <div class="ms"><div class="num">9</div><div><h4>Play-along (tùy chọn)</h4>Chơi theo backing track, đổi tempo, lặp đoạn A–B, ghi âm để nghe lại<div class="tasks"><span>Task 12</span></div></div></div>
 </section>
 
 <section id="ky-thuat">

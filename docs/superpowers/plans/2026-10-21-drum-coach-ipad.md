@@ -44,6 +44,11 @@
   - Banner "Nên dùng tai nghe".
   - Dòng "Lần trước: 50 BPM, 79%" kèm biểu đồ nhỏ.
 
+**Giáo viên AI (người dùng: "tôi không có giáo viên thực tế, nên giáo viên AI khá quan trọng"):**
+- **Lưu lịch sử tập lâu dài**, không giới hạn thời gian, và **lưu từ buổi tập đầu tiên**. Vì vậy việc lưu mỗi lần chơi được đưa vào Task 7, không đợi tới cuối.
+- AI đọc lịch sử dài hạn, chỉ ra **cần sửa gì**, **lên kế hoạch tập**, và **gợi ý video YouTube hoặc tài liệu**.
+- Có thêm buổi tập có cấu trúc ("Hôm nay tập gì") và thư viện 40 rudiment PAS (từ phần tham khảo Drumeo).
+
 **Các quyết định Claude tự đưa ra (người dùng có thể đổi):**
 - **Ngưỡng "đúng":** |lệch| ≤ 30 ms, chỉnh được trong Settings (Dễ 45 / Vừa 30 / Khó 20 ms). Lệch lớn hơn nhưng vẫn nằm trong cửa sổ ghép là cam; ngoài cửa sổ là đỏ.
 - **Cách tính %:** mỗi nốt xanh được 1 điểm, cam 0.5, đỏ 0. % = tổng điểm / tổng số nốt × 100. Cú đánh thừa trừ 0.5 điểm mỗi cú. Kết quả kẹp trong 0…100.
@@ -445,6 +450,8 @@ public struct SessionStats: Codable, Sendable, Equatable {
 - **Cam:** một vạch cam nằm **bên trái nốt** nếu sớm, **bên phải** nếu muộn; khoảng cách tới nốt tỉ lệ với số ms lệch; có kèm số "−42" hoặc "+38".
 - **Đỏ:** trượt.
 
+**Lưu lịch sử ngay từ task này:** mỗi lần chơi (kể cả khi bấm dừng sớm) lưu thành một `PracticeSession` bằng SwiftData. Bản ghi gồm: thời điểm, exerciseId và tên bài, BPM, thời lượng, chế độ pad/e-drum, mức độ khó, score, `SessionStats`. Lưu thêm **thống kê theo tay dự kiến**: micro không biết tay nào đánh, nhưng bài tập có sticking R/L, nên gán được độ lệch của từng nốt cho tay "lẽ ra phải đánh". Thêm `byHand: [Hand: Double]` vào `SessionStats`. Model `PracticeSession` được tạo ở task này; Task 10 chỉ thêm field `assessment`.
+
 Trong lúc chơi hiện **Score %** chạy trực tiếp. Màn hình kết quả cuối bài gồm: **% hoàn thành** (chữ lớn), số nốt xanh / cam / đỏ, xu hướng chung ("hay đánh sớm 18 ms"), và vị trí đếm yếu nhất. `TimingStrip` là dải ngang có vạch 0 ở giữa và các chấm của 16 cú đánh gần nhất, để thấy ngay mình đang có xu hướng nhanh hay chậm. Cuối mỗi lần chơi hiện bảng tóm tắt `SessionStats`.
 - [ ] **Bước 4:** PASS.
 - [ ] **Bước 5:** Commit `feat: hit matching with live early/late feedback`.
@@ -625,7 +632,120 @@ public struct ProgressSummary: Sendable { public init(sessions: [(date: Date, ex
 
 ---
 
-## Mốc 8 (tùy chọn): Play-along
+## Mốc 8: Giáo viên AI
+
+Đây là "người thầy" của người dùng. Nguyên tắc:
+1. **Lịch sử không bao giờ mất.** Lưu trên máy, kèm backup ra file.
+2. **Gửi bản tóm tắt chứ không gửi dữ liệu thô.** Lịch sử nhiều tháng được nén thành một bản tóm tắt vài KB trước khi gửi Claude.
+3. **Thầy có trí nhớ.** Một "hồ sơ học viên" lưu mục tiêu, các lời khuyên đã đưa, và người dùng đã làm theo hay chưa.
+4. **Link phải là thật.** Không để AI bịa link YouTube.
+
+### Task 13: Lịch sử dài hạn – tóm tắt + backup + nhật ký
+
+**Files:** Create `DrumAnalysis/HistorySummarizer.swift`, `App/Models/JournalEntry.swift`, `App/.../Progress/HistoryView.swift`, `App/Services/BackupService.swift`; Test `HistorySummarizerTests.swift`, `App/…/BackupTests` (unit test target của app)
+
+**Interfaces – Produces:**
+```swift
+public struct SessionRecord: Codable, Sendable { public let date: Date; public let exerciseId: String; public let title: String; public let skill: String; public let bpm: Double; public let minutes: Double; public let score: Double; public let stats: SessionStats; public let isLevelTest: Bool }
+public struct HistoryDigest: Codable, Sendable, Equatable {
+  public let totalMinutes: Double; public let daysPracticed: Int; public let firstDate: Date?; public let currentLevel: Int
+  public let weekly: [WeekRollup]          // tối đa 26 tuần gần nhất: phút tập, score trung bình, độ lệch trung bình
+  public let perExercise: [ExerciseTrend]  // tempo sạch tốt nhất (score > 90) theo từng tháng, số lần tập, lần tập cuối
+  public let recurringWeaknesses: [String] // ví dụ "'&' trễ +28 ms trong 6/8 tuần", "tay L sớm −20 ms"
+  public let last7Days: [SessionRecord]    // chi tiết nhất cho tuần gần đây
+  public let journal: [String]             // ghi chú tự viết trong 30 ngày gần nhất
+}
+public enum HistorySummarizer { public static func digest(_ records: [SessionRecord], journal: [(Date, String)], currentLevel: Int, now: Date, calendar: Calendar) -> HistoryDigest }
+```
+- [ ] **Bước 1: Test:**
+  - 2 năm dữ liệu giả (≈ 1500 buổi): `weekly.count == 26`, và JSON của digest nhỏ hơn 24 KB.
+  - Một điểm yếu "&" trễ +30 ms xuất hiện trong 6/8 tuần → có trong `recurringWeaknesses`. Trễ 1 tuần thì không tính.
+  - Chưa có lịch sử → digest rỗng, không crash.
+  - `perExercise` chỉ lấy tempo của các lần có score > 90.
+- [ ] **Bước 2:** FAIL. **Bước 3:** Implement.
+  - **Nhật ký:** sau mỗi buổi tập có ô ghi chú tùy chọn (cảm nhận, đau mỏi, chỗ khó).
+  - **HistoryView:** lịch tập dạng calendar, bấm vào một ngày để xem các lần chơi.
+  - **Backup:** xuất toàn bộ lịch sử ra một file JSON (`DrumCoach-backup-YYYY-MM-DD.json`) vào Files hoặc iCloud Drive, và nhập lại được. Mỗi Chủ nhật tự backup vào thư mục Documents của app (bật trong Files). Test round-trip: xuất rồi nhập vào store rỗng phải ra cùng số bản ghi và cùng score.
+- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: long-term practice history, digest and backup`.
+
+### Task 14: Giáo viên AI – báo cáo tuần, kế hoạch, tài liệu gợi ý
+
+**Files:** Create `DrumAI/TeacherReport.swift`, `DrumAI/StudentProfile.swift`, `DrumAI/ResourceValidator.swift`, `App/.../Teacher/TeacherView.swift`, `App/Models/StoredReport.swift`; Test `TeacherReportTests.swift`, `ResourceValidatorTests.swift`
+
+**Interfaces – Produces:**
+```swift
+public struct StudentProfile: Codable, Sendable, Equatable {
+  public var goal: String = "Rockschool Grade 8"; public var instruments: [String] = ["pad", "trống điện"]; public var minutesPerDay: Int = 30
+  public var notes: [String]               // người dùng tự ghi: "cổ tay trái yếu", "tập buổi tối"
+  public var pastAdvice: [AdviceItem]      // AdviceItem(date, text, followed: Bool?) — thầy nhớ đã dặn gì
+}
+public struct Resource: Codable, Sendable, Equatable { public let kind: String /* youtube | article | book */ ; public let title: String; public let url: URL?; public let why: String; public let searchQuery: String }
+public struct PlannedItem: Codable, Sendable, Equatable { public let exerciseId: String?; public let newExerciseDSL: String?; public let bpm: Int; public let minutes: Int; public let focus: String }
+public struct DayPlan: Codable, Sendable, Equatable { public let day: Int /* 1...7 */; public let warmup: [PlannedItem]; public let main: [PlannedItem]; public let fun: [PlannedItem] }
+public struct TeacherReport: Codable, Sendable, Equatable {
+  public let summary: String; public let progress: [String]; public let fixFirst: [String] /* tối đa 3 điều cần sửa, xếp theo ưu tiên */
+  public let likelyCauses: [String]; public let weekPlan: [DayPlan]; public let resources: [Resource]; public let nextCheckpoint: String
+}
+public enum Teacher {
+  public static func weeklyReport(digest: HistoryDigest, profile: StudentProfile, library: [String: String] /* id → tên + skill */, client: ClaudeClient) async throws(ClaudeError) -> TeacherReport
+}
+public struct ResourceValidator: Sendable {
+  public init(transport: HTTPTransport)
+  /// YouTube: gọi https://www.youtube.com/oembed?url=<url>&format=json; 200 = video có thật, khác 200 thì thay url bằng link tìm kiếm youtube.com/results?search_query=<searchQuery>.
+  /// Link khác: HEAD request, 2xx/3xx thì giữ, không thì thay bằng link tìm kiếm Google.
+  public func validate(_ r: [Resource]) async -> [Resource]
+}
+```
+- [ ] **Bước 1: Test** (fake transport):
+  - Report JSON hợp lệ → decode đúng.
+  - `newExerciseDSL` mà parse lỗi thì bị loại khỏi plan; `exerciseId` không có trong thư viện cũng bị loại.
+  - oEmbed 404 → url thành link tìm kiếm chứa `searchQuery` đã encode; oEmbed 200 → giữ nguyên.
+  - Request gửi Claude có digest, profile, danh sách id thư viện, và tool `web_search` được bật.
+  - Mất mạng → báo lỗi, report cũ vẫn còn.
+- [ ] **Bước 2:** FAIL. **Bước 3:** Implement.
+  - **Gọi Claude:** model mặc định `claude-sonnet-5-5`; nút "Phân tích sâu" dùng `claude-opus-5-5`. Bật **server tool web search của Claude API** để tìm video và tài liệu có thật. Kiểm tra tên và phiên bản tool trong tài liệu Anthropic lúc implement.
+  - **System prompt:** Claude đóng vai giáo viên trống kèm 1-1, nói tiếng Việt, cụ thể và nhẹ nhàng. Phải dựa trên số liệu, phải nhắc lại lời khuyên cũ và đánh giá người dùng đã làm theo chưa. Không quá 3 điều cần sửa mỗi tuần. Ưu tiên bài trong thư viện; thiếu thì viết bài mới bằng DSL. Tài liệu ưu tiên kênh uy tín và phải có `searchQuery`.
+  - **Màn hình "Thầy AI":**
+    - Báo cáo mới nhất: tóm tắt, tiến bộ, 3 điều cần sửa, kế hoạch 7 ngày, danh sách video/tài liệu. Video YouTube mở trong sheet bằng `SFSafariViewController`.
+    - Lịch sử các báo cáo trước.
+    - Nút "Nhờ thầy xem lại" (tạo báo cáo ngay, không đợi tới Chủ nhật).
+    - Sửa hồ sơ học viên.
+    - Nhắc vào Chủ nhật: "Đã đến buổi gặp thầy hằng tuần".
+  - Mỗi lời khuyên `fixFirst` được thêm vào `pastAdvice`. Báo cáo tuần sau đánh giá `followed` dựa trên lịch sử tập.
+  - Hiện ước tính chi phí token trước khi gửi.
+- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: AI teacher weekly report with plan and validated resources`.
+
+### Task 15: "Hôm nay tập gì" + hỏi thầy + thư viện 40 rudiment
+
+**Files:** Create `DrumLibrary/PASRudiments.swift`, `DrumLibrary/SessionRunner.swift`, `DrumAI/TeacherChat.swift`, `App/.../Today/TodayView.swift`, `App/.../Teacher/TeacherChatView.swift`; Test `SessionRunnerTests.swift`, `PASRudimentsTests.swift`, `TeacherChatTests.swift`
+
+**Interfaces – Produces:**
+```swift
+public enum PASRudiments { public static let all: [Exercise] }   // 40 rudiment chuẩn PAS do app tự viết bằng DSL (tên và sticking là kiến thức chung)
+public struct SessionRunner: Sendable {
+  public init(plan: DayPlan)
+  public var current: PlannedItem? { get }; public var remaining: TimeInterval { get }
+  public mutating func tick(_ dt: TimeInterval) -> Bool          // true = chuyển sang phần tiếp theo
+  public mutating func skip(); public var completedMinutes: Double { get }
+}
+public struct TeacherChat: Sendable {
+  public init(client: ClaudeClient, digest: HistoryDigest, profile: StudentProfile, lastReport: TeacherReport?)
+  public mutating func ask(_ question: String) async throws(ClaudeError) -> String   // giữ hội thoại; có thể dùng web search
+}
+```
+- [ ] **Bước 1: Test:**
+  - `PASRudiments.all.count == 40`, mọi bài parse được và có sticking.
+  - SessionRunner: plan 5 + 10 + 10 phút → `tick` qua đúng các mốc 300 s và 900 s; `skip` nhảy sang phần sau; `completedMinutes` đúng.
+  - TeacherChat: request thứ hai chứa cả câu hỏi và câu trả lời của lượt trước; lịch sử chat bị cắt khi quá 20 lượt.
+- [ ] **Bước 2:** FAIL. **Bước 3:** Implement.
+  - **TodayView là màn hình chính của app:** lấy DayPlan của hôm nay từ báo cáo mới nhất (chưa có báo cáo thì dùng plan mặc định theo level), bấm "Bắt đầu buổi tập" để chạy lần lượt Khởi động → Bài chính → Bài vui, mỗi phần mở PracticeView với tempo đã đặt sẵn.
+  - Hết buổi hiện tổng kết và ô nhật ký.
+  - **TeacherChatView:** hỏi đáp tự do ("tại sao tôi hay trễ ở &?"). Thầy thấy được lịch sử và báo cáo gần nhất.
+- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: today's structured session, teacher chat and PAS rudiments`.
+
+---
+
+## Mốc 9 (tùy chọn): Play-along
 
 ### Task 12: Chơi theo backing track
 
@@ -639,7 +759,7 @@ public struct ProgressSummary: Sendable { public init(sessions: [(date: Date, ex
 
 ## Thứ tự và kiểm tra cuối
 
-Thứ tự làm: Task 1 → 2 → 3 → 4 → 5 → 6 → 7 → 7A. Đến đây đã có app dùng được hằng ngày: metronome, giọng đếm mượt, khuông nhạc chạy, đo sớm/trễ, luyện đếm. Sau đó làm 8 → 9 → 10 → 10A → 11 → 12.
+Thứ tự làm: Task 1 → 2 → 3 → 4 → 5 → 6 → 7 → 7A. Đến đây đã có app dùng được hằng ngày: metronome, giọng đếm mượt, khuông nhạc chạy, đo sớm/trễ, luyện đếm. Sau đó làm 8 → 9 → 10 → 10A → 13 → 14 → 15 → 11 → 12. Giáo viên AI (13–15) được làm trước biểu đồ tiến độ (11), vì người dùng không có giáo viên thật.
 
 **Stick Control trong app:** generator ở Task 8 sinh các tổ hợp sticking cùng kiểu. Bài trong sách thật thì người dùng nhập qua PDF (Task 9). Mỗi bài mặc định lặp 20 lần liên tục rồi mới chuyển bài, tempo ramp 50 → 90.
 
