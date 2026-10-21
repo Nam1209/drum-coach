@@ -14,67 +14,69 @@ struct SettingsView: View {
     @AppStorage("hiHatByPedal") private var hiHatByPedal = false
 
     var body: some View {
-        Form {
-            Section {
-                SecureField("sk-ant-…", text: $apiKey)
-                    .textInputAutocapitalization(.never).autocorrectionDisabled()
-                    .onSubmit { Keychain.set(apiKey, for: Keychain.claudeKey) }
-                Picker("Model", selection: $model) {
-                    Text("Claude Opus 5.5 (mặc định)").tag("claude-opus-5-5")
-                    Text("Claude Sonnet 5.5 (rẻ hơn)").tag("claude-sonnet-5-5")
-                }
-                Button("Lưu key") { Keychain.set(apiKey, for: Keychain.claudeKey) }
-            } header: {
-                Text("Claude API (tùy chọn)")
-            } footer: {
-                Text("Không bắt buộc. Không có key, app dùng gói Claude Pro qua Notion. Có key thì thầy AI và đọc PDF chạy tự động (tính phí API riêng, khoảng $2–5/tháng).")
-            }
-            Section("Nhắc tập") {
-                Stepper("Giờ nhắc hằng ngày: \(reminderHour):00", value: $reminderHour, in: 5...23)
-            }
-            Section {
-                Button("Hiệu chỉnh độ trễ pad / trống điện") { showCalibration = true }
-                NavigationLink("MIDI learn (Roland TD-7)") { MIDILearnView() }
-                Toggle("Hi-hat mở/đóng theo pedal (CC4)", isOn: $hiHatByPedal)
-            } header: {
-                Text("Thiết bị")
-            } footer: {
-                Text("Bật nếu kit gửi cùng một nốt cho hi-hat mở và đóng: app đọc vị trí pedal để biết bạn đánh mở hay đóng.")
-            }
-            Section {
-                ForEach(VoiceRecorder.labels, id: \.self) { label in
-                    HStack {
-                        Text(label == "&" ? "& (and)" : label).font(.headline).frame(width: 70, alignment: .leading)
-                        Text(VoiceRecorder.hasRecording(label) ? "Giọng của bạn" : "Giọng máy").foregroundStyle(.secondary)
-                        Spacer()
-                        Button(recorder.recordingLabel == label ? "Đang ghi…" : "Ghi âm") {
-                            Task {
-                                do { try await recorder.record(label, into: voiceBank); refresh += 1 }
-                                catch { self.error = error.localizedDescription }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 26) {
+                PageHeader(title: "Cài đặt")
+                HStack(alignment: .top, spacing: 22) {
+                    VStack(spacing: 26) {
+                        CardSection("Thiết bị", footer: "Bật hi-hat theo pedal nếu kit gửi cùng một nốt cho hi-hat mở và đóng: app đọc vị trí pedal để biết bạn đánh mở hay đóng.") {
+                            CardButton("Hiệu chỉnh độ trễ pad và trống điện", systemImage: "dot.radiowaves.left.and.right") { showCalibration = true }
+                            CardLink("MIDI learn (Roland TD-7)", subtitle: "Gán nốt MIDI cho từng trống, xem nốt đang đánh") { MIDILearnView() }
+                            Toggle("Hi-hat mở/đóng theo pedal (CC4)", isOn: $hiHatByPedal)
+                        }
+                        CardSection("Nhắc tập") {
+                            Stepper("Giờ nhắc hằng ngày: \(reminderHour):00", value: $reminderHour, in: 5...23)
+                        }
+                        CardSection("Bản cài", footer: "Cài bằng Apple ID miễn phí: app hết hạn sau 7 ngày. Cắm iPad vào Mac và bấm Run trong Xcode để cài lại, lịch sử tập vẫn giữ nguyên.") {
+                            if let exp = ReminderScheduler.expiryDate {
+                                LabeledContent("Hết hạn", value: exp.formatted(date: .abbreviated, time: .shortened))
+                            } else {
+                                Text("Chưa rõ ngày hết hạn").foregroundStyle(.secondary)
                             }
                         }
-                        .disabled(recorder.recordingLabel != nil)
-                        if VoiceRecorder.hasRecording(label) {
-                            Button("Xóa", role: .destructive) { VoiceRecorder.delete(label); refresh += 1 }
+                    }
+                    VStack(spacing: 26) {
+                        CardSection("Claude API (tùy chọn)", footer: "Không bắt buộc. Không có key, app dùng gói Claude Pro qua Notion. Có key thì thầy AI và đọc PDF chạy tự động (tính phí API riêng, khoảng 2–5 USD mỗi tháng).") {
+                            SecureField("sk-ant-…", text: $apiKey)
+                                .textInputAutocapitalization(.never).autocorrectionDisabled()
+                                .onSubmit { Keychain.set(apiKey, for: Keychain.claudeKey) }
+                            LabeledContent("Model") {
+                                Picker("Model", selection: $model) {
+                                    Text("Claude Opus 5.5 (mặc định)").tag("claude-opus-5-5")
+                                    Text("Claude Sonnet 5.5 (rẻ hơn)").tag("claude-sonnet-5-5")
+                                }
+                                .labelsHidden()
+                            }
+                            CardButton("Lưu key", systemImage: "key") { Keychain.set(apiKey, for: Keychain.claudeKey) }
+                        }
+                        CardSection("Giọng đếm của bạn", footer: "Bấm Ghi âm rồi nói rõ một âm (\"one\", \"and\"…). Xóa để quay về giọng máy (có hiệu lực sau khi mở lại app).") {
+                            ForEach(VoiceRecorder.labels, id: \.self) { label in
+                                HStack {
+                                    Text(label == "&" ? "& (and)" : label).font(Theme.number(17)).frame(width: 70, alignment: .leading)
+                                    Text(VoiceRecorder.hasRecording(label) ? "Giọng của bạn" : "Giọng máy").foregroundStyle(.secondary)
+                                    Spacer()
+                                    if VoiceRecorder.hasRecording(label) {
+                                        Button("Xóa", role: .destructive) { VoiceRecorder.delete(label); refresh += 1 }.buttonStyle(.borderless)
+                                    }
+                                    Button(recorder.recordingLabel == label ? "Đang ghi…" : "Ghi âm") {
+                                        Task {
+                                            do { try await recorder.record(label, into: voiceBank); refresh += 1 }
+                                            catch { self.error = error.localizedDescription }
+                                        }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .disabled(recorder.recordingLabel != nil)
+                                }
+                                .id("\(label)-\(refresh)")
+                            }
+                            if let error { Text(error).foregroundStyle(Theme.missed) }
                         }
                     }
                 }
-                .id(refresh)
-                if let error { Text(error).foregroundStyle(.red) }
-            } header: {
-                Text("Giọng đếm của bạn")
-            } footer: {
-                Text("Bấm Ghi âm rồi nói rõ một âm (\"one\", \"and\"…). Xóa để quay về giọng máy (có hiệu lực sau khi mở lại app).")
             }
-            Section("Bản cài") {
-                if let exp = ReminderScheduler.expiryDate {
-                    LabeledContent("Ngày hết hạn bản cài", value: exp.formatted(date: .abbreviated, time: .shortened))
-                }
-                Text("Cài bằng Apple ID miễn phí: app hết hạn sau 7 ngày. Cắm iPad vào Mac và bấm Run trong Xcode để cài lại — lịch sử tập vẫn giữ nguyên.")
-                    .font(.callout).foregroundStyle(.secondary)
-            }
+            .padding(Theme.pagePadding)
         }
-        .navigationTitle("Cài đặt")
+        .background(Theme.canvas)
         .sheet(isPresented: $showCalibration) { CalibrationView(voiceBank: voiceBank) }
     }
 }

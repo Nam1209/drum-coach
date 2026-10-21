@@ -13,35 +13,34 @@ struct HistoryView: View {
     @State private var message: String?
 
     var body: some View {
-        List {
-            Section("Backup") {
-                Button("Xuất toàn bộ lịch sử ra file…") {
+        VStack(alignment: .leading, spacing: 26) {
+            CardSection("Sao lưu", footer: message ?? "Lịch sử còn nguyên khi cài lại app. Xuất file để giữ thêm một bản trong Tệp.") {
+                CardButton("Xuất toàn bộ lịch sử ra file", systemImage: "square.and.arrow.up") {
                     if let f = try? HistoryStore.backup(context) { exportDoc = BackupDocument(file: f) }
                 }
-                Button("Nhập lại từ file backup…") { importing = true }
-                if let message { Text(message).foregroundStyle(.secondary) }
+                CardButton("Nhập lại từ file sao lưu", systemImage: "square.and.arrow.down") { importing = true }
             }
+            if days.isEmpty { Text("Chưa có buổi tập nào.").foregroundStyle(.secondary) }
             ForEach(days, id: \.self) { day in
-                Section(day.formatted(date: .complete, time: .omitted)) {
+                CardSection(day.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "vi_VN")))) {
                     ForEach(notes.filter { Calendar.current.isDate($0.date, inSameDayAs: day) }) { n in
                         Label(n.text, systemImage: "note.text").foregroundStyle(.secondary)
                     }
                     ForEach(sessions.filter { Calendar.current.isDate($0.date, inSameDayAs: day) }) { s in
                         HStack {
-                            VStack(alignment: .leading) {
+                            VStack(alignment: .leading, spacing: 3) {
                                 Text(s.title)
-                                Text("\(Int(s.bpm)) BPM · \(Int((s.seconds / 60).rounded(.up))) phút\(s.isLevelTest ? " · TEST" : "")")
-                                    .font(.caption).foregroundStyle(.secondary)
+                                Text("\(Int(s.bpm)) BPM, \(Int((s.seconds / 60).rounded(.up))) phút\(s.isLevelTest ? ", bài kiểm tra" : "")")
+                                    .font(.footnote).foregroundStyle(.secondary)
                             }
                             Spacer()
-                            Text("\(Int(s.score.rounded()))%").bold().monospacedDigit()
-                                .foregroundStyle(s.score > 90 ? .green : s.score >= 60 ? .orange : .red)
+                            Text("\(Int(s.score.rounded()))%").font(Theme.number(17))
+                                .foregroundStyle(s.score > 90 ? Theme.onTime : s.score >= 60 ? Theme.offTime : Theme.missed)
                         }
                     }
                 }
             }
         }
-        .navigationTitle("Lịch sử")
         .fileExporter(isPresented: Binding(get: { exportDoc != nil }, set: { if !$0 { exportDoc = nil } }), document: exportDoc,
                       contentType: .json, defaultFilename: BackupFile.fileName(for: Date())) { result in
             message = (try? result.get()) != nil ? "Đã xuất file backup." : nil

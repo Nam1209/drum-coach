@@ -13,56 +13,81 @@ struct TeacherView: View {
     @AppStorage("claude.model") private var model = ClaudeClient.defaultModel
 
     var body: some View {
-        List {
-            if !TeacherConnection.isConfigured {
-                Section {
-                    NavigationLink("Kết nối thầy AI (một lần)") { TeacherSetupView() }
-                } footer: {
-                    Text("Dùng gói Claude Pro của bạn qua Notion — không tốn thêm tiền.")
-                }
-            } else {
-                Section {
-                    Button { Task { await send() } } label: { Label("Gửi cho thầy (báo cáo tuần)", systemImage: "paperplane") }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 26) {
+                PageHeader(title: "Thầy AI", subtitle: "Claude Pro qua Notion: gửi lịch sử, thầy lên kế hoạch, app đồng bộ về") {
+                    if TeacherConnection.isConfigured {
+                        HStack(spacing: 10) {
+                            Button { Task { await send() } } label: { Label("Gửi cho thầy", systemImage: "paperplane") }
+                                .buttonStyle(.bordered)
+                            Button { Task { await sync() } } label: { Label("Đồng bộ", systemImage: "arrow.triangle.2.circlepath") }
+                                .buttonStyle(.borderedProminent)
+                        }
                         .disabled(working)
-                    Button { Task { await sync() } } label: { Label("Đồng bộ kế hoạch", systemImage: "arrow.triangle.2.circlepath") }
-                        .disabled(working)
-                    if let message { Text(message).font(.callout).foregroundStyle(.secondary) }
-                } footer: {
-                    Text("Sau khi gửi: app Claude mở ra, lời nhắn đã được copy — dán vào Project \"Thầy dạy trống\" rồi gửi. Xong quay lại bấm Đồng bộ.")
-                }
-            }
-            if let key = Keychain.get(Keychain.claudeKey), !key.isEmpty {
-                Section {
-                    Button { Task { await viaAPI(key) } } label: {
-                        Label(working ? "Thầy đang phân tích…" : "Phân tích tự động bằng API (~$\(String(format: "%.2f", TeacherConnection.estimatedAPICost(context))))",
-                              systemImage: "sparkles")
                     }
-                    .disabled(working)
-                } footer: {
-                    Text("Dùng API key trong Cài đặt — không cần dán vào app Claude.")
+                }
+                if !TeacherConnection.isConfigured {
+                    CardSection(footer: "Dùng gói Claude Pro của bạn qua Notion, không tốn thêm tiền.") {
+                        CardLink("Kết nối thầy AI (một lần)", subtitle: "Hướng dẫn từng bước, khoảng 5 phút") { TeacherSetupView() }
+                    }
+                } else {
+                    Stage {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label(working ? "Đang làm việc với Notion…" : "Đã kết nối Notion", systemImage: "circle.fill")
+                                .labelStyle(StatusDot(color: working ? Theme.offTime : Theme.onTime))
+                            if let message { Text(message).font(.callout).foregroundStyle(.secondary) }
+                            Text("Sau khi gửi: app Claude mở ra, lời nhắn đã được copy. Dán vào Project \"Thầy dạy trống\" rồi gửi, xong quay lại bấm Đồng bộ.")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                if let key = Keychain.get(Keychain.claudeKey), !key.isEmpty {
+                    CardSection(footer: "Dùng API key trong Cài đặt, không cần dán vào app Claude.") {
+                        CardButton(working ? "Thầy đang phân tích…" : "Phân tích tự động bằng API (khoảng \(String(format: "%.2f", TeacherConnection.estimatedAPICost(context))) USD)",
+                                   systemImage: "sparkles") { Task { await viaAPI(key) } }
+                            .disabled(working)
+                    }
+                }
+                PracticeForecastSections()
+                HStack(alignment: .top, spacing: 22) {
+                    VStack(spacing: 22) {
+                        if let active = reports.first(where: { $0.appliedAt != nil }), let r = active.report {
+                            ReportSections(title: active.title, report: r)
+                        } else {
+                            CardSection("Kế hoạch của thầy") {
+                                Text("Chưa có kế hoạch. Gửi lịch sử cho thầy rồi bấm Đồng bộ để nhận kế hoạch tuần.").foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    VStack(spacing: 22) {
+                        CardSection("Trò chuyện và hồ sơ") {
+                            CardLink("Hỏi thầy", subtitle: "Hỏi về kỹ thuật, bài tập, kế hoạch") { TeacherChatView() }
+                            CardLink("Hồ sơ học viên", subtitle: "Mục tiêu, phút tập mỗi ngày, ghi chú cho thầy") { ProfileEditor() }
+                            CardLink("Cài đặt kết nối") { TeacherSetupView() }
+                        }
+                        let fresh = reports.filter { $0.appliedAt == nil }
+                        if !fresh.isEmpty {
+                            CardSection("Kế hoạch mới chưa áp dụng") {
+                                ForEach(fresh) { s in CardButton(s.title, systemImage: "tray.and.arrow.down") { pending = s } }
+                            }
+                        }
+                        let older = Array(reports.filter { $0.appliedAt != nil }.dropFirst())
+                        if !older.isEmpty {
+                            CardSection("Các báo cáo trước") {
+                                ForEach(older) { s in
+                                    CardLink(s.title) {
+                                        ScrollView { if let r = s.report { ReportSections(title: s.title, report: r).padding(Theme.pagePadding) } }
+                                            .background(Theme.canvas).navigationTitle(s.title)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            PracticeForecastSections()
-            if let active = reports.first(where: { $0.appliedAt != nil }), let r = active.report {
-                ReportSections(title: active.title, report: r)
-            }
-            if reports.contains(where: { $0.appliedAt == nil }) {
-                Section("Kế hoạch mới chưa áp dụng") {
-                    ForEach(reports.filter { $0.appliedAt == nil }) { s in Button(s.title) { pending = s } }
-                }
-            }
-            Section("Các báo cáo trước") {
-                ForEach(reports.filter { $0.appliedAt != nil }.dropFirst()) { s in
-                    NavigationLink(s.title) { List { if let r = s.report { ReportSections(title: s.title, report: r) } }.navigationTitle(s.title) }
-                }
-            }
-            Section {
-                NavigationLink("Hỏi thầy (chat)") { TeacherChatView() }
-                NavigationLink("Hồ sơ học viên") { ProfileEditor() }
-                NavigationLink("Cài đặt kết nối") { TeacherSetupView() }
-            }
+            .padding(Theme.pagePadding)
         }
-        .navigationTitle("Thầy AI")
+        .background(Theme.canvas)
         .sheet(item: $pending) { s in ApplyPlanView(stored: s, current: reports.first { $0.appliedAt != nil }) }
         .onChange(of: phase) { _, p in if p == .active, TeacherConnection.isConfigured { Task { await sync(quiet: true) } } }
     }
@@ -98,23 +123,42 @@ struct ReportSections: View {
     let report: TeacherReport
 
     var body: some View {
-        Section("Tóm tắt · \(title)") { Text(report.summary) }
-        if !report.progress.isEmpty { Section("Tiến bộ") { ForEach(report.progress, id: \.self) { Label($0, systemImage: "arrow.up.right").foregroundStyle(.green) } } }
-        Section("3 điều cần sửa") { ForEach(Array(report.fixFirst.enumerated()), id: \.offset) { Text("\($0.offset + 1). \($0.element)") } }
-        if !report.likelyCauses.isEmpty { Section("Nguyên nhân có thể") { ForEach(report.likelyCauses, id: \.self) { Text($0) } } }
-        Section("Tài liệu") {
-            ForEach(report.resources, id: \.self) { r in
-                if let url = safeURL(r) {
-                    Link(destination: url) {
-                        VStack(alignment: .leading) {
-                            Label(r.title, systemImage: r.kind == "youtube" ? "play.rectangle" : "book")
-                            Text(r.why).font(.caption).foregroundStyle(.secondary)
+        VStack(spacing: 22) {
+            CardSection("Kế hoạch đang áp dụng", trailing: title) {
+                Text(report.summary)
+                ForEach(report.progress, id: \.self) { Label($0, systemImage: "arrow.up.right").foregroundStyle(Theme.onTime) }
+            }
+            CardSection("Ba điều cần sửa trước") {
+                ForEach(Array(report.fixFirst.enumerated()), id: \.offset) { k, item in
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text("\(k + 1)").font(Theme.number(17)).foregroundStyle(Theme.shell)
+                        Text(item)
+                    }
+                }
+            }
+            if !report.likelyCauses.isEmpty {
+                CardSection("Nguyên nhân có thể") { ForEach(report.likelyCauses, id: \.self) { Text($0) } }
+            }
+            if !report.resources.isEmpty {
+                CardSection("Tài liệu thầy gợi ý") {
+                    ForEach(report.resources, id: \.self) { r in
+                        if let url = safeURL(r) {
+                            Link(destination: url) {
+                                HStack(spacing: 14) {
+                                    Image(systemName: r.kind == "youtube" ? "play.rectangle.fill" : "book.fill").font(.title2).foregroundStyle(Theme.shell)
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(r.title).foregroundStyle(.primary)
+                                        Text(r.why).font(.footnote).foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                }
+                            }
                         }
                     }
                 }
             }
+            CardSection("Mốc tiếp theo") { Text(report.nextCheckpoint) }
         }
-        Section("Mốc tiếp theo") { Text(report.nextCheckpoint) }
     }
 
     /// Only https links are opened; anything else falls back to a YouTube search for the resource.
@@ -179,5 +223,16 @@ struct ProfileEditor: View {
         }
         .navigationTitle("Hồ sơ học viên")
         .onChange(of: profile) { _, p in TeacherConnection.profile = p }
+    }
+}
+
+/// A small coloured dot before the label (connection status).
+private struct StatusDot: LabelStyle {
+    let color: Color
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 10) {
+            Circle().fill(color).frame(width: 10, height: 10)
+            configuration.title.font(.headline)
+        }
     }
 }

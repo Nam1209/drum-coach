@@ -115,19 +115,22 @@ struct RootView: View {
 struct ProgressHubView: View {
     @State private var tab = 0
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("", selection: $tab) {
-                Text("Biểu đồ").tag(0); Text("Hành trình").tag(1); Text("Lịch sử").tag(2)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                PageHeader(title: "Tiến độ") {
+                    Picker("", selection: $tab) {
+                        Text("Biểu đồ").tag(0); Text("Hành trình").tag(1); Text("Lịch sử").tag(2)
+                    }
+                    .pickerStyle(.segmented).frame(width: 320)
+                }
+                switch tab {
+                case 0: ProgressChartsView()
+                case 1: JourneyView()
+                default: HistoryView()
+                }
             }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, Theme.pagePadding).padding(.vertical, 12)
-            switch tab {
-            case 0: ProgressChartsView()
-            case 1: JourneyView()
-            default: HistoryView()
-            }
+            .padding(Theme.pagePadding)
         }
-        .navigationTitle("Tiến độ")
         .background(Theme.canvas)
     }
 }

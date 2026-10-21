@@ -11,55 +11,58 @@ struct JourneyView: View {
 
     var body: some View {
         let review = makeReview()
-        List {
-            Picker("Khoảng thời gian", selection: $months) {
-                Text("1 tháng").tag(1); Text("3 tháng").tag(3); Text("6 tháng").tag(6); Text("Từ đầu").tag(0)
-            }
-            .pickerStyle(.segmented)
-            if TeacherConnection.isConfigured {
-                Section {
+        VStack(alignment: .leading, spacing: 26) {
+            HStack {
+                Picker("Khoảng thời gian", selection: $months) {
+                    Text("1 tháng").tag(1); Text("3 tháng").tag(3); Text("6 tháng").tag(6); Text("Từ đầu").tag(0)
+                }
+                .pickerStyle(.segmented).frame(maxWidth: 420)
+                Spacer()
+                if TeacherConnection.isConfigured {
                     Button("Nhờ thầy tổng kết giai đoạn") {
                         Task {
                             do { sendMessage = "Đã gửi \(try await TeacherConnection.sendPeriod(review)). Dán lời nhắn vào Claude." }
                             catch { sendMessage = "Không gửi được: \(Friendly.message(error))" }
                         }
                     }
-                    if let sendMessage { Text(sendMessage).font(.callout).foregroundStyle(.secondary) }
+                    .buttonStyle(.borderedProminent)
                 }
             }
-            Section("Tổng quan") {
-                stat("Tổng giờ tập", String(format: "%.1f giờ", review.totalHours))
-                stat("Số ngày tập", "\(review.daysPracticed)")
-                stat("Chuỗi ngày dài nhất", "\(review.longestStreak) ngày")
-                stat("Level", "\(review.levelStart) → \(review.levelEnd)")
-                if let a = review.scoreStart, let b = review.scoreEnd { stat("Score trung bình", "\(Int(a))% → \(Int(b))%") }
-                if let a = review.offsetStartMs, let b = review.offsetEndMs {
-                    stat("Lệch trung bình", String(format: "%+.0f → %+.0f ms", a, b))
-                }
+            if let sendMessage { Text(sendMessage).font(.callout).foregroundStyle(.secondary) }
+            HStack(alignment: .bottom, spacing: 40) {
+                Readout(value: String(format: "%.1f", review.totalHours), caption: "giờ tập", size: 44)
+                Readout(value: "\(review.daysPracticed)", caption: "ngày tập", size: 44)
+                Readout(value: "\(review.longestStreak)", caption: "ngày liên tiếp dài nhất", size: 44)
+                Readout(value: "\(review.levelStart)→\(review.levelEnd)", caption: "Grade", size: 44, tint: Theme.shell)
             }
-            if !review.levelsPassed.isEmpty {
-                Section("Các mốc level") {
-                    ForEach(review.levelsPassed, id: \.level) { m in
-                        stat("Level \(m.level)", m.date.formatted(date: .abbreviated, time: .omitted))
+            HStack(alignment: .top, spacing: 22) {
+                VStack(spacing: 22) {
+                    CardSection("Đầu kỳ và cuối kỳ") {
+                        if let a = review.scoreStart, let b = review.scoreEnd { row("Điểm trung bình", "\(Int(a))% → \(Int(b))%") }
+                        if let a = review.offsetStartMs, let b = review.offsetEndMs { row("Lệch trung bình", String(format: "%+.0f → %+.0f ms", a, b)) }
+                        ForEach(review.exerciseDeltas, id: \.title) { d in
+                            row(d.title, "\(d.cleanBpmStart.map { "\(Int($0))" } ?? "–") → \(d.cleanBpmEnd.map { "\(Int($0))" } ?? "–") BPM")
+                        }
+                        if review.scoreStart == nil, review.exerciseDeltas.isEmpty { Text("Chưa có dữ liệu.").foregroundStyle(.secondary) }
+                    }
+                    if !review.levelsPassed.isEmpty {
+                        CardSection("Các mốc Grade") {
+                            ForEach(review.levelsPassed, id: \.level) { m in row("Grade \(m.level)", m.date.formatted(date: .abbreviated, time: .omitted)) }
+                        }
+                    }
+                }
+                VStack(spacing: 22) {
+                    CardSection("Lỗi đã sửa được") {
+                        if review.fixedWeaknesses.isEmpty { Text("Chưa có").foregroundStyle(.secondary) }
+                        ForEach(review.fixedWeaknesses, id: \.self) { Label($0, systemImage: "checkmark.circle").foregroundStyle(Theme.onTime) }
+                    }
+                    CardSection("Lỗi còn lại") {
+                        if review.remainingWeaknesses.isEmpty { Text("Không có lỗi lặp lại đáng kể").foregroundStyle(.secondary) }
+                        ForEach(review.remainingWeaknesses, id: \.self) { Label($0, systemImage: "exclamationmark.circle").foregroundStyle(Theme.offTime) }
                     }
                 }
             }
-            Section("Tempo sạch (> 90%) — đầu kỳ → cuối kỳ") {
-                if review.exerciseDeltas.isEmpty { Text("Chưa có dữ liệu.").foregroundStyle(.secondary) }
-                ForEach(review.exerciseDeltas, id: \.title) { d in
-                    stat(d.title, "\(d.cleanBpmStart.map { "\(Int($0))" } ?? "–") → \(d.cleanBpmEnd.map { "\(Int($0))" } ?? "–") BPM")
-                }
-            }
-            Section("Lỗi đã sửa được") {
-                if review.fixedWeaknesses.isEmpty { Text("–").foregroundStyle(.secondary) }
-                ForEach(review.fixedWeaknesses, id: \.self) { Label($0, systemImage: "checkmark.seal").foregroundStyle(.green) }
-            }
-            Section("Lỗi còn lại") {
-                if review.remainingWeaknesses.isEmpty { Text("Không có lỗi lặp lại đáng kể").foregroundStyle(.secondary) }
-                ForEach(review.remainingWeaknesses, id: \.self) { Label($0, systemImage: "exclamationmark.triangle").foregroundStyle(.orange) }
-            }
         }
-        .navigationTitle("Hành trình")
     }
 
     private func makeReview() -> PeriodReview {
@@ -69,7 +72,7 @@ struct JourneyView: View {
         return HistorySummarizer.periodReview(records, levelHistory: SettingsStore.levelHistory, from: from, to: to, calendar: .current)
     }
 
-    private func stat(_ label: String, _ value: String) -> some View {
-        HStack { Text(label); Spacer(); Text(value).bold().monospacedDigit() }
+    private func row(_ label: String, _ value: String) -> some View {
+        HStack { Text(label); Spacer(); Text(value).font(Theme.number(16, weight: .medium)) }
     }
 }

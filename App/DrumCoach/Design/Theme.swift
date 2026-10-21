@@ -138,3 +138,94 @@ struct PageHeader<Trailing: View>: View {
 extension PageHeader where Trailing == EmptyView {
     init(title: String, subtitle: String? = nil) { self.init(title: title, subtitle: subtitle) { EmptyView() } }
 }
+
+/// A titled group of rows on one rounded surface (the app's replacement for grouped lists):
+/// every child becomes a padded row, with hairlines between rows.
+struct CardSection<Content: View>: View {
+    var title: String?
+    var trailing: String?
+    var footer: String?
+    @ViewBuilder var content: Content
+
+    init(_ title: String? = nil, trailing: String? = nil, footer: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title; self.trailing = trailing; self.footer = footer; self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let title {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(title).font(.title3.weight(.semibold))
+                    Spacer()
+                    if let trailing { Text(trailing).font(Theme.number(15, weight: .medium)).foregroundStyle(.secondary) }
+                }
+            }
+            VStack(alignment: .leading, spacing: 0) {
+                Group(subviews: content) { rows in
+                    ForEach(rows) { row in
+                        row
+                            .padding(.horizontal, 18).padding(.vertical, 12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if row.id != rows.last?.id { Divider().padding(.leading, 18) }
+                    }
+                }
+            }
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.stage))
+            if let footer { Text(footer).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true).padding(.horizontal, 4) }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+}
+
+/// A row that opens another screen: title, optional detail line, optional value, chevron.
+struct CardLink<Destination: View>: View {
+    let title: String
+    var subtitle: String?
+    var value: String?
+    @ViewBuilder var destination: () -> Destination
+
+    init(_ title: String, subtitle: String? = nil, value: String? = nil, @ViewBuilder destination: @escaping () -> Destination) {
+        self.title = title; self.subtitle = subtitle; self.value = value; self.destination = destination
+    }
+
+    var body: some View {
+        NavigationLink(destination: destination) {
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                    if let subtitle { Text(subtitle).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true) }
+                }
+                Spacer()
+                if let value { Text(value).font(Theme.number(15, weight: .medium)).foregroundStyle(.secondary) }
+                Image(systemName: "chevron.forward").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// A row that does something right away (accent text, or red for destructive actions).
+struct CardButton: View {
+    let title: String
+    var systemImage: String?
+    var role: ButtonRole?
+    let action: () -> Void
+
+    init(_ title: String, systemImage: String? = nil, role: ButtonRole? = nil, action: @escaping () -> Void) {
+        self.title = title; self.systemImage = systemImage; self.role = role; self.action = action
+    }
+
+    var body: some View {
+        Button(role: role, action: action) {
+            HStack(spacing: 10) {
+                if let systemImage { Image(systemName: systemImage) }
+                Text(title)
+                Spacer()
+            }
+            .foregroundStyle(role == .destructive ? Theme.missed : Theme.shell)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}

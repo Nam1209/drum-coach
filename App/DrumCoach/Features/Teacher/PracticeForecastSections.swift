@@ -17,14 +17,17 @@ struct PracticeForecastSections: View {
     var body: some View {
         let evidence = makeEvidence()
         let plan = DailyBudget.plan(minutes: budgetMinutes)
-        budgetSection(plan, evidence)
-        forecastSection(evidence, plan)
+        HStack(alignment: .top, spacing: 22) {
+            budgetSection(plan, evidence)
+            forecastSection(evidence, plan)
+        }
     }
 
     // MARK: Budget
 
     private func budgetSection(_ plan: DailyBudget, _ e: ForecastEvidence) -> some View {
-        Section {
+        CardSection("Tập bao lâu mỗi ngày?",
+                    footer: "Số tháng tính theo tốc độ học, điểm và số bài đã đạt của chính bạn. Đây là ước tính, không phải cam kết.") {
             Picker("Thời lượng", selection: $budgetMinutes) {
                 Text("30 phút").tag(30); Text("1 tiếng").tag(60); Text("2 tiếng").tag(120); Text("4 tiếng").tag(240)
             }
@@ -56,20 +59,17 @@ struct PracticeForecastSections: View {
                 TeacherConnection.profile = p
                 applied = true
             }
+            .buttonStyle(.borderedProminent)
             .disabled(applied)
-        } header: {
-            Text("Tập bao lâu mỗi ngày?")
-        } footer: {
-            Text("Số tháng tính theo tốc độ học, điểm và số bài đã đạt của chính bạn. Đây là ước tính, không phải cam kết.")
         }
         .onChange(of: budgetMinutes) { applied = false }
     }
 
     // MARK: Forecast
 
-    @ViewBuilder
     private func forecastSection(_ e: ForecastEvidence, _ plan: DailyBudget) -> some View {
-        Section {
+        CardSection("Dự đoán cho riêng bạn",
+                    footer: "Dựa trên thời gian tập, số bài đã đạt, tốc độ lên các Grade trước, điểm trung bình và tempo của bạn. Càng tập lâu với app, dự đoán càng sát.") {
             Picker("Khoảng thời gian", selection: $windowDays) { Text("7 ngày qua").tag(7); Text("30 ngày qua").tag(30) }
                 .pickerStyle(.segmented)
             if sessions.isEmpty {
@@ -106,10 +106,6 @@ struct PracticeForecastSections: View {
                 }
                 if let tip = compare(f) { Text(tip).font(.callout) }
             }
-        } header: {
-            Text("Dự đoán cho riêng bạn")
-        } footer: {
-            Text("Dựa trên thời gian tập, số bài đã đạt, tốc độ lên các Grade trước, điểm trung bình và tempo của bạn. Càng tập lâu với app, dự đoán càng sát.")
         }
     }
 
