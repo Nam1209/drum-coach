@@ -14,6 +14,10 @@ struct CalibrationView: View {
     @State private var mic: MicOnsetSource?
     @State private var padSetup: PadProfileRecorder?
     @State private var padMessage: String?
+    @State private var sensitivity = SettingsStore.micSensitivity
+    @State private var tester: MicOnsetSource?
+    @State private var testerHits = 0
+    @State private var testerTask: Task<Void, Never>?
     @Environment(\.dismiss) private var dismiss
 
     private let run = CalibrationRun()
@@ -39,7 +43,7 @@ struct CalibrationView: View {
                 Section {
                     Text(L("Đang đo cho: \(AudioSessionConfig.outputName)", "Measuring for: \(AudioSessionConfig.outputName)")).foregroundStyle(.secondary)
                     Button(running ? L("Đang đo… (\(heard) cú)", "Measuring… (\(heard) hits)") : L("Bắt đầu đo", "Start measuring")) { Task { await measure() } }
-                        .disabled(running)
+                        .disabled(running || tester != nil)
                     if let mic { MicMeter(level: { mic.inputLevel }, lastHit: { mic.lastHitTime }) }
                     if let message { Text(message) }
                 } footer: {
@@ -50,6 +54,7 @@ struct CalibrationView: View {
             }
             .navigationTitle(L("Hiệu chỉnh độ trễ", "Latency calibration"))
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Xong", "Done")) { dismiss() } } }
+            .onDisappear { stopTester() }
         }
     }
 
@@ -77,14 +82,56 @@ struct CalibrationView: View {
                      ?? L("Chưa chỉnh: đang dùng độ nhạy mặc định.", "Not tuned yet: using the default sensitivity."))
                     .foregroundStyle(.secondary)
                 Button(L("Gõ thử 8 cái", "Tap 8 times")) { Task { await startPadSetup() } }
-                    .disabled(running)
+                    .disabled(running || tester != nil)
             }
             if let padMessage { Text(padMessage) }
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(L("Độ nhạy micro", "Mic sensitivity"))
+                    Spacer()
+                    Text(String(format: "×%.1f", sensitivity)).font(Theme.number(15, weight: .medium)).foregroundStyle(.secondary)
+                }
+                Slider(value: $sensitivity, in: 0.5...3, step: 0.1) { editing in
+                    guard !editing else { return }
+                    SettingsStore.micSensitivity = sensitivity
+                    if tester != nil { stopTester(); Task { await startTester() } }
+                }
+            }
+            if let tester {
+                TimelineView(.animation) { _ in
+                    MicMeter(level: { tester.inputLevel }, lastHit: { tester.lastHitTime })
+                }
+                Text(L("Đã nghe \(testerHits) cú. Mỗi cú gõ phải được đếm đúng một lần.", "Heard \(testerHits) strokes. Each stroke should count exactly once."))
+                    .font(Theme.number(15, weight: .medium))
+                Button(L("Dừng nghe thử", "Stop test")) { stopTester() }
+            } else {
+                Button(L("Nghe thử", "Test listening")) { Task { await startTester() } }
+                    .disabled(running || padSetup != nil)
+            }
         } header: {
             Text(L("Bước 1: Cho app làm quen pad", "Step 1: Let the app learn your pad"))
         } footer: {
-            Text(L("Đặt iPad cách pad 30–50 cm, phòng yên tĩnh. App đo tiếng nền và tiếng dùi trên pad của bạn, để nghe được cả nốt ma mà không bắt nhầm tiếng nói.", "Put the iPad 30–50 cm from the pad in a quiet room. The app measures the room and your stick on this pad, so it hears ghost notes without picking up voices."))
+            Text(L("Đặt iPad cách pad 30–50 cm, phòng yên tĩnh. App đo tiếng nền và tiếng dùi trên pad của bạn, để nghe được cả nốt ma mà không bắt nhầm tiếng nói. Nốt nhẹ bị sót thì kéo độ nhạy lên; một cú bị đếm hai lần hoặc tiếng nói bị bắt thì kéo xuống.", "Put the iPad 30–50 cm from the pad in a quiet room. The app measures the room and your stick on this pad, so it hears ghost notes without picking up voices. Soft strokes missed? Raise the sensitivity. One stroke counted twice, or voices picked up? Lower it."))
         }
+    }
+
+    private func startTester() async {
+        guard await MicPermission.ensure(), let source = HitSources.make(for: .pad, calibrated: false) as? MicOnsetSource else { return }
+        do {
+            try AudioSessionConfig.activate()
+            try source.start()
+        } catch {
+            padMessage = L("Không mở được micro: \(error.localizedDescription)", "Couldn't open the microphone: \(error.localizedDescription)")
+            return
+        }
+        testerHits = 0
+        tester = source
+        testerTask = Task { for await _ in source.hits { testerHits += 1 } }
+    }
+
+    private func stopTester() {
+        testerTask?.cancel(); testerTask = nil
+        tester?.stop(); tester = nil
     }
 
     private func startPadSetup() async {

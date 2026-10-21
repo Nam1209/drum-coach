@@ -117,3 +117,12 @@ extension Exercise {
         return copy
     }
 }
+
+/// Which notation lines are on screen while playing.
+public enum NotationScroll {
+    /// The playing line is the top one, so the next line is always visible underneath; near the end the window stops
+    /// at the last line instead of leaving empty space.
+    public static func firstVisibleLine(current: Int, lineCount: Int, visible: Int) -> Int {
+        max(0, min(current, lineCount - visible))
+    }
+}

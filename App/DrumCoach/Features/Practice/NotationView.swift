@@ -15,51 +15,70 @@ struct NotationView: View {
     private let spacing: Double = 12
     private var lineHeight: Double { spacing * 4 + 110 }
 
-    /// Printing lays out every line instead of turning pages.
+    /// Printing lays out every line instead of scrolling.
     var allPages = false
-    /// Page mode shows this many lines at a time and turns the page as the playhead moves on.
-    private var linesPerPage: Int { allPages ? max(1, lineCountFor(barsPerLine)) : 2 }
+    /// Page mode shows this many lines at a time; the playing line sits on top so the next one is always in view.
+    private var visibleLines: Int { allPages ? max(1, lineCount) : 2 }
     @State private var width: Double = 900
-    @State private var manualPage = 0
+    @State private var manualLine = 0
 
     private var barsPerLine: Int { display == .page ? max(1, min(exercise.bars, width > 900 ? 2 : 1)) : max(exercise.bars, 1) }
-    private var pageCount: Int { display == .page ? (lineCountFor(barsPerLine) + linesPerPage - 1) / linesPerPage : 1 }
-    private func lineCountFor(_ perLine: Int) -> Int { (max(exercise.bars, 1) + perLine - 1) / perLine }
+    private var lineCount: Int { (max(exercise.bars, 1) + barsPerLine - 1) / barsPerLine }
+    private var lastFirstLine: Int { max(0, lineCount - visibleLines) }
 
     var body: some View {
         let perLine = barsPerLine
         let barWidth = display == .page ? (width - 40) / Double(perLine) : max(width * 0.55, 420)
         let layout = NotationLayout(exercise: exercise, barWidth: barWidth, barsPerLine: perLine, staffSpacing: spacing)
         let playing = (beat ?? -1) >= 0
-        let page = playing ? layout.playheadX(atBeat: Rational(Int(((beat ?? 0) * 1000).rounded()), 1000)).line / linesPerPage
-                           : min(manualPage, pageCount - 1)
+        let currentLine = playing ? layout.playheadX(atBeat: Rational(Int(((beat ?? 0) * 1000).rounded()), 1000)).line : manualLine
+        let firstLine = playing ? NotationScroll.firstVisibleLine(current: currentLine, lineCount: lineCount, visible: visibleLines)
+                                : min(manualLine, lastFirstLine)
         VStack(alignment: .trailing, spacing: 6) {
-            Canvas { ctx, size in
+            Group {
                 if display == .page {
-                    ctx.translateBy(x: 20, y: -Double(page * linesPerPage) * lineHeight)
-                    draw(layout, in: &ctx, copies: 1)
+                    // Every line is drawn; the window slides up smoothly so the eye never loses its place.
+                    Canvas { ctx, _ in
+                        ctx.translateBy(x: 20, y: 0)
+                        draw(layout, in: &ctx, copies: 1)
+                    }
+                    .frame(height: lineHeight * Double(lineCount))
+                    .offset(y: -Double(firstLine) * lineHeight)
+                    .animation(.easeInOut(duration: 0.35), value: firstLine)
+                    .frame(height: lineHeight * Double(min(visibleLines, lineCount)), alignment: .top)
+                    .clipped()
                 } else {
-                    let head = layout.playheadX(atBeat: Rational(Int(((beat ?? 0) * 1000).rounded()), 1000))
-                    let total = barWidth * Double(exercise.bars)
-                    ctx.translateBy(x: size.width * 0.3 - head.x, y: 0)
-                    ctx.translateBy(x: -total, y: 0)
-                    draw(layout, in: &ctx, copies: 3, copyWidth: total)
+                    Canvas { ctx, size in
+                        let head = layout.playheadX(atBeat: Rational(Int(((beat ?? 0) * 1000).rounded()), 1000))
+                        let total = barWidth * Double(exercise.bars)
+                        ctx.translateBy(x: size.width * 0.3 - head.x, y: 0)
+                        ctx.translateBy(x: -total, y: 0)
+                        draw(layout, in: &ctx, copies: 3, copyWidth: total)
+                    }
+                    .frame(height: lineHeight)
                 }
             }
-            .frame(height: lineHeight * Double(display == .page ? min(linesPerPage, lineCountFor(perLine)) : 1))
             .onGeometryChange(for: Double.self) { $0.size.width } action: { width = $0 }
-            if pageCount > 1 {
+            if display == .page, lineCount > visibleLines {
                 HStack(spacing: 14) {
-                    Text(L("Trang \(page + 1)/\(pageCount)", "Page \(page + 1)/\(pageCount)")).font(Theme.number(13, weight: .medium)).foregroundStyle(.secondary)
-                    Button { manualPage = max(0, page - 1) } label: { Image(systemName: "chevron.backward") }
-                        .disabled(playing || page == 0).accessibilityLabel(L("Trang trước", "Previous page"))
-                    Button { manualPage = min(pageCount - 1, page + 1) } label: { Image(systemName: "chevron.forward") }
-                        .disabled(playing || page == pageCount - 1).accessibilityLabel(L("Trang sau", "Next page"))
+                    if playing, currentLine == lineCount - 1 {
+                        Label(L("Tiếp theo: quay lại ô 1", "Next: back to bar 1"), systemImage: "arrow.uturn.up")
+                            .font(.footnote.weight(.semibold)).foregroundStyle(Theme.shell)
+                    }
+                    Spacer()
+                    let firstBar = firstLine * perLine + 1
+                    let lastBar = min(exercise.bars, (firstLine + visibleLines) * perLine)
+                    Text(L("Ô \(firstBar)–\(lastBar)/\(exercise.bars)", "Bars \(firstBar)–\(lastBar) of \(exercise.bars)"))
+                        .font(Theme.number(13, weight: .medium)).foregroundStyle(.secondary)
+                    Button { manualLine = max(0, firstLine - 1) } label: { Image(systemName: "chevron.up") }
+                        .disabled(playing || firstLine == 0).accessibilityLabel(L("Dòng trước", "Previous line"))
+                    Button { manualLine = min(lastFirstLine, firstLine + 1) } label: { Image(systemName: "chevron.down") }
+                        .disabled(playing || firstLine >= lastFirstLine).accessibilityLabel(L("Dòng sau", "Next line"))
                 }
                 .font(.callout.weight(.semibold))
             }
         }
-        .onChange(of: exercise.id) { manualPage = 0 }
+        .onChange(of: exercise.id) { manualLine = 0 }
     }
 
     private func y(line: Int, step: Int) -> Double {

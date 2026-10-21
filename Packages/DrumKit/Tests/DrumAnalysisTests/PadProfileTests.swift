@@ -55,3 +55,18 @@ private func profile(_ s: [Float]) -> PadProfiler {
     var voices = OnsetDetector(sampleRate: 48_000, profile: pad)
     #expect(feed(&voices, hums(count: 4)).isEmpty)                                   // loud but dull: not a stick
 }
+
+@Test func sensitivityScalesTheProfile() {
+    let pad = PadProfile(noiseFloor: 0.002, threshold: 0.01, minBrightness: 0.3)
+    let more = pad.adjusted(sensitivity: 2)          // twice as sensitive
+    #expect(abs(more.threshold - 0.005) < 1e-12 && abs(more.minBrightness - 0.15) < 1e-12)
+    let less = pad.adjusted(sensitivity: 0.5)
+    #expect(abs(less.threshold - 0.02) < 1e-12)
+    // Never below the room: twice the noise floor at most sensitive.
+    #expect(pad.adjusted(sensitivity: 100).threshold >= 0.004)
+}
+
+@Test func defaultDetectorFollowsSensitivityToo() {
+    let d = OnsetDetector(sampleRate: 48_000, sensitivity: 2)
+    #expect(abs(d.threshold - OnsetDetector(sampleRate: 48_000).threshold / 2) < 1e-12)
+}

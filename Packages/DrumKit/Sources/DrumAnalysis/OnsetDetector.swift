@@ -33,6 +33,11 @@ public struct OnsetDetector: Sendable {
         filters = BrightnessFilters(sampleRate: sampleRate)
     }
 
+    /// The default detector with the player's sensitivity setting (2 = twice as sensitive).
+    public init(sampleRate: Double, sensitivity: Double, minInterval: TimeInterval = 0.025) {
+        self.init(sampleRate: sampleRate, threshold: 0.012 / max(sensitivity, 0.1), minInterval: minInterval)
+    }
+
     /// Tuned to the pad and room measured by `PadProfiler`.
     public init(sampleRate: Double, profile: PadProfile, minInterval: TimeInterval = 0.025) {
         self.init(sampleRate: sampleRate, threshold: profile.threshold, minInterval: minInterval)

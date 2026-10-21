@@ -38,6 +38,12 @@ enum SettingsStore {
         set { UserDefaults.standard.set(newValue.flatMap { try? JSONEncoder().encode($0) }, forKey: "padProfile.v1") }
     }
 
+    /// Multiplies how easily the mic counts a stroke (1 = as tuned; 2 = hears strokes half as loud).
+    static var micSensitivity: Double {
+        get { let v = UserDefaults.standard.double(forKey: "micSensitivity"); return v == 0 ? 1 : v }
+        set { UserDefaults.standard.set(newValue, forKey: "micSensitivity") }
+    }
+
     /// MIDI note → drum overrides learned from the user's kit (Task 16 MIDI learn).
     static func midiMap() -> [UInt8: Voice] {
         guard let data = UserDefaults.standard.data(forKey: "midiMap.v1"),

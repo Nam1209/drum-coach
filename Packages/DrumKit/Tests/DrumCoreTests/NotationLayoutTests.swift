@@ -59,3 +59,12 @@ import Testing
     for tn in t.notes { #expect(ex.notes[tn.noteIndex] == tn.note) }
     #expect(t.notes.last!.repeatIndex == 2)
 }
+
+@Test func followModeKeepsTheNextLineInView() {
+    // 6 lines, 2 visible: the playing line sits on top so the next one is always just below.
+    #expect(NotationScroll.firstVisibleLine(current: 0, lineCount: 6, visible: 2) == 0)
+    #expect(NotationScroll.firstVisibleLine(current: 1, lineCount: 6, visible: 2) == 1)
+    #expect(NotationScroll.firstVisibleLine(current: 4, lineCount: 6, visible: 2) == 4)
+    #expect(NotationScroll.firstVisibleLine(current: 5, lineCount: 6, visible: 2) == 4)   // last line: no empty space
+    #expect(NotationScroll.firstVisibleLine(current: 0, lineCount: 1, visible: 2) == 0)
+}

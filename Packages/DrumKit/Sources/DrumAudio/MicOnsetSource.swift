@@ -6,10 +6,11 @@ import os
 /// Listens to the microphone and emits a `Hit` for every detected stroke (no drum identity).
 public final class MicOnsetSource: HitSource, @unchecked Sendable {
     public let hits: AsyncStream<Hit>
-    /// Input taps deliver buffers of up to ~100–400 ms.
-    public let reportDelay: TimeInterval = 0.45
+    /// The real-time sink delivers a few milliseconds at a time, so strokes are reported almost at once.
+    public let reportDelay: TimeInterval = 0.08
     private let continuation: AsyncStream<Hit>.Continuation
     private let engine = AVAudioEngine()
+    private var sink: AVAudioSinkNode?
     private let detector = OSAllocatedUnfairLock<(any OnsetDetecting)?>(initialState: nil)
     private let makeDetector: @Sendable (Double) -> any OnsetDetecting
     private let offset: OSAllocatedUnfairLock<TimeInterval>
@@ -52,23 +53,38 @@ public final class MicOnsetSource: HitSource, @unchecked Sendable {
         #else
         let inputLatency = 0.0
         #endif
-        let cont = continuation
-        input.installTap(onBus: 0, bufferSize: 256, format: format) { [detector, offset, meter] buffer, time in
-            guard let channel = buffer.floatChannelData?[0] else { return }
-            let frames = Array(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
+        // A sink node gets the mic on the real-time thread in IO-buffer-sized slices (~5 ms). An input tap would
+        // batch ~100 ms or more, so hits would light up late and the run would feel unresponsive.
+        let node = Self.makeSink(detector: detector, offset: offset, meter: meter, continuation: continuation, inputLatency: inputLatency)
+        engine.attach(node)
+        engine.connect(input, to: node, format: format)
+        sink = node
+        try engine.start()
+    }
+
+    /// Built outside any actor: it runs on the audio thread.
+    private static func makeSink(detector: OSAllocatedUnfairLock<(any OnsetDetecting)?>, offset: OSAllocatedUnfairLock<TimeInterval>,
+                                 meter: OSAllocatedUnfairLock<(level: Float, lastHit: TimeInterval)>,
+                                 continuation cont: AsyncStream<Hit>.Continuation, inputLatency: TimeInterval) -> AVAudioSinkNode {
+        AVAudioSinkNode { timestamp, frameCount, bufferList in
+            let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: bufferList))
+            guard let data = buffers.first?.mData?.assumingMemoryBound(to: Float.self) else { return noErr }
+            let frames = Array(UnsafeBufferPointer(start: data, count: Int(frameCount)))
             let level = frames.reduce(Float(0)) { max($0, abs($1)) }
-            let host = time.isHostTimeValid ? HostClock.seconds(fromHostTime: time.hostTime) : HostClock.now()
+            let stamp = timestamp.pointee
+            let host = stamp.mFlags.contains(.hostTimeValid) ? HostClock.seconds(fromHostTime: stamp.mHostTime) : HostClock.now()
             let start = host - inputLatency - offset.withLock { $0 }
             let onsets = detector.withLock { $0?.process(frames, startTime: start) ?? [] }
             meter.withLock { $0.level = level; if let last = onsets.last { $0.lastHit = last.time } }
             for o in onsets { cont.yield(Hit(time: o.time, voice: nil, velocity: o.strength)) }
+            return noErr
         }
-        try engine.start()
     }
 
     public func stop() {
-        engine.inputNode.removeTap(onBus: 0)
         engine.stop()
+        if let sink { engine.detach(sink) }
+        sink = nil
     }
 
     deinit { continuation.finish() }

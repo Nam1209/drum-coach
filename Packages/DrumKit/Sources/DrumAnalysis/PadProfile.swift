@@ -11,6 +11,12 @@ public struct PadProfile: Codable, Sendable, Equatable {
     public init(noiseFloor: Double, threshold: Double, minBrightness: Double) {
         self.noiseFloor = noiseFloor; self.threshold = threshold; self.minBrightness = minBrightness
     }
+
+    /// The player's sensitivity setting (1 = as measured, 2 = twice as sensitive), never reaching into the room noise.
+    public func adjusted(sensitivity s: Double) -> PadProfile {
+        let k = max(s, 0.1)
+        return PadProfile(noiseFloor: noiseFloor, threshold: max(threshold / k, noiseFloor * 2), minBrightness: minBrightness / k)
+    }
 }
 
 /// Builds a `PadProfile` from the mic while the player taps the pad 8 times: the first 0.8 s (before tapping)

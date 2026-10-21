@@ -9,9 +9,10 @@ enum HitSources {
         let offset = calibrated ? SettingsStore.latency(for: mode) : 0
         switch mode {
         case .pad:
-            let profile = SettingsStore.padProfile
+            let profile = SettingsStore.padProfile, sensitivity = SettingsStore.micSensitivity
             return MicOnsetSource(calibrationOffset: offset) { rate in
-                profile.map { OnsetDetector(sampleRate: rate, profile: $0) } ?? OnsetDetector(sampleRate: rate)
+                profile.map { OnsetDetector(sampleRate: rate, profile: $0.adjusted(sensitivity: sensitivity)) }
+                    ?? OnsetDetector(sampleRate: rate, sensitivity: sensitivity)
             }
         case .eDrum: return MIDIHitSource(overrides: SettingsStore.midiMap(), calibrationOffset: offset,
                                           hiHatByPedal: UserDefaults.standard.bool(forKey: "hiHatByPedal"))
