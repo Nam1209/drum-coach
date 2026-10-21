@@ -241,3 +241,10 @@ private func energy(_ x: [Float], at f: Double) -> Double {
     let first = ClickSchedule.events(settings: s, sampleRate: sr, from: 0, to: 48_000).filter { if case .voice = $0.kind { true } else { false } }
     #expect(first.count == 1)
 }
+
+@Test func everyEarlierFactoryLadderUpgradesToTheCurrentOne() {
+    #expect(ToneLadder.factoryLadders.contains(ToneLadder.brightWoodDefault))
+    for ladder in ToneLadder.factoryLadders { #expect(ToneLadder.upgraded(ladder) == ToneLadder.default) }
+    #expect(!ToneLadder.factoryLadders.contains(ToneLadder.default))
+    #expect(ToneLadder.default[5]!.pitchHz < ToneLadder.brightWoodDefault[5]!.pitchHz)   // a little deeper
+}

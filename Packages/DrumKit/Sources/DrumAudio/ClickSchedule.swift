@@ -36,11 +36,20 @@ public struct LevelTone: Codable, Sendable, Equatable, Hashable {
 public enum ToneLadder {
     /// A wooden metronome: a brighter, louder block on beat 1 and the same warm "tok" on the other beats.
     public static let `default`: [Int: LevelTone] = [
-        5: LevelTone(sound: .woodblock, pitchHz: 1150, gainDb: -1),// accent block — beat 1
-        4: LevelTone(sound: .woodblock, pitchHz: 900, gainDb: -5), // block — beats 2, 3, 4
-        3: LevelTone(sound: .woodblock, pitchHz: 1000, gainDb: -10),// light block — "&"
-        2: LevelTone(sound: .woodblock, pitchHz: 1050, gainDb: -14),// faint block — clear "e"/"a"
+        5: LevelTone(sound: .woodblock, pitchHz: 980, gainDb: -1), // accent block — beat 1
+        4: LevelTone(sound: .woodblock, pitchHz: 760, gainDb: -5), // block — beats 2, 3, 4
+        3: LevelTone(sound: .woodblock, pitchHz: 850, gainDb: -10),// light block — "&"
+        2: LevelTone(sound: .woodblock, pitchHz: 900, gainDb: -14),// faint block — clear "e"/"a"
         1: LevelTone(sound: .hiHat, pitchHz: 0, gainDb: -20),      // whisper — background "e"/"a"
+    ]
+
+    /// The fourth factory ladder (the same wooden blocks, a little higher), recognised in saved settings.
+    public static let brightWoodDefault: [Int: LevelTone] = [
+        5: LevelTone(sound: .woodblock, pitchHz: 1150, gainDb: -1),
+        4: LevelTone(sound: .woodblock, pitchHz: 900, gainDb: -5),
+        3: LevelTone(sound: .woodblock, pitchHz: 1000, gainDb: -10),
+        2: LevelTone(sound: .woodblock, pitchHz: 1050, gainDb: -14),
+        1: LevelTone(sound: .hiHat, pitchHz: 0, gainDb: -20),
     ]
 
     /// The third factory ladder (clock ticks), recognised in saved settings like the earlier ones.
@@ -71,7 +80,7 @@ public enum ToneLadder {
     ]
 
     /// Every factory ladder shipped before the current one.
-    public static var factoryLadders: [[Int: LevelTone]] { [legacyDefault, woodblockDefault, clockTickDefault] }
+    public static var factoryLadders: [[Int: LevelTone]] { [legacyDefault, woodblockDefault, clockTickDefault, brightWoodDefault] }
 
     /// Saved settings still on the old factory ladder move to the new one; a ladder the user edited is kept.
     public static func upgraded(_ ladder: [Int: LevelTone]) -> [Int: LevelTone] {
