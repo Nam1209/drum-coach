@@ -51,10 +51,10 @@ public enum Voice: String, Codable, CaseIterable, Sendable {
         case 35, 36: return .kick
         case 37: return .sideStick
         case 38, 40: return .snare
-        case 42: return .hiHat
+        case 42, 22: return .hiHat            // 22: Roland hi-hat edge, closed
         case 44: return .hiHatPedal
-        case 46: return .hiHatOpen
-        case 41, 43: return .floorTom
+        case 46, 26: return .hiHatOpen        // 26: Roland hi-hat edge, open
+        case 41, 43, 58: return .floorTom     // 58: Roland floor-tom rim
         case 45, 47: return .tom2
         case 48, 50: return .tom1
         case 49, 52, 55, 57: return .crash

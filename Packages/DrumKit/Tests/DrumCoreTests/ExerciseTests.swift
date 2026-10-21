@@ -54,3 +54,11 @@ import Testing
     #expect(TimeSignature(beats: 7, unit: 8).beatsInQuarters == Rational(7, 2))
     #expect(TimeSignature(beats: 4, unit: 4).beatsInQuarters == Rational(4, 1))
 }
+
+@Test func rolandEdgeNotesAreRecognised() {
+    // Roland V-Drums (TD-7 included) send these for hi-hat bow/edge and the floor-tom rim by default.
+    #expect(Voice.from(midiNote: 22) == .hiHat)       // closed hi-hat, edge
+    #expect(Voice.from(midiNote: 26) == .hiHatOpen)   // open hi-hat, edge
+    #expect(Voice.from(midiNote: 58) == .floorTom)    // floor tom rim
+    #expect(Voice.from(midiNote: 22, overrides: [22: .ride]) == .ride)   // MIDI learn still wins
+}
