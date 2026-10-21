@@ -77,9 +77,14 @@ public struct CountJudge: Sendable {
 
         // Missed syllables, naming the one missed most.
         if !missed.isEmpty {
-            var counts: [String: Int] = [:]
-            for i in missed { counts[Self.group(expected[i].label), default: 0] += 1 }
-            let worst = counts.max { $0.value < $1.value }!.key
+            var counts: [String: Int] = [:], order: [String] = []
+            for i in missed {
+                let g = Self.group(expected[i].label)
+                if counts[g] == nil { order.append(g) }
+                counts[g, default: 0] += 1
+            }
+            // Most missed; on a tie, the one missed first (dictionary order would make the advice change run to run).
+            let worst = order.max { counts[$0]! < counts[$1]! || (counts[$0]! == counts[$1]! && order.firstIndex(of: $0)! > order.firstIndex(of: $1)!) }!
             issues.append((Double(missed.count) / Double(total) * 400,
                            L("App không nghe thấy \(missed.count) âm (hay sót nhất: \(worst)). Nói to và rõ từng âm, kể cả âm nhẹ.", "The app didn't hear \(missed.count) syllables (most often \(worst)). Say every syllable clearly, even the soft ones.")))
         }
@@ -107,4 +112,30 @@ public struct CountJudge: Sendable {
     }
 
     private func mean(_ v: [Double]) -> Double { v.isEmpty ? 0 : v.reduce(0, +) / Double(v.count) }
+}
+
+/// One counting-coach run, kept for the AI teacher's weekly report.
+public struct CountRecord: Codable, Sendable, Equatable {
+    public let date: Date
+    /// "along", "fade" or "alone".
+    public let phase: String
+    /// How the bar was counted, e.g. "1 & 2 &".
+    public let style: String
+    public let bpm: Double
+    public let score: Int
+    public let onTime, early, late, missed: Int
+    public let tips: [String]
+
+    public init(date: Date, phase: String, style: String, bpm: Double, summary: CountJudge.Summary) {
+        self.date = date
+        self.phase = phase
+        self.style = style
+        self.bpm = bpm
+        score = summary.score
+        onTime = summary.onTime
+        early = summary.early
+        late = summary.late
+        missed = summary.missed
+        tips = summary.tips
+    }
 }

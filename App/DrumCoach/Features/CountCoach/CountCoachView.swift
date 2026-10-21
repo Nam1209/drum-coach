@@ -238,6 +238,8 @@ struct CountCoachView: View {
         let scored = final.summary(until: stoppedAt)
         guard scored.onTime + scored.early + scored.late + scored.missed > 0 else { return }
         summary = scored
+        let style = Counting.labels(mode: mode, beats: 1).map(\.label).map { $0.isEmpty ? "1" : $0 }.joined(separator: " ")
+        SettingsStore.countRecords.append(CountRecord(date: Date(), phase: "\(stage)", style: style, bpm: bpm, summary: scored))
         let r = CountEvenness(onsets: onsets, expected: all.filter { $0.time < stoppedAt })
         result = r.matched > 0 ? r : nil
         if scored.onTime + scored.early + scored.late == 0 { error = L("Không nghe thấy tiếng đếm. Nói to hơn hoặc đưa iPad lại gần.", "Couldn't hear any counting. Speak louder or move the iPad closer.") }

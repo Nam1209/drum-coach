@@ -32,8 +32,8 @@ private let expected = (0..<16).map { (time: Double($0) * 0.5, label: $0 % 2 == 
     #expect(s.late == 6)
     #expect(s.missed == 4)
     #expect(s.score == Int(((6.0 * 100 + 6 * 50) / 16).rounded()))
-    #expect(s.tips.first?.contains("&") == true)                  // the biggest problem first
-    #expect(s.tips.contains { $0.contains("4") })                 // the misses are mentioned
+    #expect(s.tips.first?.contains("4") == true)                  // the biggest problem first: 4 missed
+    #expect(s.tips.contains { $0.contains("\"&\"") && $0.contains("70") })   // then the late "&"
 }
 
 @Test func aCleanCountGetsPraise() {
@@ -49,4 +49,22 @@ private let expected = (0..<16).map { (time: Double($0) * 0.5, label: $0 % 2 == 
     // Starts on time and gets 8 ms earlier every syllable: rushing.
     for (i, e) in expected.enumerated() { _ = j.hear(e.time - Double(i) * 0.008) }
     #expect(j.summary(until: 10).tips.contains { $0.localizedCaseInsensitiveContains("nhanh dần") || $0.localizedCaseInsensitiveContains("speed") })
+}
+
+@Test func countResultsTravelInTheWeeklyDigest() throws {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    var j = CountJudge(expected: expected)
+    for e in expected { _ = j.hear(e.time + 0.070) }
+    let fresh = CountRecord(date: now.addingTimeInterval(-86_400), phase: "along", style: "1 & 2 &", bpm: 60, summary: j.summary(until: 10))
+    let old = CountRecord(date: now.addingTimeInterval(-40 * 86_400), phase: "along", style: "1 & 2 &", bpm: 60, summary: j.summary(until: 10))
+    let d = HistorySummarizer.digest([], journal: [], counting: [old, fresh], currentLevel: 1, now: now, calendar: .current)
+    #expect(d.counting == [fresh])                                 // only the last 14 days
+    #expect(fresh.late == 16 && fresh.score == 50 && !fresh.tips.isEmpty)
+    let json = String(data: try JSONEncoder().encode(d), encoding: .utf8)!
+    #expect(json.contains("\"counting\""))
+    // Older digests without the field still decode.
+    var dict = try JSONSerialization.jsonObject(with: Data(json.utf8)) as! [String: Any]
+    dict["counting"] = nil
+    let legacy = try JSONSerialization.data(withJSONObject: dict)
+    #expect(try JSONDecoder().decode(HistoryDigest.self, from: legacy).counting == nil)
 }

@@ -22,7 +22,8 @@ public enum TeacherProjectKit {
 
         QUY TRÌNH (dùng connector Notion, trang "DrumCoach"):
         1. Khi tôi nhắn "xem Báo cáo YYYY-MM-DD": mở trang con cùng tên trong "DrumCoach › Hộp thư", đọc JSON trong code block
-           (kind, profile, data = HistoryDigest hoặc PeriodReview).
+           (kind, profile, data = HistoryDigest hoặc PeriodReview). data.counting (nếu có) là kết quả bài Đếm nhịp: điểm,
+           số âm đúng/sớm/muộn/trượt và gợi ý của app — nhận xét cả khả năng đếm to cho đều.
         2. Phân tích: chỉ dựa trên số liệu, không bịa. Nhắc lại lời khuyên cũ trong profile.pastAdvice và đánh giá tôi đã làm theo chưa.
            Tối đa 3 điều cần sửa (fixFirst), xếp theo ưu tiên.
         3. Dùng web search tìm 2–4 video YouTube hoặc bài viết uy tín cho đúng điểm yếu. Mỗi tài liệu phải có searchQuery.
@@ -59,7 +60,8 @@ public enum TeacherProjectKit {
 
         WORKFLOW (use the Notion connector, page "DrumCoach"):
         1. When I write "read Report YYYY-MM-DD": open the subpage with that name in "DrumCoach › Inbox" and read the JSON in the code block
-           (kind, profile, data = HistoryDigest or PeriodReview).
+           (kind, profile, data = HistoryDigest or PeriodReview). data.counting (if present) holds Counting coach results: score,
+           syllables on time/early/late/missed and the app's tips — comment on how evenly I count out loud too.
         2. Analyse: base everything on the numbers, do not invent. Recall earlier advice in profile.pastAdvice and judge whether I followed it.
            At most 3 things to fix (fixFirst), in priority order.
         3. Use web search to find 2–4 reputable YouTube videos or articles for the exact weaknesses. Every resource must have a searchQuery.

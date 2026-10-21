@@ -44,6 +44,12 @@ enum SettingsStore {
         set { UserDefaults.standard.set(newValue, forKey: "micSensitivity") }
     }
 
+    /// Counting-coach results (newest last, at most 200) for the AI teacher's weekly report.
+    static var countRecords: [CountRecord] {
+        get { UserDefaults.standard.data(forKey: "countRecords.v1").flatMap { try? JSONDecoder().decode([CountRecord].self, from: $0) } ?? [] }
+        set { UserDefaults.standard.set(try? JSONEncoder().encode(Array(newValue.suffix(200))), forKey: "countRecords.v1") }
+    }
+
     /// MIDI note → drum overrides learned from the user's kit (Task 16 MIDI learn).
     static func midiMap() -> [UInt8: Voice] {
         guard let data = UserDefaults.standard.data(forKey: "midiMap.v1"),
