@@ -38,3 +38,8 @@ private func textReply(_ s: String) -> (Int, String) {
     #expect(c.body.contains("Paradiddle 70 BPM") && c.body.contains("25 phút"))
     #expect(!ReminderContent.daily(nil).body.isEmpty)
 }
+
+@Test func remindersCoverTwoWeeksAhead() {
+    #expect(ReminderContent.dayOffsets(practicedToday: true, count: 14) == Array(1...14))
+    #expect(ReminderContent.dayOffsets(practicedToday: false, count: 14) == Array(0...13))
+}

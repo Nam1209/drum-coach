@@ -32,7 +32,7 @@ struct PracticeView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     header
                     if model.showHeadphoneWarning {
-                        Label("Nên dùng tai nghe: micro đang nghe cả tiếng click từ loa, app sẽ bỏ qua tiếng gõ trùng lúc click.",
+                        Label("Nên dùng tai nghe: âm thanh đang ra loa, micro sẽ nghe lẫn tiếng click nên app sẽ không chấm điểm ở chế độ Pad.",
                               systemImage: "headphones")
                             .font(.callout).padding(12).frame(maxWidth: .infinity, alignment: .leading)
                             .background(RoundedRectangle(cornerRadius: 12).fill(Color.orange.opacity(0.15)))
@@ -55,6 +55,7 @@ struct PracticeView: View {
                         TimingStrip(recent: model.recent)
                     }
                     controls
+                    if let reason = model.scoringOffReason, model.isPlaying { Text(reason).foregroundStyle(.orange) }
                     if let error = model.error { Text(error).foregroundStyle(.red) }
                 }
                 .padding()

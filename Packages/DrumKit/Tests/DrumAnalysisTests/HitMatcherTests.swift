@@ -67,3 +67,18 @@ func notes(_ times: [Double], voice: Voice = .snare) -> [TimedNote] {
     #expect(HitMatcher.defaultWindow(for: notes([0, 1, 2])) == 0.1)
     #expect(abs(HitMatcher.defaultWindow(for: notes([0, 0.1, 0.2])) - 0.045) < 1e-9)
 }
+
+@Test func windowNeverReachesHalfTheGap() {
+    // 32nd notes at 200 BPM are 37.5 ms apart.
+    let fast = notes((0..<16).map { Double($0) * 0.0375 })
+    #expect(HitMatcher.window(for: fast, goodWindow: 0.045) <= 0.0375 / 2 + 1e-12)
+    #expect(HitMatcher.window(for: notes([0, 0.5, 1]), goodWindow: 0.030) == 0.1)
+    #expect(abs(HitMatcher.window(for: notes([0, 0.5, 1]), goodWindow: 0.08) - 0.12) < 1e-12)   // 1.5 × good, still < half gap
+}
+
+@Test func lateArrivingMicHitStillMatches() {
+    var m = HitMatcher(expected: notes([1.0]), beatZero: 0, window: 0.06)
+    // 400 ms later the buffered mic hit has not been delivered yet; expiry must wait for the source's report delay.
+    #expect(m.expire(upTo: HitMatcher.expiryCutoff(now: 1.4, reportDelay: 0.35)).isEmpty)
+    #expect(m.consume(Hit(time: 1.01, voice: nil, velocity: 1))?.first?.noteIndex == 0)
+}

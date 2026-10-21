@@ -19,6 +19,8 @@ public struct Hit: Sendable, Hashable {
 
 public protocol HitSource: AnyObject, Sendable {
     var hits: AsyncStream<Hit> { get }
+    /// Longest time between a stroke and its `Hit` arriving on `hits`.
+    var reportDelay: TimeInterval { get }
     func start() throws
     func stop()
 }

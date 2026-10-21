@@ -3,6 +3,7 @@ import Foundation
 import UserNotifications
 
 /// Local notifications: a daily practice reminder and the Sunday "meet your teacher" reminder; reinstall-expiry warning.
+@MainActor
 enum ReminderScheduler {
     static var dailyHour: Int {
         get { UserDefaults.standard.object(forKey: "reminderHour") as? Int ?? 19 }
@@ -13,23 +14,26 @@ enum ReminderScheduler {
         (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) ?? false
     }
 
+    /// Last plan text used for reminders, so a reschedule from the practice screen keeps the teacher's wording.
+    private static var lastPlan: DayPlan?
+
     static func schedule(today plan: DayPlan?, practicedToday: Bool) {
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: ["daily", "weekly"])
+        if let plan { lastPlan = plan }
+        let ids = (0...14).map { "daily-\($0)" }
+        center.removePendingNotificationRequests(withIdentifiers: ids + ["daily", "weekly"])
 
-        let c = ReminderContent.daily(plan)
-        let daily = UNMutableNotificationContent()
-        daily.title = c.title
-        daily.body = c.body
-        var when = DateComponents()
-        when.hour = dailyHour
-        // When today's practice is done, start reminding from tomorrow.
-        if practicedToday, let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) {
-            let d = Calendar.current.dateComponents([.year, .month, .day], from: tomorrow)
-            when.year = d.year; when.month = d.month; when.day = d.day
-            center.add(UNNotificationRequest(identifier: "daily", content: daily, trigger: UNCalendarNotificationTrigger(dateMatching: when, repeats: false)))
-        } else {
-            center.add(UNNotificationRequest(identifier: "daily", content: daily, trigger: UNCalendarNotificationTrigger(dateMatching: when, repeats: true)))
+        let c = ReminderContent.daily(plan ?? lastPlan)
+        let cal = Calendar.current
+        // One-shot reminders for the next two weeks: they keep coming even if the app is not opened.
+        for offset in ReminderContent.dayOffsets(practicedToday: practicedToday, count: 14) {
+            guard let day = cal.date(byAdding: .day, value: offset, to: Date()),
+                  let fire = cal.date(bySettingHour: dailyHour, minute: 0, second: 0, of: day), fire > Date() else { continue }
+            let content = UNMutableNotificationContent()
+            content.title = c.title
+            content.body = c.body
+            let trigger = UNCalendarNotificationTrigger(dateMatching: cal.dateComponents([.year, .month, .day, .hour, .minute], from: fire), repeats: false)
+            center.add(UNNotificationRequest(identifier: "daily-\(offset)", content: content, trigger: trigger))
         }
 
         let weekly = UNMutableNotificationContent()

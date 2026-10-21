@@ -6,6 +6,8 @@ import os
 /// Listens to the microphone and emits a `Hit` for every detected stroke (no drum identity).
 public final class MicOnsetSource: HitSource, @unchecked Sendable {
     public let hits: AsyncStream<Hit>
+    /// Input taps deliver buffers of up to ~100–400 ms.
+    public let reportDelay: TimeInterval = 0.45
     private let continuation: AsyncStream<Hit>.Continuation
     private let engine = AVAudioEngine()
     private let detector = OSAllocatedUnfairLock<(any OnsetDetecting)?>(initialState: nil)

@@ -48,5 +48,10 @@ public enum ReminderContent {
         return ("Hôm nay tập gì 🥁", "Hôm nay: \(focus.isEmpty ? "theo kế hoạch của thầy" : focus) — \(minutes) phút")
     }
 
+    /// Which days (0 = today) get a one-shot reminder, so reminders keep coming even if the app is not opened.
+    public static func dayOffsets(practicedToday: Bool, count: Int) -> [Int] {
+        practicedToday ? Array(1...count) : Array(0..<count)
+    }
+
     public static let weekly = (title: "Buổi gặp thầy hằng tuần", body: "Gửi báo cáo tuần cho thầy AI để nhận kế hoạch tuần mới.")
 }

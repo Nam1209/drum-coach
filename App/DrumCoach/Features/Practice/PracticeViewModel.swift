@@ -2,6 +2,7 @@ import DrumAI
 import DrumAnalysis
 import DrumAudio
 import DrumCore
+import AVFoundation
 import DrumLibrary
 import Foundation
 import SwiftData
@@ -67,6 +68,10 @@ final class PracticeViewModel: ObservableObject {
     private var byRepeatAndNote: [Int: [Int: Int]] = [:]
     private var tasks: [Task<Void, Never>] = []
     private var startedAt = Date()
+    private var reportDelay: TimeInterval = 0
+    private var observers: [NSObjectProtocol] = []
+    /// Set when a run plays without mic scoring (click coming out of the speaker).
+    @Published private(set) var scoringOffReason: String?
 
     init(exercise: Exercise, voiceBank: CountVoiceBank, testItem: LevelTestItem? = nil) {
         self.exercise = exercise
@@ -91,7 +96,7 @@ final class PracticeViewModel: ObservableObject {
 
     var exerciseSeconds: Double { exercise.lengthInBeats.doubleValue * 60 / settings.bpm }
 
-    var showHeadphoneWarning: Bool { mode == .pad && AudioSessionConfig.isUsingSpeaker }
+    var showHeadphoneWarning: Bool { mode == .pad && AudioSessionConfig.isUsingSpeaker && !isPlaying }
 
     func play() {
         stop(save: false)
@@ -115,7 +120,12 @@ final class PracticeViewModel: ObservableObject {
 
         do {
             try AudioSessionConfig.activate()
-            source = HitSources.make(for: mode)
+            // The mic would hear the click from the speaker: blanking around clicks also drops on-time strokes,
+            // so with the speaker the run is played without scoring instead of being scored wrongly.
+            scoringOffReason = mode == .pad && AudioSessionConfig.isUsingSpeaker
+                ? "Đang phát ra loa nên app không chấm điểm (micro sẽ nghe lẫn tiếng click). Cắm tai nghe để được chấm." : nil
+            source = scoringOffReason == nil ? HitSources.make(for: mode) : nil
+            reportDelay = source?.reportDelay ?? 0
             try source?.start()
             try engine.start(settings: s)
         } catch {
@@ -126,6 +136,7 @@ final class PracticeViewModel: ObservableObject {
         }
         isPlaying = true
         startedAt = Date()
+        observeInterruptions()
 
         if let hits = source?.hits {
             tasks.append(Task { [weak self] in
@@ -144,6 +155,8 @@ final class PracticeViewModel: ObservableObject {
     func stop(save: Bool = true) {
         tasks.forEach { $0.cancel() }
         tasks = []
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
+        observers = []
         source?.stop()
         source = nil
         let wasPlaying = isPlaying
@@ -152,8 +165,8 @@ final class PracticeViewModel: ObservableObject {
         guard save, wasPlaying, let timeline, let matcher, mode != .listenOnly else { return }
 
         // Count only notes whose time has come (stopping early does not punish the rest).
-        let elapsed = HostClock.now() - matcher.beatZero
-        let played = timeline.notes.filter { $0.time - matcher.window <= elapsed }
+        let elapsed = HostClock.now() - matcher.beatZero - reportDelay
+        let played = timeline.notes.filter { $0.time + matcher.window <= elapsed }
         guard !played.isEmpty else { return }
         var finalResults = results
         for n in played where finalResults[n.index] == nil { finalResults[n.index] = .missed }
@@ -167,6 +180,7 @@ final class PracticeViewModel: ObservableObject {
             ctx.insert(session)
             try? ctx.save()
             lastSession = session
+            ReminderScheduler.schedule(today: nil, practicedToday: true)
         }
     }
 
@@ -182,15 +196,12 @@ final class PracticeViewModel: ObservableObject {
         guard let timeline else { return }
         if matcher == nil, let zero = engine.beatZeroHostTime {
             matcher = HitMatcher(expected: timeline.notes, beatZero: zero,
-                                 window: max(HitMatcher.defaultWindow(for: timeline.notes), rules.goodWindow * 1.5))
-            if let mic = source as? MicOnsetSource, AudioSessionConfig.isUsingSpeaker {
-                mic.setSuppressWindows(clickWindows(beatZero: zero, duration: timeline.duration))
-            }
+                                 window: HitMatcher.window(for: timeline.notes, goodWindow: rules.goodWindow))
         }
         guard var m = matcher else { return }
-        for (index, result) in m.expire(upTo: now) { record(index, result) }
+        for (index, result) in m.expire(upTo: HitMatcher.expiryCutoff(now: now, reportDelay: reportDelay)) { record(index, result) }
         matcher = m
-        if now - m.beatZero > timeline.duration + 0.2 { stop() }
+        if now - m.beatZero > timeline.duration + 0.2 + reportDelay { stop() }
     }
 
     private func handle(_ hit: Hit) {
@@ -220,14 +231,23 @@ final class PracticeViewModel: ObservableObject {
         liveScore = rules.score(graded, totalNotes: graded.count, extraHits: extraHits)
     }
 
-    /// Times when the metronome is audible, so the mic ignores the click when it plays through the speaker.
-    private func clickWindows(beatZero: TimeInterval, duration: TimeInterval) -> [ClosedRange<TimeInterval>] {
-        let sr = 48_000.0
-        var s = settings
-        s.timeSignature = exercise.timeSignature
-        return ClickSchedule.events(settings: s, sampleRate: sr, from: 0, to: Int64((duration + 1) * sr))
-            .filter { if case .voice = $0.kind { false } else { true } }
-            .map { let t = beatZero + Double($0.sampleTime) / sr; return (t - 0.004)...(t + 0.035) }
+    /// Headphones plugged/unplugged, a call or Siri: the audio graph stops, so stop the run without saving it.
+    private func observeInterruptions() {
+        let names: [Notification.Name] = [AVAudioSession.interruptionNotification, AVAudioSession.routeChangeNotification,
+                                          .AVAudioEngineConfigurationChange]
+        observers = names.map { name in
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                let reasonRaw = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
+                MainActor.assumeIsolated {
+                    guard let self, self.isPlaying else { return }
+                    if name == AVAudioSession.routeChangeNotification,
+                       let raw = reasonRaw, let reason = AVAudioSession.RouteChangeReason(rawValue: raw),
+                       ![.newDeviceAvailable, .oldDeviceUnavailable].contains(reason) { return }
+                    self.stop(save: false)
+                    self.error = "Âm thanh bị gián đoạn (đổi tai nghe/loa hoặc cuộc gọi). Lần chơi này không được lưu — bấm Bắt đầu để chơi lại."
+                }
+            }
+        }
     }
 
     // MARK: Display helpers

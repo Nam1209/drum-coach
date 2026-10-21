@@ -44,6 +44,18 @@ public struct HitMatcher: Sendable {
         return min(0.1, 0.45 * gap)
     }
 
+    /// Matching window for a run: wide enough to grade orange (1.5 × the green window), but never reaching half the
+    /// gap between notes — otherwise a stray hit could steal the next note.
+    public static func window(for notes: [TimedNote], goodWindow: TimeInterval) -> TimeInterval {
+        let times = Array(Set(notes.map(\.time))).sorted()
+        let gap = zip(times, times.dropFirst()).map { $1 - $0 }.min() ?? 1
+        return min(max(defaultWindow(for: notes), goodWindow * 1.5), gap / 2)
+    }
+
+    /// Notes may only be declared missed once every hit up to their window could have been delivered:
+    /// microphone buffers arrive up to a few hundred ms after the sound.
+    public static func expiryCutoff(now: TimeInterval, reportDelay: TimeInterval) -> TimeInterval { now - reportDelay }
+
     /// Matches a hit; returns the notes it played (several for a mic hit on a chord), or nil for an extra hit.
     public mutating func consume(_ hit: Hit) -> [Match]? {
         let t = hit.time - beatZero

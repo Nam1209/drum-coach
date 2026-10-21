@@ -7,6 +7,7 @@ import os
 /// Receives note-ons from every connected MIDI source (USB-MIDI cable from the TD-7, Bluetooth MIDI…).
 public final class MIDIHitSource: HitSource, @unchecked Sendable {
     public let hits: AsyncStream<Hit>
+    public let reportDelay: TimeInterval = 0.05
     /// Raw note numbers, for MIDI learn.
     public let notes: AsyncStream<UInt8>
     private let continuation: AsyncStream<Hit>.Continuation
