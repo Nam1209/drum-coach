@@ -49,7 +49,22 @@
 - AI đọc lịch sử dài hạn, chỉ ra **cần sửa gì**, **lên kế hoạch tập**, và **gợi ý video YouTube hoặc tài liệu**.
 - Có thêm buổi tập có cấu trúc ("Hôm nay tập gì") và thư viện 40 rudiment PAS (từ phần tham khảo Drumeo).
 
+**Tài liệu và thiết bị người dùng cung cấp (2026-10-21):**
+- **Tài liệu:** Stick Control (bản scan PDF) và Rockschool Drums Grade 1–4 (PDF).
+- **Grade 5–8:** người dùng sẽ upload sau. Họ yêu cầu: "báo tôi khi tôi đạt grade 6, tôi sẽ upload doc 6,7,8". Hiện **chưa có sách Grade 5**.
+- **Thiết bị:** Roland **TD-7** (chỉ có MIDI OUT 5 chân, cần cáp USB-MIDI), pad 12", dùi 5A.
+- **Cấu trúc thi Rockschool thật (lấy từ sách):**
+  - Grade 1–5: 3 bài biểu diễn (3×20 điểm), Technical Exercises (15), Sight Reading hoặc Improvisation & Interpretation (10), Ear Tests (10), GMQ (5).
+  - Grade 6–8: Sight Reading / I&I được thay bằng Quick Study Piece.
+  - Mức điểm: Pass 60%, Merit 74%, Distinction 90%.
+  - Tempo bài kỹ thuật: G1–2 ♩=70, G3–4 ♩=75; fill test ♩=70–80.
+  - Ear Test gồm: Fill Playback & Recognition, Groove Recall.
+- **Giáo trình nền tảng** (tư thế, cầm dùi, cú đánh, đếm, cách tập Stick Control/Rockschool) nằm ở `docs/giao-trinh.html`. Task 16 đưa nội dung này vào app.
+
 **Các quyết định Claude tự đưa ra (người dùng có thể đổi):**
+- **Level = Rockschool Grade 1…8.** Nội dung test lấy từ Technical Exercises và Fill của sách tương ứng, ở đúng tempo của sách. Quy tắc "trên 90% mới đạt" trùng với mức Distinction. Bảng 8 level tự soạn ở Task 10A chỉ dùng cho grade nào chưa có sách.
+- **Nội dung chép từ sách không commit vào git.** Bài tập chuyển từ sách (DSL) nằm trong `PrivateLibrary/` (được `.gitignore` bỏ qua), app nạp lúc chạy. Repo chỉ chứa code và bài do app tự soạn.
+- **Thông báo thiếu sách:** khi người dùng đạt grade N mà chưa có sách grade N+1, app hiện "Hãy upload sách Grade N+1". Riêng khi đạt Grade 5, app nhắc upload Grade 6, 7, 8 (theo yêu cầu). Sách Grade 5 hiện còn thiếu nên app sẽ nhắc ngay khi đạt Grade 4.
 - **Ngưỡng "đúng":** |lệch| ≤ 30 ms, chỉnh được trong Settings (Dễ 45 / Vừa 30 / Khó 20 ms). Lệch lớn hơn nhưng vẫn nằm trong cửa sổ ghép là cam; ngoài cửa sổ là đỏ.
 - **Cách tính %:** mỗi nốt xanh được 1 điểm, cam 0.5, đỏ 0. % = tổng điểm / tổng số nốt × 100. Cú đánh thừa trừ 0.5 điểm mỗi cú. Kết quả kẹp trong 0…100.
 - Native Swift/SwiftUI vì cần độ trễ âm thanh thấp và CoreMIDI.
@@ -847,6 +862,39 @@ public struct TeacherChat: Sendable {
   - **TeacherChatView:** hỏi đáp tự do ("tại sao tôi hay trễ ở &?"). Thầy thấy được lịch sử và báo cáo gần nhất.
 - [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: today's structured session, teacher chat and PAS rudiments`.
 
+### Task 16: Sách Rockschool → Grade test, Ear Test, GMQ, Bài học nền tảng, MIDI learn
+
+**Files:** Create `DrumLibrary/GradeSyllabus.swift`, `DrumLibrary/PrivateLibraryLoader.swift`, `DrumLibrary/EarTest.swift`, `DrumLibrary/GMQuiz.swift`, `DrumAudio/DrumSynth.swift`, `DrumAudio/MIDILearn.swift`, `App/.../Lessons/LessonsView.swift`, `PrivateLibrary/README.md` (chỉ README được commit); Test `GradeSyllabusTests.swift`, `EarTestTests.swift`, `GMQuizTests.swift`, `MIDILearnTests.swift`
+
+**Interfaces – Produces:**
+```swift
+public struct GradeSyllabus: Codable, Sendable { public let grade: Int; public let techGroups: [LevelTestItem]; public let fills: [LevelTestItem]; public let sightReadingBpm: Int; public let source: String /* "book" | "generated" */ }
+public enum PrivateLibraryLoader { public static func load(from dir: URL) throws -> [GradeSyllabus]  // đọc PrivateLibrary/grade-N.json; thiếu file thì fallback LevelCatalog
+                                    public static func missingGrades(available: [Int], current: Int) -> [Int] }
+public enum EarTestKind: String, Codable, Sendable { case fillPlayback, grooveRecall }
+public struct EarTest: Sendable { public init(kind: EarTestKind, grade: Int, seed: UInt64)
+  public let prompt: Exercise; public let choices: [Exercise] /* fillPlayback: 2 lựa chọn */ ; public let bpm: Double
+  public func score(played: SessionStats, chosenIndex: Int?) -> Double }
+public struct GMQuestion: Codable, Sendable { public let text: String; public let options: [String]; public let answer: Int; public let grade: Int }
+public enum GMQuiz { public static func questions(grade: Int, seed: UInt64) -> [GMQuestion] }   // G1: bộ phận trống trên khuông, số chỉ nhịp, nốt đen và móc đơn, dấu lặng, tên các bộ phận
+public struct MIDILearn: Sendable { public init(); public mutating func expect(_ v: Voice); public mutating func received(note: UInt8) -> Voice?; public var map: [UInt8: Voice] { get } }
+```
+- [ ] **Bước 1: Test:**
+  - Thư mục PrivateLibrary rỗng → loader trả về rỗng và app dùng `LevelCatalog`; `grade-1.json` hợp lệ → tech groups ở ♩=70.
+  - `missingGrades(available: [1,2,3,4], current: 4) == [5]`; `missingGrades(available: [1,2,3,4,5], current: 5) == [6,7,8]`.
+  - `EarTest(.grooveRecall)` sinh groove 2 ô nhịp với HH/SN/BD, cùng seed thì ra cùng kết quả.
+  - `fillPlayback` đánh đúng nhịp và chọn đúng đáp án → điểm 100; chọn sai → trừ điểm nhận biết.
+  - Mọi câu GMQ có `answer` nằm trong khoảng của `options`.
+  - MIDILearn: expect(.snare) rồi received(38) → map[38] == .snare; sau đó received(38) thì trả về .snare.
+- [ ] **Bước 2:** FAIL. **Bước 3:** Implement.
+  - **Chuyển sách sang dữ liệu:** dùng Claude (qua Project/Notion, Task 13B, hoặc API) đọc trang Technical Exercises của từng grade rồi ghi ra `PrivateLibrary/grade-N.json`. Người dùng xem trước trên khuông nhạc rồi xác nhận.
+  - **Ear Test:** `DrumSynth` phát mẫu bằng âm trống tổng hợp, có count-in 1 ô nhịp; người dùng đánh lại; chấm bằng HitMatcher.
+  - **GMQ:** dạng quiz trắc nghiệm.
+  - **LessonsView:** 8 bài từ `docs/giao-trinh.html`, mỗi bài có checklist tự kiểm tra và nút "Tập ngay" mở bài tập tương ứng. Ví dụ bài 3 mở bài chỉ-tay-phải / chỉ-tay-trái ở 50 BPM.
+  - **MIDI learn cho TD-7:** nằm trong Settings, hướng dẫn đánh lần lượt từng pad.
+  - **Thông báo khi đạt grade mà thiếu sách grade sau:** dùng `missingGrades`.
+- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: Rockschool grade syllabus, ear tests, GMQ quiz, lessons and MIDI learn`.
+
 ---
 
 ## Mốc 9 (tùy chọn): Play-along
@@ -863,7 +911,7 @@ public struct TeacherChat: Sendable {
 
 ## Thứ tự và kiểm tra cuối
 
-Thứ tự làm: Task 1 → 2 → 3 → 4 → 5 → 6 → 7 → 7A. Đến đây đã có app dùng được hằng ngày: metronome, giọng đếm mượt, khuông nhạc chạy, đo sớm/trễ, luyện đếm. Sau đó làm 8 → 9 → 10 → 10A → 13 → 13B → 14 → 15 → 11 → 12. Ở Task 14, phần `TeacherReport`, `StudentProfile` và `ResourceValidator` dùng chung cho cả hai đường (Notion và API). Chỉ hàm `Teacher.weeklyReport` là thuộc đường API. Giáo viên AI (13–15) được làm trước biểu đồ tiến độ (11), vì người dùng không có giáo viên thật.
+Thứ tự làm: Task 1 → 2 → 3 → 4 → 5 → 6 → 7 → 7A. Đến đây đã có app dùng được hằng ngày: metronome, giọng đếm mượt, khuông nhạc chạy, đo sớm/trễ, luyện đếm. Sau đó làm 8 → 9 → 10 → 10A → 13 → 13B → 14 → 15 → 16 → 11 → 12. Ở Task 14, phần `TeacherReport`, `StudentProfile` và `ResourceValidator` dùng chung cho cả hai đường (Notion và API). Chỉ hàm `Teacher.weeklyReport` là thuộc đường API. Giáo viên AI (13–15) được làm trước biểu đồ tiến độ (11), vì người dùng không có giáo viên thật.
 
 **Stick Control trong app:** generator ở Task 8 sinh các tổ hợp sticking cùng kiểu. Bài trong sách thật thì người dùng nhập qua PDF (Task 9). Mỗi bài mặc định lặp 20 lần liên tục rồi mới chuyển bài, tempo ramp 50 → 90.
 

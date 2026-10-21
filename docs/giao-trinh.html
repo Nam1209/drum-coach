@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Giáo trình trống</title>
+<style>
+:root{
+  --bg:#f6f4f1; --surface:#ffffff; --surface-2:#efebe6; --text:#1d1b19; --muted:#6b645c; --line:#ddd6cd;
+  --accent:#e2692f; --accent-soft:#f6d9c8; --good:#2f9e55; --warn:#e8892b; --bad:#d63b3b; --info:#7aa6b8;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#161412; --surface:#211e1b; --surface-2:#2b2723; --text:#f1ece6; --muted:#a39a90; --line:#3a352f;
+    --accent:#f08048; --accent-soft:#4a2e20; --good:#4cc477; --warn:#f0a050; --bad:#f06161; --info:#8fbccd;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161412; --surface:#211e1b; --surface-2:#2b2723; --text:#f1ece6; --muted:#a39a90; --line:#3a352f;
+  --accent:#f08048; --accent-soft:#4a2e20; --good:#4cc477; --warn:#f0a050; --bad:#f06161; --info:#8fbccd;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:900px;margin:0 auto;padding:32px 16px 80px}
+header.hero{background:var(--accent);color:#fff;border-radius:20px;padding:28px;margin-bottom:24px}
+header.hero h1{margin:0 0 6px;font-size:1.9rem;letter-spacing:-.02em}
+header.hero p{margin:0;opacity:.92}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 24px}
+nav.toc a{background:var(--surface);border:1px solid var(--line);color:var(--text);text-decoration:none;padding:6px 12px;border-radius:999px;font-size:.9rem}
+section{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin-bottom:20px}
+h2{margin:0 0 12px;font-size:1.35rem}
+h3{margin:18px 0 8px;font-size:1.05rem}
+ul,ol{padding-left:22px;margin:8px 0}
+li{margin:3px 0}
+.muted{color:var(--muted)}
+.note{border-left:4px solid var(--accent);background:var(--surface-2);padding:10px 14px;border-radius:8px;margin:12px 0}
+.ok{border-left-color:var(--good)}
+.bad{border-left-color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:.94rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:.82rem;text-transform:uppercase;letter-spacing:.04em}
+.tablewrap{overflow-x:auto}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.card{background:var(--surface-2);border-radius:12px;padding:14px 16px}
+.card h4{margin:0 0 6px}
+code{background:var(--surface-2);padding:1px 6px;border-radius:6px;font-size:.88em}
+.count{font-family:ui-monospace,Menlo,monospace;font-size:1.05rem;background:var(--surface-2);padding:10px 14px;border-radius:10px;overflow-x:auto;white-space:pre}
+svg text{font-family:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🥁 Giáo trình nền tảng</h1>
+  <p>Theo Stick Control (G. L. Stone) và Rockschool Drums Grade 1–4 · Dụng cụ: Roland TD-7, pad 12", dùi 5A</p>
+</header>
+
+<nav class="toc">
+  <a href="#vi-tri">Bạn đang ở đâu</a>
+  <a href="#tu-the">1. Tư thế</a>
+  <a href="#cam-dui">2. Cầm dùi</a>
+  <a href="#cu-danh">3. Cú đánh</a>
+  <a href="#nghe-beat">4. Đếm &amp; nghe beat</a>
+  <a href="#stick-control">5. Tập Stick Control</a>
+  <a href="#rockschool">6. Rockschool</a>
+  <a href="#lich-tap">7. Lịch 30 phút/ngày</a>
+  <a href="#td7">8. Roland TD-7</a>
+</nav>
+
+<section id="vi-tri">
+  <h2>Bạn đang ở đâu so với Rockschool</h2>
+  <p>Bài kỹ thuật trong sách Rockschool đánh ở tempo <b>chậm hơn nhiều người nghĩ</b>:</p>
+  <div class="tablewrap"><table>
+    <tr><th>Grade</th><th>Bài kỹ thuật (Technical Exercises)</th><th>Tempo</th><th>Fill test</th></tr>
+    <tr><td>1</td><td>Single/double stroke móc đơn và móc kép, paradiddle</td><td>♩ = 70</td><td>♩ = 80, Funk</td></tr>
+    <tr><td>2</td><td>Thêm accent paradiddle, flam, chùm ba</td><td>♩ = 70</td><td>♩ = 70, Rock</td></tr>
+    <tr><td>3</td><td>Single stroke 8th → chùm ba → 16th, double stroke quanh tom, flam và drag, chùm ba có accent</td><td>♩ = 75</td><td>♩ = 80, cross stick</td></tr>
+    <tr><td>4</td><td>Single + double cùng lúc, paradiddle và triple paradiddle trên cả bộ trống, flam tap, ruff, phối hợp tay–chân</td><td>♩ = 75</td><td>♩ = 80, rim-shot + ghost note</td></tr>
+  </table></div>
+  <div class="note ok">Bạn đang thoải mái ở <b>50–90 BPM</b>, đúng vùng tempo của Grade 1–3. Điều quyết định bạn có qua hay không là <b>độ đều và độ chính xác</b>, không phải tốc độ. Bước đầu tiên là làm bài test level 1 trong app; điểm trên 90% ở mọi bài thì lên level kế tiếp.</div>
+  <p class="muted">Thang điểm thi thật: Pass 60%, Merit 74%, Distinction 90%. Quy tắc "trên 90% mới đạt level" của app tương đương mức <b>Distinction</b>. Bài thi gồm 3 bài biểu diễn (60 điểm), bài kỹ thuật (15), đọc nhạc hoặc ứng tác (10), nghe (10), câu hỏi kiến thức (5). Từ Grade 6, phần đọc nhạc được thay bằng Quick Study Piece.</p>
+</section>
+
+<section id="tu-the">
+  <h2>Bài 1 · Tư thế ngồi</h2>
+  <ul>
+    <li><b>Độ cao ghế:</b> đùi song song với sàn hoặc hơi dốc xuống về phía đầu gối. Ghế thấp quá thì chân đạp kick bị nặng, cao quá thì ngồi không vững.</li>
+    <li><b>Lưng</b> thẳng nhưng không gồng, ngồi ở nửa trước của mặt ghế. <b>Vai thả lỏng</b>, không nhô lên.</li>
+    <li><b>Khuỷu tay</b> buông tự nhiên gần thân, không dang rộng như cánh gà.</li>
+    <li><b>Pad 12"</b> đặt trên chân đế snare, cao khoảng ngang rốn. Khi cầm dùi đặt lên pad, cẳng tay gần như song song với mặt pad và đầu dùi chúc xuống rất nhẹ.</li>
+    <li><b>Snare của TD-7</b> chỉnh y như pad, để chuyển qua lại giữa pad và trống không phải đổi cảm giác.</li>
+  </ul>
+</section>
+
+<section id="cam-dui">
+  <h2>Bài 2 · Cách cầm dùi (matched grip)</h2>
+  <div class="grid2">
+    <div>
+      <svg viewBox="0 0 320 170" width="100%" role="img" aria-label="Vị trí điểm tựa trên dùi">
+        <rect x="10" y="78" width="300" height="12" rx="6" fill="var(--surface-2)" stroke="var(--muted)"/>
+        <ellipse cx="302" cy="84" rx="9" ry="7" fill="var(--muted)"/>
+        <line x1="110" y1="60" x2="110" y2="108" stroke="var(--accent)" stroke-width="3"/>
+        <circle cx="110" cy="84" r="6" fill="var(--accent)"/>
+        <text x="110" y="50" text-anchor="middle" font-size="13" font-weight="700" fill="var(--accent)">Điểm tựa (fulcrum)</text>
+        <text x="110" y="128" text-anchor="middle" font-size="12" fill="var(--text)">≈ 1/3 tính từ đuôi dùi</text>
+        <text x="110" y="144" text-anchor="middle" font-size="12" fill="var(--muted)">(dùi 5A ≈ 13–14 cm)</text>
+        <text x="20" y="70" font-size="12" fill="var(--muted)">đuôi</text>
+        <text x="290" y="70" font-size="12" fill="var(--muted)">đầu</text>
+        <line x1="10" y1="160" x2="110" y2="160" stroke="var(--muted)"/><line x1="110" y1="160" x2="310" y2="160" stroke="var(--muted)" stroke-dasharray="4 3"/>
+      </svg>
+    </div>
+    <div>
+      <ol>
+        <li><b>Tìm điểm cân bằng:</b> cầm hờ dùi bằng ngón cái và ngón trỏ, thả cho đầu dùi rơi xuống pad. Dịch điểm cầm lên xuống cho tới chỗ dùi <b>nảy lại nhiều nhất</b>. Đó là điểm tựa, thường cách đuôi khoảng 1/3 chiều dài.</li>
+        <li><b>Kẹp</b> dùi giữa <b>mặt phẳng đầu ngón cái</b> và <b>đốt giữa của ngón trỏ</b>. Đây là nơi duy nhất thật sự giữ dùi.</li>
+        <li><b>Ngón giữa, áp út, út</b> ôm nhẹ quanh dùi để dẫn hướng, không siết. Trong lòng bàn tay phải còn một khoảng hở nhỏ.</li>
+        <li><b>Lực nắm</b> chỉ khoảng 2–3 trên thang 10: vừa đủ để dùi không rơi.</li>
+        <li><b>Góc tay:</b> bắt đầu với <b>American grip</b>, mu bàn tay nghiêng khoảng 45°. Hai dùi tạo hình chữ V khoảng 60–90°, đầu dùi gặp nhau gần tâm pad nhưng không chạm nhau.</li>
+      </ol>
+    </div>
+  </div>
+  <div class="note bad"><b>Lỗi hay gặp:</b> nắm chặt như cầm búa (sách Rockschool nhắc nhiều lần: "grip not too tight"); điểm tựa trượt lên xuống trong lúc đánh; ngón cái chĩa lên trời; đuôi dùi thúc vào cổ tay; hai tay cầm ở hai điểm khác nhau nên tiếng to nhỏ khác nhau.</div>
+  <p class="muted">Tự kiểm tra: đứng trước gương hoặc quay video góc nghiêng, so hai tay xem có giống nhau không. Tay trái (tay yếu) chính là tay mà Stick Control được viết ra để luyện.</p>
+</section>
+
+<section id="cu-danh">
+  <h2>Bài 3 · Cú đánh: để dùi nảy lại</h2>
+  <p>Nguyên tắc số một: <b>ném dùi xuống, rồi để nó tự nảy lên</b>. Không ấn dùi vào mặt pad, không giật dùi lên.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Kiểu đánh</th><th>Bắt đầu → kết thúc</th><th>Dùng khi</th></tr>
+    <tr><td><b>Full stroke</b></td><td>cao → nảy về cao</td><td>các nốt to đều nhau</td></tr>
+    <tr><td><b>Down stroke</b></td><td>cao → chặn lại ở thấp</td><td>nốt accent mà nốt sau nhỏ</td></tr>
+    <tr><td><b>Tap stroke</b></td><td>thấp → thấp</td><td>nốt nhỏ, ghost note</td></tr>
+    <tr><td><b>Up stroke</b></td><td>thấp → nhấc lên cao</td><td>chuẩn bị cho accent tiếp theo</td></tr>
+  </table></div>
+  <ul>
+    <li><b>Độ cao dùi quyết định độ to</b>, không phải lực bóp: accent khoảng 25–30 cm, nốt thường khoảng 10–15 cm, ghost khoảng 3–5 cm.</li>
+    <li>Động tác chính là <b>cổ tay</b>, giống như vẫy tay hoặc đập bóng rổ. Cẳng tay chỉ phụ thêm khi đánh rất to; ngón tay dùng sau, khi cần tốc độ.</li>
+    <li>Luôn đánh vào <b>cùng một điểm gần tâm pad</b>. Hai tay phải cho cùng độ cao, cùng tiếng.</li>
+    <li>Stone dặn: <i>tập với cơ bắp thả lỏng, dừng ngay khi thấy căng</i>. Kiểm soát bắt đầu từ sự thả lỏng.</li>
+  </ul>
+  <h3>Bài tập đầu tiên (mỗi ngày 3 phút)</h3>
+  <ol>
+    <li>50 BPM, nốt đen, chỉ tay phải 16 lần, rồi chỉ tay trái 16 lần. Nghe xem tiếng hai tay có giống nhau không.</li>
+    <li>Đổi sang tay luân phiên R L R L ở nốt đen, rồi móc đơn.</li>
+    <li>Dùng chế độ chấm điểm của app: mục tiêu là toàn nốt xanh, và dải R/L không lệch về một phía.</li>
+  </ol>
+</section>
+
+<section id="nghe-beat">
+  <h2>Bài 4 · Đếm và nghe beat (sửa lỗi đếm giật ở "&amp;")</h2>
+  <p><b>Vì sao bị giật:</b> bạn đang nói từng âm tiết rời nhau ("một… và… hai…"). Bạn đọc to "&amp;" vào đúng lúc đó, chứ không coi nó là điểm <b>chính giữa</b> hai phách.</p>
+  <h3>Cách sửa, làm theo từng bước</h3>
+  <ol>
+    <li><b>Nói liền một hơi như hát:</b> "one-and-two-and-three-and-four-and" giống một câu dài, kéo dài nguyên âm và không ngắt giữa các chữ. "&amp;" nói nhỏ hơn số.</li>
+    <li><b>Chỉ nghe:</b> bật giọng đếm của app ở 50 BPM, nghe 4 ô nhịp.</li>
+    <li><b>Nói cùng app</b> trong Count Coach. App chỉ ra "&amp;" của bạn sớm hay trễ bao nhiêu ms.</li>
+    <li><b>Thêm chân:</b> gót chân trái gõ nhẹ xuống sàn vào các số 1, 2, 3, 4. Chân là metronome của cơ thể; "&amp;" là lúc chân nhấc lên cao nhất.</li>
+    <li><b>Vỗ tay</b> theo móc đơn trong lúc vẫn đếm và gõ chân, rồi mới chuyển sang đánh pad.</li>
+    <li>Tăng dần độ chia: <code>1 2 3 4</code> → <code>1 &amp; 2 &amp;</code> → <code>1 e &amp; a</code> → <code>1 trip let</code>. Chỉ lên mức sau khi mức trước đã mượt.</li>
+  </ol>
+  <div class="count">Nốt đen   : 1       2       3       4
+Móc đơn   : 1   &amp;   2   &amp;   3   &amp;   4   &amp;
+Móc kép   : 1 e &amp; a 2 e &amp; a 3 e &amp; a 4 e &amp; a
+Chùm ba   : 1  trip let 2  trip let …</div>
+  <h3>Nghe beat đúng</h3>
+  <ul>
+    <li><b>"Nhấn chìm" tiếng click:</b> khi bạn đánh trùng metronome, tiếng click gần như biến mất. Còn nghe rõ "click–cộp" tách nhau nghĩa là bạn đang lệch.</li>
+    <li><b>Tắt bớt click:</b> chỉ để click vào phách 2 và 4, rồi chỉ phách 1, rồi dùng Gap (tắt 1–2 ô nhịp). Khi click quay lại mà bạn vẫn trùng, nghĩa là bạn đã giữ được nhịp trong đầu.</li>
+    <li><b>Ghi âm rồi nghe lại</b> mỗi tuần. Đây cũng là cách bài thi Ear Test của Rockschool kiểm tra (nghe một đoạn fill hoặc groove rồi chơi lại).</li>
+  </ul>
+</section>
+
+<section id="stick-control">
+  <h2>Bài 5 · Tập Stick Control đúng cách (theo lời dặn của Stone)</h2>
+  <ul>
+    <li><b>Mỗi bài lặp 20 lần không dừng</b>, rồi mới sang bài kế tiếp. Stone viết hoa điều này: <i>"THIS IS IMPORTANT"</i>.</li>
+    <li><b>Đọc từ trên xuống</b> trong cột: bài 1, 2, 3… Trang 5 (Single Beat Combinations) là nơi bắt đầu.</li>
+    <li><b>Tempo:</b> tập ở nhiều tốc độ, bắt đầu thật chậm, tăng dần tới tốc độ cao nhất, rồi giảm dần về tốc độ ban đầu. Trong app, bật tempo ramp 50 → 90, mỗi lần +2.</li>
+    <li><b>Thả lỏng tuyệt đối.</b> Thấy căng là dừng.</li>
+    <li>Ngoài nốt đều, nên tập cả nhẹ (đánh thấp, kiểm soát) chứ không chỉ đánh mạnh. Stone cho rằng tập nhẹ giúp tăng cả lực lẫn tốc độ.</li>
+    <li>Cách dùng nâng cao (sau khi thuộc trang 5): giữ sticking nhưng tay phải chuyển sang hi-hat hoặc ride, tay trái giữ snare, thêm kick vào phách 1 và 3. Đây là cầu nối giữa Stick Control và groove trong Rockschool.</li>
+  </ul>
+  <div class="note">Trang 5 có 24 bài tổ hợp R/L với móc đơn. Mỗi ngày làm 4 bài × 20 lần, khoảng 6 tuần là hết trang ở 70–80 BPM.</div>
+</section>
+
+<section id="rockschool">
+  <h2>Bài 6 · Tập theo Rockschool</h2>
+  <ul>
+    <li><b>Bài kỹ thuật:</b> tập đúng tempo ghi trong sách (70 hoặc 75). Giám khảo chọn ngẫu nhiên và để ý cả <b>tốc độ phản xạ</b> của bạn, nên phải đánh được ngay không cần chuẩn bị.</li>
+    <li><b>Fill test:</b> 3 ô nhịp groove rồi một fill do giám khảo chọn. Tập chuyển từ groove sang fill rồi về lại phách 1 mà không hụt nhịp.</li>
+    <li><b>Lời khuyên lặp đi lặp lại trong phần walkthrough của sách:</b>
+      <ul>
+        <li>Đừng nắm dùi quá chặt.</li>
+        <li>Đánh vào giữa mặt trống.</li>
+        <li>Khi đánh kick cùng crash hoặc cùng snare thì phải vang <b>đúng cùng lúc</b>, không để thành flam ngoài ý muốn.</li>
+        <li>Đếm to các nốt móc kép khi tập đoạn khó.</li>
+        <li>Đoạn khó thì tập chậm rồi tăng tempo dần.</li>
+      </ul>
+    </li>
+    <li><b>Ear Test:</b> (1) nghe một fill rồi đánh lại và chọn đúng bản nhạc; (2) nghe một groove 2 ô nhịp rồi đánh lại 4 ô nhịp. App sẽ có chế độ luyện cho cả hai dạng này.</li>
+    <li><b>Câu hỏi kiến thức ở Grade 1:</b> nhận biết bộ phận trống trên khuông nhạc, số chỉ nhịp, nốt đen và móc đơn, dấu lặng, tên các bộ phận của bộ trống.</li>
+  </ul>
+  <div class="note"><b>Về bản sách bạn đang có:</b> các file PDF này lấy từ những trang chia sẻ, và ít nhất một file có in thông tin của người mua khác, nên đây không phải bản chính hãng. Bản mua chính hãng (tại rslawards.com) đi kèm <b>backing track</b> (không có tiếng trống, có và không có click). Bạn cần backing track này cho phần bài biểu diễn và fill test, và còn cần mang sách gốc theo khi đi thi.</div>
+</section>
+
+<section id="lich-tap">
+  <h2>Bài 7 · Lịch tập 30 phút/ngày (giai đoạn đầu)</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Phút</th><th>Nội dung</th><th>Tempo</th></tr>
+    <tr><td>0–5</td><td>Khởi động: single stroke rồi double stroke, nốt đen → móc đơn → móc kép; luyện đếm thành tiếng</td><td>50 → 70</td></tr>
+    <tr><td>5–15</td><td>Stick Control trang 5: 4 bài × 20 lần</td><td>ramp 50 → 80</td></tr>
+    <tr><td>15–25</td><td>Rockschool Grade 1: Group A → B → C → fill, đúng tempo thi</td><td>70 / 80</td></tr>
+    <tr><td>25–30</td><td>Count Coach hoặc một bài đọc nhạc ngẫu nhiên, ghi âm lại 1 lượt</td><td>60–80</td></tr>
+  </table></div>
+  <p class="muted">Khi app có thầy AI thì lịch này được điều chỉnh mỗi tuần theo kết quả của bạn. Bài tập chỉ nên đổi khi bạn đạt trên 90% ở tempo mục tiêu.</p>
+</section>
+
+<section id="td7">
+  <h2>Bài 8 · Roland TD-7 với iPad</h2>
+  <ul>
+    <li>TD-7 là module đời cũ, <b>chỉ có cổng MIDI OUT 5 chân</b>, không có USB. Để app biết bạn đánh trúng trống nào, cần một <b>cáp USB-MIDI</b> (ví dụ Roland UM-ONE mk2) cùng adapter USB-C cho iPad. Cáp nối từ MIDI OUT của TD-7 sang iPad.</li>
+    <li>App sẽ có bước <b>"MIDI learn"</b>: lần lượt đánh vào từng pad (kick, snare, hi-hat, các tom, crash, ride) để app tự học số nốt MIDI của TD-7. Bạn không phải tra bảng.</li>
+    <li>Nếu chưa có cáp: dùng micro như pad tập. App vẫn chấm sớm/muộn, chỉ không biết bạn đánh trúng trống nào.</li>
+    <li>Pad 12" và dùi 5A là lựa chọn chuẩn, không cần đổi.</li>
+  </ul>
+</section>
+
+<p class="muted" style="text-align:center">Nguồn: Stick Control for the Snare Drummer (G. L. Stone, 1935): phần Preface và How to Practise · Rockschool Drums Grade 1–4: Technical Exercises, Ear Tests, GMQ, Marking Schemes · kiến thức sư phạm trống phổ biến.</p>
+</div>
+</body>
+</html>
