@@ -27,7 +27,26 @@
 - Bị bí ở nhiều chỗ → app cần chỉ ra điểm yếu cụ thể (theo vị trí "1 e & a", theo tay R/L) và gợi ý bài tiếp theo.
 - Vì tempo đang là 50–90, mặc định của app phải tối ưu cho khoảng này: tempo ramp mặc định 50 → 90, bước +2.
 
+**Yêu cầu bổ sung (người dùng đang dùng app Drum Journal để tham khảo):**
+- Nốt chạy theo tempo để tập theo. Người dùng **đeo tai nghe** để nghe metronome; iPad dùng **micro** nghe tiếng trống (cả pad lẫn trống điện).
+- Màu phản hồi cho từng nốt:
+  - **Xanh lá** = đúng.
+  - **Cam** = sớm hoặc muộn. Vạch cam đặt **trước nốt** nếu sớm, **sau nốt** nếu muộn.
+  - **Đỏ** = trượt.
+- Cuối bài hiện **% hoàn thành** trên tổng số nốt của bài.
+- Có **danh sách bài test cho từng level**. Chỉ **đạt level khi được > 90%** ở bài test của level đó.
+- Học theo giao diện Drum Journal:
+  - Chữ R/L dưới nốt.
+  - Dải thời gian hai làn R (trên) và L (dưới), có nhãn đếm "1 & 2 &" chạy qua vạch đứng.
+  - Nút BPM −/+ và chọn thời lượng bài (30 giây, 1, 2, 5 phút).
+  - Chọn giá trị nốt (đen / móc đơn / móc kép).
+  - Nút FLIP để đổi tay (R↔L).
+  - Banner "Nên dùng tai nghe".
+  - Dòng "Lần trước: 50 BPM, 79%" kèm biểu đồ nhỏ.
+
 **Các quyết định Claude tự đưa ra (người dùng có thể đổi):**
+- **Ngưỡng "đúng":** |lệch| ≤ 30 ms, chỉnh được trong Settings (Dễ 45 / Vừa 30 / Khó 20 ms). Lệch lớn hơn nhưng vẫn nằm trong cửa sổ ghép là cam; ngoài cửa sổ là đỏ.
+- **Cách tính %:** mỗi nốt xanh được 1 điểm, cam 0.5, đỏ 0. % = tổng điểm / tổng số nốt × 100. Cú đánh thừa trừ 0.5 điểm mỗi cú. Kết quả kẹp trong 0…100.
 - Native Swift/SwiftUI vì cần độ trễ âm thanh thấp và CoreMIDI.
 - **Bản quyền:** Stick Control và sách Rockschool vẫn còn bản quyền, nên app **không đóng gói nội dung của chúng**. Có ba nguồn bài tập: (a) generator tự sinh các hoán vị sticking theo kiểu Stick Control (đây là tổ hợp toán học R/L, không chép sách); (b) bộ giáo trình kỹ năng Grade 8 do app tự soạn; (c) người dùng nhập bài từ sách của chính mình, bằng tay qua text DSL hoặc dùng Claude đọc trang PDF. Dữ liệu nhập chỉ nằm trên máy.
 - Đếm nhịp bằng tiếng Anh ("one, e, and, a"), vì đó là chuẩn mà Rockschool dùng; tiếng Việt để sau.
@@ -48,7 +67,7 @@
 ## Review Focus
 
 1. **Tempo cực trị** (40 và 300 BPM, nốt 32nd ở 200 BPM): lịch click không được trôi; sau 10 phút sai lệch tích lũy phải dưới 1 sample. Test được thêm ở Task 3.
-2. **Tiếng metronome lọt vào micro** ở chế độ pad sẽ bị nhận nhầm thành tiếng gõ. Người dùng cần cửa sổ chặn quanh mỗi click khi không đeo tai nghe. Test được thêm ở Task 6.
+2. **Tiếng metronome lọt vào micro** khi người dùng quên đeo tai nghe sẽ làm điểm cao giả. App phát hiện đầu ra đang là loa (`AVAudioSession.currentRoute`) thì hiện banner "Nên dùng tai nghe" và bật cửa sổ chặn quanh mỗi click. Test được thêm ở Task 6.
 3. **Đánh thừa hoặc đánh thiếu nốt:** một cú đánh thừa không được "ăn" mất nốt kế tiếp, và nốt bị bỏ phải ghi là `missed` chứ không bị ghép với cú đánh ở xa. Test được thêm ở Task 7.
 4. **Đổi tempo hoặc dừng giữa chừng:** dữ liệu phân tích của lần chơi trước không được lẫn vào lần chơi mới. Test được thêm ở Task 7.
 5. **Claude trả về JSON hỏng, thiếu field hoặc mất mạng:** app hiện lỗi dễ hiểu và vẫn giữ kết quả phân tích cục bộ. Test được thêm ở Task 10.
@@ -306,8 +325,9 @@ public struct NotationLayout: Sendable {
 - [ ] **Bước 1: Test:** paradiddle với barWidth 400 thì glyph đầu tiên x > 0, các nốt cùng vị trí (HH + BD ở phách 0) có cùng x, `playheadX(Rational(2,1))` nằm giữa ô nhịp; bài 4 ô nhịp với `barsPerLine 2` thì glyph cuối có `line == 1`; nốt 16th có beam level 2; nốt ghost được ghi nhận để vẽ ngoặc đơn.
 - [ ] **Bước 2:** FAIL. **Bước 3:** Implement layout thuần, sau đó `NotationView` vẽ bằng SwiftUI `Canvas`: 5 dòng kẻ, khóa bộ gõ, nốt (đặc hoặc x), đuôi, beam, dấu `>`, ghost trong ngoặc, chữ R/L dưới nốt. Playhead là thanh dọc mờ di chuyển bằng `TimelineView(.animation)`, vị trí tính từ `hostTime - beatZeroHostTime - outputLatency`. Nốt đang đánh sáng lên. Bật tùy chọn thì hiện nhãn voice (HI-HAT/SNARE) ở lần đầu một voice xuất hiện, giống video tham khảo. Hai kiểu hiển thị: **trang tĩnh** (playhead chạy, xuống dòng) và **cuộn ngang** (khuông trôi, playhead đứng yên).
 - [ ] **Bước 4:** PASS. Kiểm tra tay trên simulator: ở 60 và 180 BPM, playhead trùng với tiếng click.
-- [ ] **Bước 5:** Thanh điều khiển trong PracticeView gồm: BPM (slider ±1 và tap tempo), chọn nhịp click, chọn kiểu đếm giọng, số ô count-in, lặp lại, gap click, tempo ramp, chọn chế độ Pad / Trống điện.
-- [ ] **Bước 6:** Commit `feat: animated drum notation with playhead`.
+- [ ] **Bước 5:** Thêm **dải R/L** dưới khuông nhạc, giống Drum Journal: làn R ở trên, làn L ở dưới, trục giữa có nhãn đếm theo `Counting.labels`, vạch đứng cố định, các nốt trôi từ phải sang trái. Mỗi nốt là một vạch đứng, có màu theo kết quả ở Task 7. Nút **FLIP** đổi mọi `Hand.right` ↔ `.left` (có test thuần `Exercise.flippedHands()`). Thời lượng bài chọn được 30 giây / 1 / 2 / 5 phút; `repeats` tính bằng thời lượng chia cho độ dài một vòng bài rồi làm tròn lên.
+- [ ] **Bước 6:** Thanh điều khiển trong PracticeView gồm: BPM (slider ±1 và tap tempo), chọn nhịp click, chọn kiểu đếm giọng, số ô count-in, lặp lại, gap click, tempo ramp, chọn chế độ Pad / Trống điện.
+- [ ] **Bước 7:** Commit `feat: animated drum notation with playhead`.
 
 ---
 
@@ -351,6 +371,10 @@ public enum LatencyCalibrator { public static func estimate(expected: [TimeInter
 **Interfaces – Produces:**
 ```swift
 public enum NoteResult: Sendable, Hashable { case hit(offset: TimeInterval, velocity: Double), wrongVoice(offset: TimeInterval, played: Voice), missed }
+public enum Grade: Sendable, Hashable { case good /* xanh lá */, early /* cam, vạch đặt trước nốt */, late /* cam, vạch đặt sau nốt */, missed /* đỏ */ }
+public struct ScoringRules: Codable, Sendable, Equatable { public var goodWindow: TimeInterval = 0.030; public var extraHitPenalty: Double = 0.5
+  public func grade(_ r: NoteResult) -> Grade         // .wrongVoice được chấm như .early hoặc .late theo offset
+  public func score(_ results: [NoteResult], totalNotes: Int, extraHits: Int) -> Double } // 0...100; nốt chưa có kết quả tính là missed
 public struct HitMatcher: Sendable {
   public init(expected: [TimedNote], beatZero: TimeInterval, window: TimeInterval) // window = min(0.1, 0.45 × khoảng cách nhỏ nhất giữa hai nốt)
   public mutating func consume(_ hit: Hit) -> (noteIndex: Int, result: NoteResult)?  // nil = cú đánh thừa
@@ -376,9 +400,22 @@ public struct SessionStats: Codable, Sendable, Equatable {
 @Test func wrongVoiceWithMIDI() { /* nốt snare, hit voice .tom1 → .wrongVoice */ }
 @Test func micHitMatchesAnyVoiceAtSameTime() { /* HH + BD cùng thời điểm, chỉ một hit micro (voice nil) → cả hai nốt cùng thời điểm đó tính là hit */ }
 @Test func newRunResets() { /* Review Focus #4: matcher mới tạo với beatZero mới; hit có time < beatZero bị bỏ qua, không bị ghép */ }
+@Test func gradeColors() { let r = ScoringRules()
+  #expect(r.grade(.hit(offset: 0.029, velocity: 1)) == .good); #expect(r.grade(.hit(offset: -0.031, velocity: 1)) == .early)
+  #expect(r.grade(.hit(offset: 0.05, velocity: 1)) == .late); #expect(r.grade(.missed) == .missed) }
+@Test func scorePercent() { let r = ScoringRules()
+  // 8 xanh + 1 cam + 1 đỏ trên 10 nốt → (8 + 0.5) / 10 = 85%
+  #expect(r.score(eightGoodOneLateOneMissed, totalNotes: 10, extraHits: 0) == 85)
+  #expect(r.score(allGood10, totalNotes: 10, extraHits: 4) == 80)       // 10 − 4×0.5 = 8
+  #expect(r.score([], totalNotes: 10, extraHits: 30) == 0) }            // không bao giờ âm
 @Test func stats() { /* offset -10, +10, +40 ms, 1 missed → accuracy 2/4, mean +13.3, missed 1 */ }
 ```
-- [ ] **Bước 2:** FAIL. **Bước 3:** Implement. Khi ở chế độ micro, coi các nốt có cùng `time` là một "cụm" và một hit ghép với cả cụm. Trong PracticeViewModel, mỗi lần bấm Play tạo `HitMatcher` mới, gọi `expire` theo từng frame. **Phản hồi trực tiếp:** nốt chuyển màu xanh (|offset| ≤ 15 ms), vàng (≤ 30 ms), cam hoặc tím (sớm hoặc trễ hơn), đỏ (missed); phía trên nốt hiện số "−12" hoặc "+25". `TimingStrip` là dải ngang có vạch 0 ở giữa và các chấm của 16 cú đánh gần nhất, để thấy ngay mình đang có xu hướng nhanh hay chậm. Cuối mỗi lần chơi hiện bảng tóm tắt `SessionStats`.
+- [ ] **Bước 2:** FAIL. **Bước 3:** Implement. Khi ở chế độ micro, coi các nốt có cùng `time` là một "cụm" và một hit ghép với cả cụm. Trong PracticeViewModel, mỗi lần bấm Play tạo `HitMatcher` mới, gọi `expire` theo từng frame. **Phản hồi trực tiếp** (cả trên khuông nhạc lẫn dải R/L), theo `ScoringRules.grade`:
+- **Xanh lá:** đúng.
+- **Cam:** một vạch cam nằm **bên trái nốt** nếu sớm, **bên phải** nếu muộn; khoảng cách tới nốt tỉ lệ với số ms lệch; có kèm số "−42" hoặc "+38".
+- **Đỏ:** trượt.
+
+Trong lúc chơi hiện **Score %** chạy trực tiếp. Màn hình kết quả cuối bài gồm: **% hoàn thành** (chữ lớn), số nốt xanh / cam / đỏ, xu hướng chung ("hay đánh sớm 18 ms"), và vị trí đếm yếu nhất. `TimingStrip` là dải ngang có vạch 0 ở giữa và các chấm của 16 cú đánh gần nhất, để thấy ngay mình đang có xu hướng nhanh hay chậm. Cuối mỗi lần chơi hiện bảng tóm tắt `SessionStats`.
 - [ ] **Bước 4:** PASS.
 - [ ] **Bước 5:** Commit `feat: hit matching with live early/late feedback`.
 
@@ -489,24 +526,53 @@ public enum AssessmentRequest {
 - [ ] **Bước 4:** PASS.
 - [ ] **Bước 5:** Commit `feat: Rockschool-style assessment via Claude with local fallback`.
 
-### Task 10A: Bài kiểm tra xếp trình độ
+### Task 10A: Danh sách bài test level
 
-Người dùng chưa biết trình độ của mình. Bài kiểm tra gồm 8 tầng, mỗi tầng 2–3 bài lấy từ `Grade8Curriculum` cùng một bài đọc nhạc ngẫu nhiên. Tempo mỗi tầng tăng dần (tầng 1 ở 60 BPM nốt đen, tầng 8 ở 16th/sextuplet khoảng 100–120 BPM). Bài dừng khi trượt 2 bài trong cùng một tầng.
+Người dùng chưa biết trình độ của mình. Có **8 level**, mỗi level có một **danh sách bài test** cố định (3–5 bài, lấy từ `Grade8Curriculum`), mỗi bài có tempo, thời lượng và ngưỡng ghép cố định.
 
-**Files:** Create `DrumLibrary/PlacementTest.swift`, `App/.../Progress/PlacementView.swift`; Test `PlacementTestTests.swift`
+Quy tắc:
+- **Một bài test được tính là đạt khi score > 90%** (đúng 90.0% thì chưa đạt).
+- **Đạt level khi mọi bài test của level đó đều đạt.** Kết quả lấy lần chơi tốt nhất của từng bài, nên có thể đạt từng bài ở những buổi khác nhau.
+- **Level hiện tại** là level cao nhất mà mọi level bên dưới nó cũng đã đạt.
+- Level kế tiếp được mở khóa khi đạt level trước. Riêng lần đầu, người dùng được thử bất kỳ level nào để tìm điểm bắt đầu.
+- Chế độ test khóa tempo và ngưỡng (không đổi BPM, không FLIP, không chỉnh Dễ/Khó).
+
+**Files:** Create `DrumLibrary/LevelTests.swift`, `App/Models/LevelAttempt.swift`, `App/.../Progress/LevelListView.swift`; Test `LevelTestsTests.swift`
 
 **Interfaces – Produces:**
 ```swift
-public struct PlacementTest: Sendable {
-  public init(curriculum: [CurriculumUnit], seed: UInt64)
-  public var currentItem: (tier: Int, exercise: Exercise, bpm: Double)? { get }
-  public mutating func record(_ stats: SessionStats)   // đạt khi accuracy ≥ 0.8 và |mean| ≤ 25 ms
-  public var result: (tier: Int, weakSkills: [String])? { get } // nil khi chưa xong
+public struct LevelTestItem: Sendable, Identifiable { public let id: String; public let dsl: String; public let bpm: Double; public let duration: TimeInterval; public let skill: String }
+public struct Level: Sendable, Identifiable { public let id: Int /* 1...8 */; public let title: String; public let tests: [LevelTestItem] }
+public enum LevelCatalog { public static let levels: [Level]; public static let passMark: Double = 90 /* phải > */ }
+public struct LevelProgress: Sendable {
+  public init(bestScores: [String: Double])            // id bài test → % cao nhất
+  public func isPassed(_ test: LevelTestItem) -> Bool  // bestScore > 90
+  public func isPassed(_ level: Level) -> Bool
+  public var currentLevel: Int                         // 0 nếu chưa đạt level nào
+  public func isUnlocked(_ level: Level) -> Bool
 }
 ```
-- [ ] **Bước 1: Test:** đạt hết → tier 8; trượt 2 bài ở tầng 3 → kết quả tier 2, `weakSkills` chứa skill của các bài trượt; một bài trượt rồi một bài đạt trong cùng tầng → vẫn đi tiếp.
-- [ ] **Bước 2:** FAIL. **Bước 3:** Implement. Có kết quả thì gửi `AssessmentRequest` (kèm tất cả stats) để Claude viết nhận xét và **lộ trình 4 tuần** (bài nào, tempo nào, mỗi ngày bao lâu). Lưu lộ trình này và hiện ở màn hình chính dưới dạng "Hôm nay tập gì".
-- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: placement test and practice roadmap`.
+- [ ] **Bước 1: Test:**
+  - score 90.0 → chưa đạt; 90.1 → đạt.
+  - Level 1 có 3 bài, đạt 2 bài → level chưa đạt; đạt đủ 3 bài → đạt.
+  - Đạt level 1 và 3 nhưng chưa đạt level 2 → `currentLevel == 1`.
+  - Chưa có lần chơi nào → `currentLevel == 0` và mọi level đều thử được.
+  - Mọi `dsl` trong `LevelCatalog` parse được; level N+1 không có bài nào có tempo × độ chia nhỏ hơn level N (độ khó không giảm).
+- [ ] **Bước 2:** FAIL. **Bước 3:** Implement. Gợi ý nội dung mỗi level (bài do app tự soạn; tempo tính theo nốt đen):
+
+  | Level | Nội dung test | Tempo |
+  |---|---|---|
+  | 1 | Nốt đen, móc đơn, single stroke | 60–70 |
+  | 2 | Double stroke, sticking 8 nốt kiểu Stick Control | 70 |
+  | 3 | Móc kép, paradiddle, accent | 70–80 |
+  | 4 | Groove 8th/16th, flam | 80 |
+  | 5 | Chùm ba, shuffle, ghost note | 85–90 |
+  | 6 | Linear, roll 5/7/9 nét, fill qua tom | 90–100 |
+  | 7 | Nhịp lẻ 7/8, 5/4, sextuplet | 100 |
+  | 8 | Tổng hợp mức Grade 8: 16th 110+, displacement, đọc nhạc | 110–120 |
+
+  `LevelListView` liệt kê 8 level. Mỗi level có trạng thái 🔒 / đang làm / ✅, và mỗi bài test hiện % tốt nhất cùng dấu ✓ khi > 90%. Mỗi lần chơi lưu một `LevelAttempt` (SwiftData). Đạt level thì có màn hình chúc mừng. Có thể bấm "Nhờ Claude nhận xét" để gửi `AssessmentRequest` và nhận **lộ trình 4 tuần** cho level kế tiếp ("Hôm nay tập gì").
+- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: level test list with >90% pass rule`.
 
 ---
 
