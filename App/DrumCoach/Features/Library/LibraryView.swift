@@ -30,6 +30,7 @@ struct LibraryView: View {
                     }
                 }
             }
+            Section { NavigationLink("🎵 Chơi theo nhạc / backing track") { PlayAlongView() } }
             Section("Khởi động") { ForEach(StarterExercises.all) { practiceLink($0) } }
             Section("40 rudiment chuẩn PAS") {
                 NavigationLink("Xem 40 rudiment") { List(PASRudiments.all) { practiceLink($0) }.navigationTitle("PAS Rudiments") }
