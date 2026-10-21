@@ -83,7 +83,7 @@ final class PracticeViewModel: ObservableObject {
     init(exercise: Exercise, voiceBank: CountVoiceBank, testItem: LevelTestItem? = nil) {
         self.exercise = exercise
         self.testItem = testItem
-        var saved = SettingsStore.loadMetronome() ?? MetronomeSettings(bpm: 70, pattern: .eighths, accentBeatOne: true)
+        var saved = SettingsStore.loadMetronome() ?? MetronomeSettings(bpm: 70, pattern: .quarter, accentBeatOne: true)
         if let testItem {
             saved.bpm = testItem.bpm
             durationSeconds = testItem.duration

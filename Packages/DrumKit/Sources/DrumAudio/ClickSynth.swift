@@ -6,9 +6,9 @@ public enum ClickSynth {
 
     public static func render(sound: ClickSound, pitchHz: Double, sampleRate: Double) -> [Float] {
         switch sound {
-        case .click: tone(pitchHz, partials: [(1, 1), (2.7, 0.4)], decay: 0.012, length: 0.03, sr: sampleRate, noise: 0.15)
+        case .click: tone(pitchHz, partials: [(1, 1), (2.7, 0.2)], decay: 0.012, length: 0.03, sr: sampleRate, noise: 0.06)
         case .beep: tone(pitchHz, partials: [(1, 1), (2, 0.3)], decay: 0.05, length: 0.12, sr: sampleRate, noise: 0)
-        case .woodblock: tone(pitchHz, partials: [(1, 1), (2.76, 0.5), (5.4, 0.25)], decay: 0.02, length: 0.07, sr: sampleRate, noise: 0.05)
+        case .woodblock: tone(pitchHz, partials: [(1, 1), (2.76, 0.25), (5.4, 0.06)], decay: 0.022, length: 0.07, sr: sampleRate, noise: 0.02)
         case .cowbell: tone(pitchHz, partials: [(1, 1), (1.48, 0.8)], decay: 0.06, length: 0.2, sr: sampleRate, noise: 0)
         case .rimshot: tone(max(pitchHz, 400), partials: [(1, 0.6), (2.3, 0.4)], decay: 0.015, length: 0.06, sr: sampleRate, noise: 0.6)
         case .hiHat: tone(0, partials: [], decay: 0.02, length: 0.06, sr: sampleRate, noise: 1)
@@ -23,11 +23,12 @@ public enum ClickSynth {
         var out = [Float](repeating: 0, count: count)
         var rng = SplitMix(seed: 0x5eed)
         var lastNoise = 0.0
-        let attack = Int(0.0005 * sr)
+        // 1.5 ms raised-cosine attack: takes the sting off the onset without blurring where the click is heard.
+        let attack = Int(0.0015 * sr)
         for i in 0..<count {
             let t = Double(i) / sr
             var env = exp(-t / decay)
-            if i < attack { env *= Double(i) / Double(max(attack, 1)) }
+            if i < attack { env *= 0.5 - 0.5 * cos(Double.pi * Double(i) / Double(max(attack, 1))) }
             let tail = Double(count - i) / Double(count)       // force a clean fade to zero
             env *= min(1, tail * 8)
             var v = 0.0

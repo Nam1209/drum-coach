@@ -32,13 +32,28 @@ public struct LevelTone: Codable, Sendable, Equatable, Hashable {
 }
 
 public enum ToneLadder {
+    /// Warm wooden tones, all below 900 Hz, so long sessions in headphones stay comfortable.
     public static let `default`: [Int: LevelTone] = [
-        5: LevelTone(sound: .beep, pitchHz: 1760, gainDb: 0),      // high bell — beat 1 / accent
-        4: LevelTone(sound: .click, pitchHz: 1320, gainDb: -2),    // high click — beats 2, 3, 4
-        3: LevelTone(sound: .cowbell, pitchHz: 880, gainDb: -5),   // cowbell — "&"
-        2: LevelTone(sound: .woodblock, pitchHz: 660, gainDb: -9), // low woodblock — clear "e"/"a"
-        1: LevelTone(sound: .hiHat, pitchHz: 0, gainDb: -14),      // soft hi-hat — background "e"/"a"
+        5: LevelTone(sound: .woodblock, pitchHz: 880, gainDb: 0),  // high woodblock — beat 1 / accent
+        4: LevelTone(sound: .woodblock, pitchHz: 660, gainDb: -3), // woodblock — beats 2, 3, 4
+        3: LevelTone(sound: .click, pitchHz: 520, gainDb: -7),     // soft low click — "&"
+        2: LevelTone(sound: .woodblock, pitchHz: 440, gainDb: -11),// low woodblock — clear "e"/"a"
+        1: LevelTone(sound: .hiHat, pitchHz: 0, gainDb: -17),      // soft hi-hat — background "e"/"a"
     ]
+
+    /// The first factory ladder (piercing 1760/1320 Hz beeps), kept to recognise it in saved settings.
+    public static let legacyDefault: [Int: LevelTone] = [
+        5: LevelTone(sound: .beep, pitchHz: 1760, gainDb: 0),
+        4: LevelTone(sound: .click, pitchHz: 1320, gainDb: -2),
+        3: LevelTone(sound: .cowbell, pitchHz: 880, gainDb: -5),
+        2: LevelTone(sound: .woodblock, pitchHz: 660, gainDb: -9),
+        1: LevelTone(sound: .hiHat, pitchHz: 0, gainDb: -14),
+    ]
+
+    /// Saved settings still on the old factory ladder move to the new one; a ladder the user edited is kept.
+    public static func upgraded(_ ladder: [Int: LevelTone]) -> [Int: LevelTone] {
+        ladder == legacyDefault ? `default` : ladder
+    }
 
     public static func tone(for slot: ClickSlot, ladder: [Int: LevelTone] = ToneLadder.default) -> LevelTone? {
         guard slot.level > 0, var tone = ladder[min(slot.level, 5)] else { return nil }
@@ -140,6 +155,16 @@ public struct MetronomeSettings: Sendable, Codable, Equatable {
         voiceVolume = try c.decode(Float.self, forKey: .voiceVolume)
         musicVolume = try c.decode(Float.self, forKey: .musicVolume)
         swing = try c.decodeIfPresent(Double.self, forKey: .swing) ?? Swing.straight
+    }
+
+    /// Settings saved by the first release with its untouched factory sound (busy 8th clicks, piercing beeps) become
+    /// the gentle default: one wooden "tick" on beat 1 and the same soft "tock" on the other beats.
+    public func upgradedFromFirstRelease() -> MetronomeSettings {
+        guard ladder == ToneLadder.legacyDefault else { return self }
+        var s = self
+        s.ladder = ToneLadder.default
+        if pattern == .eighths { s.pattern = .quarter }
+        return s
     }
 
     /// Seconds per click beat (the time signature's beat unit).

@@ -177,3 +177,28 @@ private let sr = 48_000.0
     #expect((99...101).contains(crossings))                               // still 1 kHz, not 918 Hz
     #expect(CountVoiceBank.resample(tone, from: 48_000, to: 48_000) == tone)
 }
+
+@Test func defaultClicksAreWarm() {
+    // Nothing above ~900 Hz fundamental: the old 1760/1320 Hz beeps were piercing in headphones.
+    #expect(ToneLadder.default.values.allSatisfy { $0.pitchHz <= 900 })
+}
+
+@Test func savedFactoryLadderIsUpgradedButCustomOnesAreKept() {
+    #expect(ToneLadder.upgraded(ToneLadder.legacyDefault) == ToneLadder.default)
+    var custom = ToneLadder.legacyDefault
+    custom[5]?.pitchHz = 1500
+    #expect(ToneLadder.upgraded(custom) == custom)
+}
+
+@Test func firstFactorySettingsBecomeASimpleTickTock() {
+    var old = MetronomeSettings(bpm: 70, pattern: .eighths, accentBeatOne: true)
+    old.ladder = ToneLadder.legacyDefault
+    let new = old.upgradedFromFirstRelease()
+    #expect(new.pattern == .quarter && new.ladder == ToneLadder.default && new.bpm == 70)
+    // A user's own pattern or sounds are left alone.
+    var custom = old; custom.pattern = .sixteenths
+    #expect(custom.upgradedFromFirstRelease().pattern == .sixteenths)
+    // Tick on 1, the same soft tock on 2, 3, 4.
+    let e = ClickSchedule.events(settings: MetronomeSettings(bpm: 60, pattern: .quarter, accentBeatOne: true), sampleRate: sr, from: 0, to: 48_000 * 4)
+    #expect(e.map(\.tone).dropFirst().allSatisfy { $0 == e[1].tone } && e[0].tone != e[1].tone)
+}

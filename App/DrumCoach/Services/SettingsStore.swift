@@ -9,7 +9,8 @@ enum SettingsStore {
 
     static func loadMetronome() -> MetronomeSettings? {
         guard let data = UserDefaults.standard.data(forKey: metronomeKey) else { return nil }
-        return try? JSONDecoder().decode(MetronomeSettings.self, from: data)
+        guard var s = try? JSONDecoder().decode(MetronomeSettings.self, from: data) else { return nil }
+        return s.upgradedFromFirstRelease()
     }
 
     /// Measured extra latency (seconds) per input mode.

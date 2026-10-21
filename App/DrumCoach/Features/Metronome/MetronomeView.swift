@@ -13,7 +13,7 @@ struct MetronomeView: View {
 
     init(voiceBank: CountVoiceBank) {
         self.voiceBank = voiceBank
-        let saved = SettingsStore.loadMetronome() ?? MetronomeSettings(bpm: 70, pattern: .eighths, accentBeatOne: true)
+        let saved = SettingsStore.loadMetronome() ?? MetronomeSettings(bpm: 70, pattern: .quarter, accentBeatOne: true)
         _settings = State(initialValue: saved)
         _engine = StateObject(wrappedValue: MetronomeEngine(voiceBank: voiceBank, settings: saved))
     }
