@@ -15,11 +15,15 @@ struct TodayView: View {
     @State private var runner: SessionRunner?
     @State private var note = ""
     @State private var finished = false
+    /// Pad, kit or both: today's exercises are chosen to fit.
+    @AppStorage("practiceInstrument") private var instrumentRaw = PracticeInstrument.both.rawValue
+    private var instrument: PracticeInstrument { PracticeInstrument(rawValue: instrumentRaw) ?? .both }
     private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        let plan = todayPlan
         let catalog = ExerciseCatalog.all(context)
+        let base = todayPlan
+        let plan = (day: base.day.adapted(to: instrument, catalog: catalog), source: base.source)
         let total = plan.day.allItems.reduce(0) { $0 + $1.minutes }
         let rank = PracticeRank.for(points: HistoryStore.totalPoints(context))
         let streak = ProgressSummary(records: HistoryStore.records(context), now: Date(), calendar: .current).streakDays
@@ -34,6 +38,18 @@ struct TodayView: View {
                     Spacer()
                     sessionControl(plan.day)
                 }
+                HStack(alignment: .firstTextBaseline, spacing: 14) {
+                    Text(L("Hôm nay tập trên", "Today I practise on")).font(.headline)
+                    Picker(L("Dụng cụ", "Instrument"), selection: $instrumentRaw) {
+                        Text("Pad").tag(PracticeInstrument.pad.rawValue)
+                        Text(L("Trống", "Kit")).tag(PracticeInstrument.kit.rawValue)
+                        Text(L("Cả hai", "Both")).tag(PracticeInstrument.both.rawValue)
+                    }
+                    .pickerStyle(.segmented).frame(maxWidth: 320)
+                    .disabled(runner != nil)
+                    Spacer()
+                }
+                Text(instrumentHint).font(.callout).foregroundStyle(.secondary)
                 Text(plan.source).font(.callout).foregroundStyle(.secondary)
                 if finished { journal }
                 part(L("Khởi động", "Warm-up"), plan.day.warmup, catalog, segment: 0)
@@ -94,8 +110,9 @@ struct TodayView: View {
                 if items.isEmpty { Text(L("Không có bài", "No exercises")).foregroundStyle(.secondary).padding(16).frame(maxWidth: .infinity, alignment: .leading) }
                 ForEach(Array(items.enumerated()), id: \.offset) { k, item in
                     if let ex = exercise(item, catalog) {
+                        let surface = DayPlan.surface(forSegment: segment, on: instrument)
                         NavigationLink {
-                            PracticeView(exercises: [ex], voiceBank: voiceBank, bpm: Double(item.bpm))
+                            PracticeView(exercises: [ex], voiceBank: voiceBank, bpm: Double(item.bpm), mode: surface == .pad ? .pad : .eDrum)
                         } label: {
                             HStack(spacing: 16) {
                                 VStack(alignment: .leading, spacing: 3) {
@@ -103,6 +120,10 @@ struct TodayView: View {
                                     Text(item.focus).font(.footnote).foregroundStyle(.secondary)
                                 }
                                 Spacer()
+                                Text(surface == .pad ? "Pad" : L("Trống", "Kit"))
+                                    .font(.caption.weight(.semibold)).foregroundStyle(surface == .pad ? Theme.shell : .secondary)
+                                    .padding(.horizontal, 8).padding(.vertical, 3)
+                                    .background(Capsule().fill(surface == .pad ? Theme.shell.opacity(0.12) : Theme.hairline))
                                 Text("\(item.bpm)").font(Theme.number(20)).foregroundStyle(.primary)
                                 Text("BPM").font(.caption).foregroundStyle(.secondary)
                                 Image(systemName: "chevron.forward").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
@@ -116,6 +137,14 @@ struct TodayView: View {
                 }
             }
             .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.stage))
+        }
+    }
+
+    private var instrumentHint: String {
+        switch instrument {
+        case .pad: L("Chỉ dùng tay trên một mặt: bài cần cả bộ trống được đổi thành phần tay trên pad.", "Hands on one surface: exercises that need the kit become their hand part on the pad.")
+        case .kit: L("Tập trên trống điện: groove, tom và phần chân đều được chấm.", "On the e-kit: grooves, toms and feet are all scored.")
+        case .both: L("Khởi động trên pad, bài chính và bài vui trên trống.", "Warm up on the pad, then the main and fun parts on the kit.")
         }
     }
 
@@ -138,7 +167,10 @@ struct TodayView: View {
         let level = levels.first { $0.id == min(8, SettingsStore.currentGrade + 1) } ?? levels[0]
         let warm = PlannedItem(exerciseId: "start-1", newExerciseDSL: nil, bpm: 60, minutes: 5, focus: L("Khởi động, thả lỏng", "Warm up, loosen up"))
         let main = level.tests.prefix(2).map { PlannedItem(exerciseId: $0.id, newExerciseDSL: nil, bpm: Int($0.bpm) - 6, minutes: 10, focus: $0.skill) }
-        let fun = PlannedItem(exerciseId: "start-4", newExerciseDSL: nil, bpm: 80, minutes: 5, focus: L("Groove cho vui", "A groove for fun"))
+        // On a pad-only day the fun part is a rudiment rather than a groove squeezed onto one surface.
+        let fun = instrument == .pad
+            ? PlannedItem(exerciseId: "start-3", newExerciseDSL: nil, bpm: 70, minutes: 5, focus: L("Paradiddle cho vui, nhấn rõ", "A paradiddle for fun, clear accents"))
+            : PlannedItem(exerciseId: "start-4", newExerciseDSL: nil, bpm: 80, minutes: 5, focus: L("Groove cho vui", "A groove for fun"))
         return DayPlan(day: 1, warmup: [warm], main: Array(main), fun: [fun])
     }
 
@@ -164,6 +196,6 @@ struct TodayView: View {
 
     private func reschedule() {
         let practicedToday = sessions.first.map { Calendar.current.isDateInToday($0.date) } ?? false
-        ReminderScheduler.schedule(today: todayPlan.day, practicedToday: practicedToday || finished)
+        ReminderScheduler.schedule(today: todayPlan.day.adapted(to: instrument, catalog: ExerciseCatalog.all(context)), practicedToday: practicedToday || finished)
     }
 }

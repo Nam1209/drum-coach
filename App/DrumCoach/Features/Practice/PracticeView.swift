@@ -17,11 +17,13 @@ struct PracticeView: View {
     private let voiceBank: CountVoiceBank
     private let exercises: [Exercise]
 
-    init(exercises: [Exercise], voiceBank: CountVoiceBank, testItem: LevelTestItem? = nil, bpm: Double? = nil) {
+    /// `mode` preselects how hits are heard (micro for the pad, MIDI for the kit).
+    init(exercises: [Exercise], voiceBank: CountVoiceBank, testItem: LevelTestItem? = nil, bpm: Double? = nil, mode: InputMode? = nil) {
         self.exercises = exercises
         self.voiceBank = voiceBank
         let vm = PracticeViewModel(exercise: exercises[0], voiceBank: voiceBank, testItem: testItem)
         if let bpm, testItem == nil { vm.settings.bpm = bpm }
+        if let mode { vm.mode = mode }
         _model = StateObject(wrappedValue: vm)
     }
 
