@@ -1,3 +1,4 @@
+import DrumAI
 import DrumAnalysis
 import DrumAudio
 import DrumCore
@@ -51,6 +52,7 @@ final class PracticeViewModel: ObservableObject {
     @Published private(set) var recent: [(ms: Double, grade: Grade)] = []
     @Published private(set) var liveScore: Double?
     @Published var finishedStats: SessionStats?
+    private(set) var lastSession: PracticeSession?
     @Published var error: String?
 
     let engine: MetronomeEngine
@@ -149,11 +151,20 @@ final class PracticeViewModel: ObservableObject {
         let stats = SessionStats(results: finalResults, notes: played, extraHits: extraHits, rules: rules)
         finishedStats = stats
         if let ctx = modelContext {
-            ctx.insert(PracticeSession(date: startedAt, exerciseId: exercise.id.uuidString, title: exercise.title,
+            let session = PracticeSession(date: startedAt, exerciseId: exercise.id.uuidString, title: exercise.title,
                                        skill: exercise.source, bpm: settings.bpm, seconds: Date().timeIntervalSince(startedAt),
-                                       mode: mode.rawValue, goodWindowMs: rules.goodWindow * 1000, stats: stats))
+                                       mode: mode.rawValue, goodWindowMs: rules.goodWindow * 1000, stats: stats)
+            ctx.insert(session)
             try? ctx.save()
+            lastSession = session
         }
+    }
+
+    /// Input for the Rockschool-style assessment of the last run.
+    func assessmentInput(for stats: SessionStats) -> AssessmentInput {
+        AssessmentInput(exerciseTitle: exercise.title, skill: exercise.source, grade: max(1, SettingsStore.currentGrade),
+                        bpm: settings.bpm, targetBpm: exercise.suggestedTempo.upperBound, stats: stats, recentHistory: [],
+                        mode: mode.rawValue)
     }
 
     private func tick() {

@@ -42,6 +42,12 @@ enum SettingsStore {
         set { UserDefaults.standard.set(newValue.goodWindow * 1000, forKey: "goodWindowMs") }
     }
 
+    /// Highest Rockschool grade passed in the level tests (0 = none yet).
+    static var currentGrade: Int {
+        get { UserDefaults.standard.integer(forKey: "currentGrade") }
+        set { UserDefaults.standard.set(newValue, forKey: "currentGrade") }
+    }
+
     static func saveMetronome(_ s: MetronomeSettings) {
         if let data = try? JSONEncoder().encode(s) { UserDefaults.standard.set(data, forKey: metronomeKey) }
     }

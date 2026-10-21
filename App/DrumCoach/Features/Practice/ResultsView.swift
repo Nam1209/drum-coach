@@ -1,3 +1,4 @@
+import DrumAI
 import DrumAnalysis
 import SwiftUI
 
@@ -6,7 +7,14 @@ struct ResultsView: View {
     let stats: SessionStats
     let title: String
     let bpm: Double
+    var input: AssessmentInput?
+    var session: PracticeSession?
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("claude.model") private var model = ClaudeClient.defaultModel
+    @State private var assessment: Assessment?
+    @State private var usedAI = false
+    @State private var asking = false
+    @State private var aiError: String?
 
     var body: some View {
         NavigationStack {
@@ -26,6 +34,31 @@ struct ResultsView: View {
                     row("Trượt (đỏ)", "\(stats.missed)", .red)
                     row("Đánh thừa", "\(stats.extra)", .secondary)
                 }
+                if let a = assessment {
+                    Section(usedAI ? "Đánh giá của Claude" : "Đánh giá theo chuẩn Rockschool (cục bộ)") {
+                        HStack {
+                            Text(a.band).font(.title2.bold()).foregroundStyle(a.band == "Distinction" ? .green : a.band == "Below Pass" ? .red : .orange)
+                            Spacer()
+                            Text("≈ Grade \(a.estimatedGrade)").font(.headline)
+                        }
+                        Text(a.timingComment)
+                        ForEach(a.strengths, id: \.self) { Label($0, systemImage: "checkmark.circle").foregroundStyle(.green) }
+                        ForEach(a.weaknesses, id: \.self) { Label($0, systemImage: "exclamationmark.triangle").foregroundStyle(.orange) }
+                        ForEach(a.nextSteps, id: \.self) { Label($0, systemImage: "arrow.right.circle") }
+                        if let key = Keychain.get(Keychain.claudeKey), !key.isEmpty, !usedAI, let input {
+                            Button(asking ? "Claude đang xem…" : "Nhờ Claude nhận xét chi tiết") {
+                                Task {
+                                    asking = true; defer { asking = false }
+                                    let out = await AssessmentRequest.runOrFallback(input, client: ClaudeClient(apiKey: key, model: model))
+                                    assessment = out.assessment; usedAI = out.usedAI; aiError = out.error
+                                    if out.usedAI, let s = session { s.assessmentData = try? JSONEncoder().encode(out.assessment) }
+                                }
+                            }
+                            .disabled(asking)
+                        }
+                        if let aiError { Text(aiError).font(.caption).foregroundStyle(.orange) }
+                    }
+                }
                 Section("Nhận xét") {
                     Text(tendency)
                     if let weakest { Text(weakest) }
@@ -37,6 +70,7 @@ struct ResultsView: View {
                 }
             }
             .navigationTitle("Kết quả")
+            .task { if let input, assessment == nil { assessment = AssessmentRequest.localFallback(input) } }
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Xong") { dismiss() } } }
         }
     }

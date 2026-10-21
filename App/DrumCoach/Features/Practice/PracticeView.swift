@@ -60,7 +60,8 @@ struct PracticeView: View {
         .sheet(isPresented: $showSheet) { MetronomeSheet(settings: $model.settings) }
         .sheet(isPresented: $showCalibration) { CalibrationView(voiceBank: voiceBank) }
         .sheet(item: $model.finishedStats) { stats in
-            ResultsView(stats: stats, title: model.exercise.title, bpm: model.settings.bpm)
+            ResultsView(stats: stats, title: model.exercise.title, bpm: model.settings.bpm,
+                        input: model.assessmentInput(for: stats), session: model.lastSession)
         }
         .onAppear { model.modelContext = modelContext }
         .onChange(of: model.settings) { _, new in SettingsStore.saveMetronome(new) }
