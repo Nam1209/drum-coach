@@ -29,11 +29,24 @@ public final class CountVoiceBank: @unchecked Sendable {
         return syllables[label]
     }
 
-    /// Replace a syllable with the user's own recording (mono, at `sampleRate`).
-    public func setCustomSyllable(_ label: String, samples: [Float]) {
-        let shaped = Self.shape(samples, sampleRate: sampleRate)
+    /// Replace a syllable with the user's own recording (mono, at `sampleRate`). The iPad mic records speech quietly,
+    /// so the recording is first brought up to the built-in voice's level. Returns false, and keeps the current
+    /// syllable, when the recording is silent or too short to be a word.
+    @discardableResult
+    public func setCustomSyllable(_ label: String, samples: [Float]) -> Bool {
+        let peak = samples.map(abs).max() ?? 0
+        guard peak > 0.002 else { return false }
+        let gain = min(0.7 / peak, 100)
+        let shaped = Self.shape(samples.map { $0 * gain }, sampleRate: sampleRate)
+        guard Double(shaped.count) / sampleRate >= 0.06 else { return false }
         lock.lock(); syllables[label] = shaped; lock.unlock()
         NotificationCenter.default.post(name: Self.didChange, object: self)
+        return true
+    }
+
+    /// Forget the user's recording; `prepare()` puts the built-in voice back.
+    public func removeCustomSyllable(_ label: String) {
+        lock.withLock { _ = syllables.removeValue(forKey: label) }
     }
 
     /// Syllable fitted to `slot` seconds and converted to the output device's `outputRate`

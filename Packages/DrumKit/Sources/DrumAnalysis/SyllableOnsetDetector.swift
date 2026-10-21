@@ -31,7 +31,7 @@ public struct SyllableOnsetDetector: OnsetDetecting {
     private var inSyllable = false
     private var lastOnset: TimeInterval = -.infinity
 
-    public init(sampleRate: Double, threshold: Double = 0.03, minInterval: TimeInterval = 0.08) {
+    public init(sampleRate: Double, threshold: Double = 0.005, minInterval: TimeInterval = 0.08) {
         self.sampleRate = sampleRate
         self.threshold = threshold
         self.minInterval = minInterval

@@ -59,7 +59,7 @@ public struct NotionClient: Sendable {
     }
 
     /// Pages this integration has been given access to, matching `query` (Notion's own title search).
-    public func searchPages(_ query: String = "") async throws -> [(id: String, title: String)] {
+    public func searchPages(_ query: String = "") async throws -> [(id: String, title: String, parentPage: String?)] {
         let json = try await request("search", method: "POST", body: .object([
             "query": .string(query),
             "filter": .object(["property": .string("object"), "value": .string("page")]),
@@ -69,7 +69,7 @@ public struct NotionClient: Sendable {
             let props = page["properties"] as? [String: Any] ?? [:]
             let titleProp = props.values.compactMap { $0 as? [String: Any] }.first { $0["type"] as? String == "title" }
             let title = (titleProp?["title"] as? [[String: Any]] ?? []).compactMap { $0["plain_text"] as? String }.joined()
-            return (id, title)
+            return (id, title, (page["parent"] as? [String: Any])?["page_id"] as? String)
         }
     }
 

@@ -2,8 +2,11 @@ import Foundation
 import Testing
 @testable import DrumAI
 
-private func searchResponse(_ pages: [(id: String, title: String)]) -> (Int, String) {
-    let items = pages.map { #"{"object":"page","id":"\#($0.id)","properties":{"title":{"type":"title","title":[{"plain_text":"\#($0.title)"}]}}}"# }
+private func searchResponse(_ pages: [(id: String, title: String)], parents: [String: String] = [:]) -> (Int, String) {
+    let items = pages.map { p in
+        let parent = parents[p.id].map { #"{"type":"page_id","page_id":"\#($0)"}"# } ?? #"{"type":"workspace","workspace":true}"#
+        return #"{"object":"page","id":"\#(p.id)","parent":\#(parent),"properties":{"title":{"type":"title","title":[{"plain_text":"\#(p.title)"}]}}}"#
+    }
     return (200, #"{"results":[\#(items.joined(separator: ","))],"has_more":false,"next_cursor":null}"#)
 }
 
@@ -22,7 +25,7 @@ private let titles = NotionSetup.Titles(inbox: "Hộp thư", plans: "Kế hoạc
         (200, #"{"id":"ex-1"}"#),
     ])
     let ws = try await NotionSetup.connect(client: NotionClient(token: "s", transport: t), titles: titles)
-    #expect(ws == NotionWorkspace(root: "root", inbox: "inbox-1", plans: "plans-1", exercises: "ex-1"))
+    #expect(ws == NotionWorkspace(root: "root", rootTitle: "DrumCoach", inbox: "inbox-1", plans: "plans-1", exercises: "ex-1"))
     #expect(t.requests[0].url!.absoluteString.hasSuffix("/v1/search"))
     #expect(t.requests[1].url!.absoluteString.contains("/blocks/root/children"))
     #expect(t.requests.count == 4)
@@ -32,7 +35,7 @@ private let titles = NotionSetup.Titles(inbox: "Hộp thư", plans: "Kế hoạc
 @Test func connectFallsBackToTheOnlySharedPage() async throws {
     let t = FakeTransport([searchResponse([("p", "Trống của Nam")]), children([("a", "Hộp thư"), ("b", "Kế hoạch"), ("c", "Bài tập mới")])])
     let ws = try await NotionSetup.connect(client: NotionClient(token: "s", transport: t), titles: titles)
-    #expect(ws == NotionWorkspace(root: "p", inbox: "a", plans: "b", exercises: "c"))
+    #expect(ws == NotionWorkspace(root: "p", rootTitle: "Trống của Nam", inbox: "a", plans: "b", exercises: "c"))
 }
 
 @Test func connectWithoutAnySharedPageSaysSo() async throws {
@@ -52,4 +55,14 @@ private let titles = NotionSetup.Titles(inbox: "Hộp thư", plans: "Kế hoạc
     #expect(t.body(1)["archived"] as? Bool == true)
     let code = ((t.body(2)["children"] as! [[String: Any]])[0]["code"] as! [String: Any])
     #expect(code["language"] as? String == "markdown")
+}
+
+@Test func connectUsesTheTopSharedPageWhateverItsName() async throws {
+    // "Drum" is shared; its subpages from an earlier connect show up in search too and must not be picked.
+    let t = FakeTransport([
+        searchResponse([("inbox", "Hộp thư"), ("drum", "Drum"), ("plans", "Kế hoạch")], parents: ["inbox": "drum", "plans": "drum"]),
+        children([("inbox", "Hộp thư"), ("plans", "Kế hoạch"), ("ex", "Bài tập mới")]),
+    ])
+    let ws = try await NotionSetup.connect(client: NotionClient(token: "s", transport: t), titles: titles)
+    #expect(ws == NotionWorkspace(root: "drum", rootTitle: "Drum", inbox: "inbox", plans: "plans", exercises: "ex"))
 }

@@ -1,5 +1,6 @@
 import AVFoundation
 import DrumAudio
+import DrumCore
 import Foundation
 
 /// Records the user's own counting syllables and keeps them in Documents/voice/<label>.f32.
@@ -23,7 +24,8 @@ final class VoiceRecorder: ObservableObject {
         for label in labels {
             guard let data = try? Data(contentsOf: file(label)) else { continue }
             let samples = data.withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
-            bank.setCustomSyllable(label, samples: samples)
+            // Early builds saved silent recordings; drop those so the built-in voice is used.
+            if !bank.setCustomSyllable(label, samples: samples) { delete(label) }
         }
     }
 
@@ -36,6 +38,13 @@ final class VoiceRecorder: ObservableObject {
     }
 
     static func delete(_ label: String) { try? FileManager.default.removeItem(at: file(label)) }
+
+    /// Delete the recording and bring the built-in voice back straight away.
+    static func delete(_ label: String, from bank: CountVoiceBank) async {
+        delete(label)
+        bank.removeCustomSyllable(label)
+        await bank.prepare()
+    }
 
     /// Record one second, resampled to the bank's rate, and save it.
     func record(_ label: String, into bank: CountVoiceBank) async throws {
@@ -53,7 +62,7 @@ final class VoiceRecorder: ObservableObject {
         let raw = collector.samples
         let ratio = bank.sampleRate / format.sampleRate
         let resampled = (0..<Int(Double(raw.count) * ratio)).map { raw[min(raw.count - 1, Int(Double($0) / ratio))] }
-        bank.setCustomSyllable(label, samples: resampled)
+        guard bank.setCustomSyllable(label, samples: resampled) else { throw VoiceRecordingError.tooQuiet }
         if let shaped = bank.samples(for: label) {
             try shaped.withUnsafeBufferPointer { Data(buffer: $0) }.write(to: Self.file(label))
         }
@@ -65,4 +74,11 @@ private final class SampleCollector: @unchecked Sendable {
     private var buf: [Float] = []
     func append(_ s: [Float]) { lock.withLock { buf += s } }
     var samples: [Float] { lock.withLock { buf } }
+}
+
+enum VoiceRecordingError: LocalizedError {
+    case tooQuiet
+    var errorDescription: String? {
+        L("Không nghe rõ tiếng. Nói to hơn, gần iPad hơn rồi thu lại.", "Couldn't hear a word. Speak louder, closer to the iPad, and record again.")
+    }
 }

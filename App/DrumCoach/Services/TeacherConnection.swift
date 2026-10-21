@@ -11,6 +11,8 @@ enum TeacherConnection {
     private static let d = UserDefaults.standard
 
     static var rootPageId: String? { get { d.string(forKey: "notion.root") } set { d.set(newValue, forKey: "notion.root") } }
+    /// Name of the user's shared page ("DrumCoach", or whatever they called it), used when pointing Claude at it.
+    static var rootTitle: String { get { d.string(forKey: "notion.rootTitle") ?? NotionSetup.rootTitle } set { d.set(newValue, forKey: "notion.rootTitle") } }
     static var inboxPageId: String? { get { d.string(forKey: "notion.inbox") } set { d.set(newValue, forKey: "notion.inbox") } }
     static var plansPageId: String? { get { d.string(forKey: "notion.plans") } set { d.set(newValue, forKey: "notion.plans") } }
     static var exercisesPageId: String? { get { d.string(forKey: "notion.exercises") } set { d.set(newValue, forKey: "notion.exercises") } }
@@ -55,7 +57,7 @@ enum TeacherConnection {
         let ws = try await NotionSetup.connect(client: client, titles: .init(inbox: L("Hộp thư", "Inbox"), plans: L("Kế hoạch", "Plans"),
                                                                             exercises: L("Bài tập mới", "New exercises")))
         Keychain.set(token, for: Keychain.notionToken)
-        rootPageId = ws.root; inboxPageId = ws.inbox; plansPageId = ws.plans; exercisesPageId = ws.exercises
+        rootPageId = ws.root; rootTitle = ws.rootTitle; inboxPageId = ws.inbox; plansPageId = ws.plans; exercisesPageId = ws.exercises
         try await publishGuide(catalog: catalog)
     }
 
@@ -90,8 +92,8 @@ enum TeacherConnection {
     }
 
     static func handOff(_ prompt: String) {
-        let intro = L("Dùng connector Notion: đọc trang \"DrumCoach › \(guideTitle)\" và làm đúng theo đó. ",
-                      "Use the Notion connector: read the page \"DrumCoach › \(guideTitle)\" and follow it exactly. ")
+        let intro = L("Dùng connector Notion: đọc trang \"\(rootTitle) › \(guideTitle)\" và làm đúng theo đó. ",
+                      "Use the Notion connector: read the page \"\(rootTitle) › \(guideTitle)\" and follow it exactly. ")
         UIPasteboard.general.string = intro + prompt
         if let url = URL(string: "https://claude.ai/new") { UIApplication.shared.open(url) }
     }

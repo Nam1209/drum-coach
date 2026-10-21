@@ -71,7 +71,7 @@ struct SettingsView: View {
                                     Text(VoiceRecorder.hasRecording(label) ? L("Giọng của bạn", "Your voice") : L("Giọng máy", "Built-in voice")).foregroundStyle(.secondary)
                                     Spacer()
                                     if VoiceRecorder.hasRecording(label) {
-                                        Button(L("Xóa", "Delete"), role: .destructive) { VoiceRecorder.delete(label); refresh += 1 }.buttonStyle(.borderless)
+                                        Button(L("Xóa", "Delete"), role: .destructive) { Task { await VoiceRecorder.delete(label, from: voiceBank); refresh += 1 } }.buttonStyle(.borderless)
                                     }
                                     Button(recorder.recordingLabel == label ? L("Đang ghi…", "Recording…") : L("Ghi âm", "Record")) {
                                         Task {

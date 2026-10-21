@@ -15,8 +15,8 @@ struct TeacherSetupView: View {
     var body: some View {
         Form {
             Section {
-                Text(L("New integration → đặt tên DrumCoach → Save. Ở tab Access chọn trang DrumCoach. Ở tab Configuration bấm Show rồi Copy mã secret.",
-                       "New integration → name it DrumCoach → Save. In the Access tab pick the DrumCoach page. In the Configuration tab tap Show, then Copy the secret."))
+                Text(L("New integration → đặt tên DrumCoach → Save. Ở tab Access chọn trang của bạn (vd. DrumCoach hoặc Drum). Ở tab Configuration bấm Show rồi Copy mã secret.",
+                       "New integration → name it DrumCoach → Save. In the Access tab pick your page (e.g. DrumCoach or Drum). In the Configuration tab tap Show, then Copy the secret."))
                     .font(.callout)
                 Button(L("Mở Notion", "Open Notion")) {
                     if let url = URL(string: "https://www.notion.so/profile/integrations") { openURL(url) }
@@ -39,8 +39,8 @@ struct TeacherSetupView: View {
             } header: {
                 Text(L("Bước 2 · Dán mã", "Step 2 · Paste the key"))
             } footer: {
-                Text(L("App tự tìm trang DrumCoach, tạo Hộp thư, Kế hoạch, Bài tập mới và trang Hướng dẫn cho thầy. Trên claude.ai chỉ cần bật connector Notion (Settings → Connectors), không phải tạo Project.",
-                       "The app finds the DrumCoach page and creates Inbox, Plans, New exercises and the Teacher guide page. On claude.ai just turn on the Notion connector (Settings → Connectors); no Project needed."))
+                Text(L("App tự tìm trang bạn đã chọn, tạo Hộp thư, Kế hoạch, Bài tập mới và trang Hướng dẫn cho thầy. Trên claude.ai chỉ cần bật connector Notion (Settings → Connectors), không phải tạo Project.",
+                       "The app finds the page you picked and creates Inbox, Plans, New exercises and the Teacher guide page. On claude.ai just turn on the Notion connector (Settings → Connectors); no Project needed."))
             }
         }
         .navigationTitle(L("Kết nối thầy AI", "Connect the AI teacher"))

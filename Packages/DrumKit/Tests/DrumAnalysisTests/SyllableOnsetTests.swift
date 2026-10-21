@@ -3,14 +3,14 @@ import Testing
 @testable import DrumAnalysis
 
 /// "Syllables": 300 Hz tone with a 120 ms envelope (10 ms attack) at the given times, plus light noise.
-private func speech(_ times: [Double], duration: Double, sr: Double = 48_000) -> [Float] {
-    var out = (0..<Int(duration * sr)).map { _ in Float.random(in: -0.005...0.005) }
+private func speech(_ times: [Double], duration: Double, sr: Double = 48_000, peak: Double = 0.4, noise: Float = 0.005) -> [Float] {
+    var out = (0..<Int(duration * sr)).map { _ in Float.random(in: -noise...noise) }
     for t0 in times {
         let start = Int(t0 * sr)
         for i in 0..<Int(0.12 * sr) where start + i < out.count {
             let t = Double(i) / sr
             let env = min(1, t / 0.01) * (t > 0.09 ? max(0, (0.12 - t) / 0.03) : 1)
-            out[start + i] += Float(0.4 * env * sin(2 * .pi * 300 * t))
+            out[start + i] += Float(peak * env * sin(2 * .pi * 300 * t))
         }
     }
     return out
@@ -33,6 +33,14 @@ private func run(_ d: inout SyllableOnsetDetector, _ s: [Float]) -> [TimeInterva
     let on = run(&d, speech(times, duration: 3.2))
     #expect(on.count == 8)
     for (o, t) in zip(on, times) { #expect(abs(o - t) <= 0.010) }
+}
+
+/// Counting measured on the iPad peaked at only 0.03–0.04 on the mic; the detector must still hear it.
+@Test func detectsQuietSpeechLikeTheIPadMic() {
+    let times = (0..<8).map { 0.6 + Double($0) * 0.333 }
+    var d = SyllableOnsetDetector(sampleRate: 48_000)
+    let on = run(&d, speech(times, duration: 3.6, peak: 0.03, noise: 0.0005))
+    #expect(on.count == 8)
 }
 
 @Test func shortHighClickIsIgnored() {
