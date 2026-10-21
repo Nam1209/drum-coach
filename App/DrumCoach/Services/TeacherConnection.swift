@@ -61,6 +61,13 @@ enum TeacherConnection {
         try await publishGuide(catalog: catalog)
     }
 
+    /// Puts the guide back if it is missing (e.g. deleted in Notion, or lost to an earlier failed update).
+    static func ensureGuide(catalog: @autoclosure () -> [String: String]) async throws {
+        guard let token = Keychain.get(Keychain.notionToken), let root = rootPageId else { return }
+        let text = TeacherProjectKit.projectInstructions(exerciseCatalog: catalog())
+        _ = try await NotionSetup.ensureGuide(client: NotionClient(token: token), root: root, title: guideTitle, text: { text })
+    }
+
     /// The teacher's instructions live in Notion, so no Claude Project has to be set up or kept up to date by hand.
     static func publishGuide(catalog: [String: String]) async throws {
         guard let token = Keychain.get(Keychain.notionToken), let root = rootPageId else { return }
@@ -103,6 +110,7 @@ enum TeacherConnection {
         guard let bridge, !syncing else { return ([], 0, []) }
         syncing = true
         defer { syncing = false }
+        try? await ensureGuide(catalog: ExerciseCatalog.titles(ctx))
         let known = Set(ExerciseCatalog.all(ctx).keys)
         var stored: [StoredReport] = [], problems: [String] = []
         for p in try await bridge.fetchPlans(excluding: importedPlanPages) {

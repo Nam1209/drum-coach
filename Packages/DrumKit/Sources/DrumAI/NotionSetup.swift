@@ -48,11 +48,19 @@ public enum NotionSetup {
     }
 
     /// Writes the teacher's instructions as a page Claude reads through its Notion connector (replaces a Claude Project).
+    /// The new page is created before old copies are archived, so a failure never leaves the teacher without a guide.
     @discardableResult
     public static func publishGuide(client: NotionClient, root: String, title: String, text: String) async throws -> String {
-        for old in try await client.childPages(of: root) where old.title == title {
-            try await client.archive(page: old.id)
-        }
-        return try await client.createChildPage(parent: root, title: title, codeBlockJSON: text, codeLanguage: "markdown")
+        let old = try await client.childPages(of: root).filter { $0.title == title }
+        let id = try await client.createChildPage(parent: root, title: title, codeBlockJSON: text, codeLanguage: "markdown")
+        for page in old { try await client.archive(page: page.id) }
+        return id
+    }
+
+    /// Recreates the guide only when it is missing; returns whether it had to.
+    public static func ensureGuide(client: NotionClient, root: String, title: String, text: @Sendable () -> String) async throws -> Bool {
+        guard try await !client.childPages(of: root).contains(where: { $0.title == title }) else { return false }
+        _ = try await client.createChildPage(parent: root, title: title, codeBlockJSON: text(), codeLanguage: "markdown")
+        return true
     }
 }

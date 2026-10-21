@@ -45,16 +45,39 @@ private let titles = NotionSetup.Titles(inbox: "Hộp thư", plans: "Kế hoạc
     }
 }
 
-@Test func publishingTheGuideReplacesTheOldOne() async throws {
-    let t = FakeTransport([children([("g-old", "Hướng dẫn cho thầy"), ("i", "Hộp thư")]), (200, "{}"), (200, #"{"id":"g-new"}"#)])
+@Test func publishingTheGuideReplacesTheOldOneOnlyAfterTheNewOneExists() async throws {
+    let t = FakeTransport([children([("g-old", "Hướng dẫn cho thầy"), ("i", "Hộp thư")]), (200, #"{"id":"g-new"}"#), (200, "{}")])
     let id = try await NotionSetup.publishGuide(client: NotionClient(token: "s", transport: t), root: "root",
                                                 title: "Hướng dẫn cho thầy", text: "Bạn là thầy dạy trống")
     #expect(id == "g-new")
-    #expect(t.requests[1].url!.absoluteString.hasSuffix("/pages/g-old"))
-    #expect(t.requests[1].httpMethod == "PATCH")
-    #expect(t.body(1)["archived"] as? Bool == true)
-    let code = ((t.body(2)["children"] as! [[String: Any]])[0]["code"] as! [String: Any])
+    let code = ((t.body(1)["children"] as! [[String: Any]])[0]["code"] as! [String: Any])
     #expect(code["language"] as? String == "markdown")
+    #expect(t.requests[2].url!.absoluteString.hasSuffix("/pages/g-old"))
+    #expect(t.requests[2].httpMethod == "PATCH")
+    #expect(t.body(2)["archived"] as? Bool == true)
+}
+
+@Test func aFailedPublishKeepsTheOldGuide() async throws {
+    let t = FakeTransport([children([("g-old", "Hướng dẫn cho thầy")]), (400, #"{"message":"bad"}"#)])
+    await #expect(throws: NotionError.self) {
+        try await NotionSetup.publishGuide(client: NotionClient(token: "s", transport: t), root: "root", title: "Hướng dẫn cho thầy", text: "x")
+    }
+    #expect(!t.requests.contains { $0.httpMethod == "PATCH" })     // nothing archived
+}
+
+@Test func missingGuideIsRecreatedButAPresentOneIsLeftAlone() async throws {
+    let present = FakeTransport([children([("g", "Hướng dẫn cho thầy")])])
+    #expect(try await NotionSetup.ensureGuide(client: NotionClient(token: "s", transport: present), root: "root", title: "Hướng dẫn cho thầy", text: { "x" }) == false)
+    #expect(present.requests.count == 1)
+    let missing = FakeTransport([children([("i", "Hộp thư")]), (200, #"{"id":"g"}"#)])
+    #expect(try await NotionSetup.ensureGuide(client: NotionClient(token: "s", transport: missing), root: "root", title: "Hướng dẫn cho thầy", text: { "x" }) == true)
+}
+
+@Test func busyNotionIsRetried() async throws {
+    let t = FakeTransport([(429, #"{"message":"rate limited"}"#), (200, #"{"id":"p"}"#)])
+    let id = try await NotionClient(token: "s", transport: t, retryDelay: 0).createChildPage(parent: "x", title: "t")
+    #expect(id == "p")
+    #expect(t.requests.count == 2)
 }
 
 @Test func connectUsesTheTopSharedPageWhateverItsName() async throws {

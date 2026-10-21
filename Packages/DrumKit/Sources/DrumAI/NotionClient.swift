@@ -10,9 +10,13 @@ public struct NotionClient: Sendable {
     let transport: HTTPTransport
     let base = URL(string: "https://api.notion.com/v1/")!
 
-    public init(token: String, transport: HTTPTransport = URLSessionTransport()) {
+    /// Seconds to wait before retrying when Notion says it is busy (429); doubles on each retry.
+    let retryDelay: TimeInterval
+
+    public init(token: String, transport: HTTPTransport = URLSessionTransport(), retryDelay: TimeInterval = 1) {
         self.token = token
         self.transport = transport
+        self.retryDelay = retryDelay
     }
 
     /// Notion rejects request bodies above ~500 KB; one full code block is ~200 KB, so at most 2 blocks per request.
@@ -122,7 +126,15 @@ public struct NotionClient: Sendable {
         req.setValue(Self.version, forHTTPHeaderField: "Notion-Version")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let body { req.httpBody = try JSONEncoder().encode(body) }
-        let (data, resp) = try await transport.send(req)
+        var (data, resp) = try await transport.send(req)
+        // Notion allows about 3 requests a second; a big backup can hit that, so wait and try again.
+        var wait = retryDelay
+        for _ in 0..<4 where resp.statusCode == 429 {
+            let hinted = resp.value(forHTTPHeaderField: "Retry-After").flatMap(Double.init)
+            try await Task.sleep(for: .seconds(max(wait, retryDelay > 0 ? hinted ?? 0 : 0)))
+            wait *= 2
+            (data, resp) = try await transport.send(req)
+        }
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
         guard (200..<300).contains(resp.statusCode) else {
             throw NotionError.http(resp.statusCode, json["message"] as? String ?? "")
