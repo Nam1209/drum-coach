@@ -47,6 +47,7 @@ struct CountCoachView: View {
                     VStack(alignment: .leading, spacing: 18) {
                         Picker("Giai đoạn", selection: $stage) { ForEach(Phase.allCases) { Text($0.title).tag($0) } }
                             .pickerStyle(.segmented)
+                            .disabled(running)
                         Text(stage.hint).foregroundStyle(.secondary)
                         Picker("Cách đếm", selection: $mode) {
                             Text("1 2 3 4").tag(CountMode.quarters)
@@ -55,6 +56,7 @@ struct CountCoachView: View {
                             Text("1 trip let").tag(CountMode.triplets)
                         }
                         .pickerStyle(.segmented)
+                        .disabled(running)
                         syllables
                         HStack(spacing: 28) {
                             PlayButton(isPlaying: running) { running ? stop() : start() }
@@ -133,6 +135,8 @@ struct CountCoachView: View {
     }
 
     private func go() async {
+        // The run uses the settings it started with, even if the screen changes meanwhile.
+        let stage = self.stage, mode = self.mode, bpm = self.bpm
         result = nil; heard = 0; error = nil
         var s = MetronomeSettings(bpm: bpm, pattern: .quarter, accentBeatOne: true, voiceCount: mode)
         switch stage {

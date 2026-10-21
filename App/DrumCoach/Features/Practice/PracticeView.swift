@@ -241,9 +241,10 @@ struct PracticeView: View {
     @MainActor
     private func printNotation() {
         let renderer = ImageRenderer(content:
-            NotationView(exercise: model.playedExercise, display: .page, beat: nil, noteColor: { _ in nil }, orangeOffsetMs: { _ in nil })
+            NotationView(exercise: model.playedExercise, display: .page, beat: nil, noteColor: { _ in nil }, orangeOffsetMs: { _ in nil }, allPages: true)
                 .padding(36).frame(width: 842).background(Color.white).environment(\.colorScheme, .light))
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(model.exercise.title).pdf")
+        // Titles can contain "/" and other characters that are not valid in a file name.
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("DrumCoach-\(UUID().uuidString).pdf")
         renderer.render { size, draw in
             var box = CGRect(origin: .zero, size: CGSize(width: max(size.width, 842), height: max(size.height, 595)))
             guard let ctx = CGContext(url as CFURL, mediaBox: &box, nil) else { return }

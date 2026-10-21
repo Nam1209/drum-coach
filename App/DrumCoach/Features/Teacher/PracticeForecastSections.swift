@@ -43,7 +43,9 @@ struct PracticeForecastSections: View {
             }
             let f = e.forecast.with(minutesPerDay: Double(budgetMinutes))
             HStack(alignment: .bottom, spacing: 32) {
-                Readout(value: span(f.months(toReach: e.forecast.currentGrade + 1)), caption: "tháng lên Grade \(e.forecast.currentGrade + 1)", size: 34)
+                if e.forecast.currentGrade < 8 {
+                    Readout(value: span(f.months(toReach: e.forecast.currentGrade + 1)), caption: "tháng lên Grade \(e.forecast.currentGrade + 1)", size: 34)
+                }
                 Readout(value: span(f.months(toReach: 8)), caption: "tháng tới Grade 8", size: 34)
                 Readout(value: "\(plan.restDaysPerWeek)", caption: "ngày nghỉ mỗi tuần", size: 34)
             }
@@ -76,7 +78,9 @@ struct PracticeForecastSections: View {
                 minutesChart(e)
                 let f = e.forecast
                 factor("Thời gian", "\(Int(f.minutesPerDay.rounded())) phút/ngày, tập \(e.daysPracticed)/\(e.windowDays) ngày",
-                       Text("thường mất \(oneDecimal(ProgressForecast.typicalMonthsPerGrade(minutes: f.minutesPerDay))) tháng mỗi Grade").foregroundStyle(.secondary))
+                       Text(ProgressForecast.typicalMonthsPerGrade(minutes: f.minutesPerDay).isFinite
+                            ? "thường mất \(oneDecimal(ProgressForecast.typicalMonthsPerGrade(minutes: f.minutesPerDay))) tháng mỗi Grade"
+                            : "chưa tập trong \(e.windowDays) ngày qua nên chưa dự đoán được").foregroundStyle(.secondary))
                 if f.testsInNextGrade > 0 {
                     factor("Đã hoàn thành", "\(f.testsPassed)/\(f.testsInNextGrade) bài kiểm tra Grade \(f.currentGrade + 1)",
                            Text("bắt đầu từ \(oneDecimal(f.position(afterMonths: 0)))").foregroundStyle(.secondary))

@@ -90,10 +90,7 @@ struct LibraryView: View {
             let data = try Data(contentsOf: url)
             let r = try MIDIFileImporter.exercise(from: data, title: url.deletingPathExtension().lastPathComponent,
                                                   overrides: SettingsStore.midiMap())
-            let dens = Set(r.exercise.notes.map(\.position.den))
-            let triplet = dens.contains { $0 % 3 == 0 }
-            let grid = triplet ? (dens.allSatisfy { 3 % $0 == 0 } ? 3 : 12) : (r.exercise.timeSignature.unit == 8 ? 2 : 4)
-            context.insert(StoredExercise(title: r.exercise.title, dsl: ExerciseDSL.serialize(r.exercise, grid: grid), source: "MIDI"))
+            context.insert(StoredExercise(title: r.exercise.title, dsl: ExerciseDSL.serialize(r.exercise, grid: ExerciseDSL.grid(for: r.exercise)), source: "MIDI"))
             try? context.save()
             midiMessage = "Đã nhập \(r.exercise.title): \(r.exercise.bars) ô nhịp, \(r.bpm) BPM"
                 + (r.unmappedNotes > 0 ? ", bỏ qua \(r.unmappedNotes) nốt không phải trống." : ".")

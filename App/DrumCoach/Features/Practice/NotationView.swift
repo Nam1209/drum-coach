@@ -15,8 +15,10 @@ struct NotationView: View {
     private let spacing: Double = 12
     private var lineHeight: Double { spacing * 4 + 110 }
 
+    /// Printing lays out every line instead of turning pages.
+    var allPages = false
     /// Page mode shows this many lines at a time and turns the page as the playhead moves on.
-    private let linesPerPage = 2
+    private var linesPerPage: Int { allPages ? max(1, lineCountFor(barsPerLine)) : 2 }
     @State private var width: Double = 900
     @State private var manualPage = 0
 

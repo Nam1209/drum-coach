@@ -181,8 +181,17 @@ public enum ClickSchedule {
         let beatsPerBar = s.timeSignature.beats
         let samplesPerBeat = sampleRate * s.secondsPerBeat
 
+        // Swing only makes sense for 8th notes in a quarter-note meter: it delays the "&" (slot 2 of 2).
+        let swing = s.timeSignature.unit == 4 && s.swing > Swing.straight ? min(0.75, s.swing) : Swing.straight
+        // A swung "&" sounds later than its straight tick, so look back far enough to catch ticks from the previous window.
+        let lookback = swing > Swing.straight ? Int64((samplesPerBeat * (swing - 0.5)).rounded(.up)) + 1 : 0
+
         let slots = max(s.pattern.slots.count, 1)
-        forEachTick(spt: samplesPerBeat / Double(slots), from: from, to: to) { n, sample in
+        // 8th-note content: only the beat and the middle slot sound (the "e"/"a" slots of a finer grid are silent).
+        let half = slots / 2
+        var eighthsOnly = slots % 2 == 0
+        for (i, c) in s.pattern.slots.enumerated() where half > 0 && i % half != 0 && c.level != 0 { eighthsOnly = false }
+        forEachTick(spt: samplesPerBeat / Double(slots), from: from - lookback, to: to) { n, sample in
             let beat = n / slots, slot = n % slots
             let bar = beat / beatsPerBar, beatInBar = beat % beatsPerBar
             guard s.gap?.isMuted(bar: bar) != true, s.beatSkip.plays(beatInBar: beatInBar) else { return }
@@ -190,8 +199,8 @@ public enum ClickSchedule {
             if s.accentBeatOne, beatInBar == 0, slot == 0 { cell.level = 5 }
             guard let tone = ToneLadder.tone(for: cell, ladder: s.ladder) else { return }
             let kind: ClickKind = slot != 0 ? .subdivision : (beatInBar == 0 ? .downbeat : .beat)
-            let at = s.swing > Swing.straight && slots % 2 == 0 && slot == slots / 2
-                ? Int64(((Double(beat) + min(0.75, s.swing)) * samplesPerBeat).rounded()) : sample
+            let at = swing > Swing.straight && eighthsOnly && slot == half
+                ? Int64(((Double(beat) + swing) * samplesPerBeat).rounded()) : sample
             guard at >= from, at < to else { return }
             body(ClickEvent(sampleTime: at, kind: kind, bar: bar, level: cell.level, tone: tone))
         }
@@ -199,14 +208,14 @@ public enum ClickSchedule {
         // Spoken counting runs alongside the clicks; it follows the gap but not beat skip.
         let per = voiceLabels.count
         guard per > 0 else { return }
-        forEachTick(spt: samplesPerBeat / Double(per), from: from, to: to) { n, sample in
+        forEachTick(spt: samplesPerBeat / Double(per), from: from - lookback, to: to) { n, sample in
             let beat = n / per, sub = n % per
             let bar = beat / beatsPerBar
             guard s.gap?.isMuted(bar: bar) != true else { return }
             let label = sub == 0 ? numberLabels[min(beat % beatsPerBar, numberLabels.count - 1)] : voiceLabels[sub]
             let tone = LevelTone(sound: .voice, pitchHz: 0, gainDb: sub == 0 ? 0 : -4)
-            let at = s.swing > Swing.straight && per % 2 == 0 && sub == per / 2
-                ? Int64(((Double(beat) + min(0.75, s.swing)) * samplesPerBeat).rounded()) : sample
+            let at = swing > Swing.straight && per == 2 && sub == 1
+                ? Int64(((Double(beat) + swing) * samplesPerBeat).rounded()) : sample
             guard at >= from, at < to else { return }
             body(ClickEvent(sampleTime: at, kind: .voice(label), bar: bar, level: sub == 0 ? 4 : 2, tone: tone))
         }

@@ -88,6 +88,14 @@ public enum ExerciseDSL {
                         bars: length / cellsPerBar, suggestedTempo: parseTempo(headers["tempo"]), notes: notes)
     }
 
+    /// Smallest `grid` (cells per beat unit of the meter) that places every note of `exercise` exactly, at most 48.
+    public static func grid(for exercise: Exercise) -> Int {
+        func gcd(_ a: Int, _ b: Int) -> Int { b == 0 ? a : gcd(b, a % b) }
+        let lcm = exercise.notes.reduce(1) { l, n in l / gcd(l, n.position.den) * n.position.den }
+        let perQuarter = 4 * min(lcm, 48)
+        return max(1, min(48, perQuarter / gcd(perQuarter, exercise.timeSignature.unit)))
+    }
+
     public static func serialize(_ exercise: Exercise, grid: Int) -> String {
         let ts = exercise.timeSignature
         let cellLength = Rational(4, ts.unit * grid)
@@ -101,13 +109,15 @@ public enum ExerciseDSL {
             let voiceNotes = exercise.notes.filter { $0.voice == voice }
             guard !voiceNotes.isEmpty else { continue }
             var cells = Array(repeating: Character("-"), count: count)
-            for n in voiceNotes { cells[cellIndex(n.position)] = symbol(for: n.articulation) }
+            // A note off the grid (grid too coarse) is dropped rather than written past the end.
+            for n in voiceNotes where cells.indices.contains(cellIndex(n.position)) { cells[cellIndex(n.position)] = symbol(for: n.articulation) }
             lines.append("\(code): \(String(cells))")
         }
         var st = Array(repeating: Character("-"), count: count)
         for n in exercise.notes {
             guard let h = n.hand else { continue }
             let i = cellIndex(n.position)
+            guard st.indices.contains(i) else { continue }
             if h == .foot { if st[i] == "-" { st[i] = "F" } } else { st[i] = Character(h.rawValue) }
         }
         if st.contains(where: { $0 != "-" }) { lines.append("ST: \(String(st))") }

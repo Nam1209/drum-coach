@@ -101,3 +101,40 @@ private func smf(_ track: [UInt8]) -> Data {
         #expect(r.exercise.notes.allSatisfy { $0.position >= Rational(0, 1) })
     }
 }
+
+@Test func swingAppliesOnlyToEighthNoteExercisesInQuarterMeters() throws {
+    let eighths = try ExerciseDSL.parse("time: 4/4\ngrid: 2\nSN: xxxxxxxx")
+    let sixteenths = try ExerciseDSL.parse("time: 4/4\ngrid: 4\nSN: xxxxxxxxxxxxxxxx")
+    let triplets = try ExerciseDSL.parse("time: 4/4\ngrid: 3\nSN: xxxxxxxxxxxx")
+    let sixEight = try ExerciseDSL.parse("time: 6/8\ngrid: 1\nSN: xxxxxx")
+    #expect(Swing.effective(2.0 / 3, for: eighths) == 2.0 / 3)
+    #expect(Swing.effective(2.0 / 3, for: sixteenths) == Swing.straight)
+    #expect(Swing.effective(2.0 / 3, for: triplets) == Swing.straight)
+    #expect(Swing.effective(2.0 / 3, for: sixEight) == Swing.straight)
+}
+
+private func exercise(_ positions: [Rational], _ ts: TimeSignature) -> Exercise {
+    Exercise(title: "x", source: "MIDI", timeSignature: ts, bars: 1, suggestedTempo: 60...90,
+             notes: positions.map { NoteEvent(position: $0, voice: .snare) })
+}
+
+@Test func gridFitsEveryNoteInAnyMeter() {
+    let cut = TimeSignature(beats: 2, unit: 2), four = TimeSignature(beats: 4, unit: 4), sixEight = TimeSignature(beats: 6, unit: 8)
+    #expect(ExerciseDSL.grid(for: exercise([Rational(0, 1), Rational(15, 4)], cut)) == 8)        // 16ths in 2/2: 8 cells per half note
+    #expect(ExerciseDSL.grid(for: exercise([Rational(0, 1), Rational(1, 4)], four)) == 4)
+    #expect(ExerciseDSL.grid(for: exercise([Rational(0, 1), Rational(1, 2)], sixEight)) == 1)    // 8ths in 6/8: one cell per 8th
+    #expect(ExerciseDSL.grid(for: exercise([Rational(1, 3)], four)) == 3)
+    #expect(ExerciseDSL.grid(for: exercise([Rational(1, 3), Rational(1, 4)], four)) == 12)
+    #expect(ExerciseDSL.grid(for: exercise([Rational(1, 3)], sixEight)) == 3)                     // 1/3 quarter = 2/3 eighth → 3 per 8th
+}
+
+@Test func importedSixteenthsInCutTimeRoundTrip() throws {
+    let ex = exercise([Rational(0, 1), Rational(15, 4)], TimeSignature(beats: 2, unit: 2))
+    let back = try ExerciseDSL.parse(ExerciseDSL.serialize(ex, grid: ExerciseDSL.grid(for: ex)))
+    #expect(back.notes.map(\.position) == [Rational(0, 1), Rational(15, 4)])
+}
+
+@Test func serializeWithTooCoarseGridDoesNotCrash() {
+    let ex = exercise([Rational(15, 4)], TimeSignature(beats: 2, unit: 2))
+    _ = ExerciseDSL.serialize(ex, grid: 4)
+}

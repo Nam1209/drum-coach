@@ -121,3 +121,30 @@ private let sr = 48_000.0
     let e = ClickSchedule.events(settings: s, sampleRate: sr, from: 0, to: 48_000)
     #expect(e.map(\.sampleTime) == [0, 32_000])
 }
+
+@Test func swungClicksSurviveSmallRenderWindows() {
+    // The audio thread asks for ~256 samples at a time; the swung "&" must not fall between windows.
+    var s = MetronomeSettings(bpm: 120, pattern: .eighths, voiceCount: .eighths)
+    s.swing = 2.0 / 3.0
+    let whole = ClickSchedule.events(settings: s, sampleRate: sr, from: 0, to: 96_000)
+    var pieces: [ClickEvent] = []
+    var t: Int64 = 0
+    while t < 96_000 {
+        pieces += ClickSchedule.events(settings: s, sampleRate: sr, from: t, to: min(t + 256, 96_000))
+        t += 256
+    }
+    #expect(pieces.sorted { ($0.sampleTime, $0.level) < ($1.sampleTime, $1.level) } == whole.sorted { ($0.sampleTime, $0.level) < ($1.sampleTime, $1.level) })
+    #expect(pieces.contains { $0.sampleTime == 16_000 && $0.kind == .subdivision })   // & of beat 1 at 2/3 of 0.5 s
+}
+
+@Test func swingOnlyMovesEighthClicksInQuarterMeters() {
+    var sixteen = MetronomeSettings(bpm: 60, pattern: .sixteenths)
+    sixteen.swing = 0.72
+    #expect(ClickSchedule.events(settings: sixteen, sampleRate: sr, from: 0, to: 48_000).map(\.sampleTime) == [0, 12_000, 24_000, 36_000])
+    var triplet = MetronomeSettings(bpm: 60, pattern: .triplets)
+    triplet.swing = 0.72
+    #expect(ClickSchedule.events(settings: triplet, sampleRate: sr, from: 0, to: 48_000).map(\.sampleTime) == [0, 16_000, 32_000])
+    var sixEight = MetronomeSettings(bpm: 60, timeSignature: TimeSignature(beats: 6, unit: 8), pattern: .eighths)
+    sixEight.swing = 2.0 / 3.0
+    #expect(ClickSchedule.events(settings: sixEight, sampleRate: sr, from: 0, to: 24_000).map(\.sampleTime) == [0, 12_000])
+}

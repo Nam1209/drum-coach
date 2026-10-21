@@ -100,12 +100,15 @@ final class PracticeViewModel: ObservableObject {
     }
 
     /// Play the exercise once with synthesized drums so you hear it before playing it.
+    /// Swing for this exercise: the setting, or straight when the exercise has 16ths, triplets or an x/8 meter.
+    var swing: Double { Swing.effective(settings.swing, for: playedExercise) }
+
     /// Screen tap in "Gõ màn hình" mode.
     func tap(_ voice: Voice?) { (source as? TouchHitSource)?.tap(voice) }
 
     func listen() {
         try? AudioSessionConfig.activate()
-        try? listenPlayer.play(playedExercise, bpm: settings.bpm, countInBars: 1, swing: settings.swing)
+        try? listenPlayer.play(playedExercise, bpm: settings.bpm, countInBars: 1, swing: swing)
     }
 
     func stopListening() { listenPlayer.stop() }
@@ -159,7 +162,7 @@ final class PracticeViewModel: ObservableObject {
     /// Timeline of the current run, or a preview of the first passes when stopped.
     var displayTimeline: Timeline {
         timeline.flatMap { isPlaying || !results.isEmpty ? $0 : nil }
-            ?? Timeline(exercise: playedExercise, bpm: settings.bpm, repeats: 2, countInBars: Self.countInBars, swing: settings.swing)
+            ?? Timeline(exercise: playedExercise, bpm: settings.bpm, repeats: 2, countInBars: Self.countInBars, swing: swing)
     }
 
     var exerciseSeconds: Double { exercise.lengthInBeats.doubleValue * 60 / settings.bpm }
@@ -181,6 +184,7 @@ final class PracticeViewModel: ObservableObject {
         let repeats = max(1, Int((durationSeconds / exerciseSeconds).rounded(.up)))
         var s = settings
         s.timeSignature = exercise.timeSignature
+        s.swing = swing
         let tl = Timeline(exercise: playedExercise, bpm: s.bpm, repeats: repeats, countInBars: Self.countInBars, swing: s.swing)
         timeline = tl
         byRepeatAndNote = [:]
@@ -230,7 +234,8 @@ final class PracticeViewModel: ObservableObject {
         let wasPlaying = isPlaying
         engine.stop()
         isPlaying = false
-        guard save, wasPlaying, let timeline, let matcher, mode != .listenOnly else { return }
+        // A run on the speaker is not scored (see play()), so it is not saved: it would count every note as missed.
+        guard save, wasPlaying, let timeline, let matcher, mode != .listenOnly, scoringOffReason == nil else { return }
 
         // Count only notes whose time has come (stopping early does not punish the rest).
         let elapsed = HostClock.now() - matcher.beatZero - reportDelay
