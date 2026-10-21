@@ -42,6 +42,7 @@ struct TeacherView: View {
                     Text("Dùng API key trong Cài đặt — không cần dán vào app Claude.")
                 }
             }
+            PracticeForecastSections()
             if let active = reports.first(where: { $0.appliedAt != nil }), let r = active.report {
                 ReportSections(title: active.title, report: r)
             }
@@ -158,7 +159,7 @@ struct ProfileEditor: View {
         Form {
             Section("Mục tiêu") {
                 TextField("Mục tiêu", text: $profile.goal)
-                Stepper("Phút tập mỗi ngày: \(profile.minutesPerDay)", value: $profile.minutesPerDay, in: 10...180, step: 5)
+                Stepper("Phút tập mỗi ngày: \(profile.minutesPerDay)", value: $profile.minutesPerDay, in: 10...240, step: 5)
             }
             Section("Ghi chú cho thầy") {
                 ForEach(profile.notes, id: \.self) { Text($0) }.onDelete { profile.notes.remove(atOffsets: $0) }

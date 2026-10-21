@@ -59,3 +59,10 @@ private func learner(minutes: Double = 60, grade: Int = 2, passed: Int = 0, of t
     #expect(more.position(afterMonths: 6) > f.position(afterMonths: 6))
     #expect(more.bpm(afterMonths: 6)! > f.bpm(afterMonths: 6)!)
 }
+
+@Test func monthsToReachAGrade() {
+    let f = learner(passed: 2)                       // 2.4, 3.5 months per grade
+    #expect(abs(f.months(toReach: 3)! - 0.6 * 3.5) < 0.01)
+    #expect(f.months(toReach: 2) == 0)
+    #expect(learner(minutes: 0.01).months(toReach: 8) == nil)    // too far away to forecast
+}

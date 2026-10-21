@@ -49,6 +49,7 @@ public struct ProgressForecast: Sendable {
     /// Typical months per grade (Grades up to 5) at an average of `m` minutes a day, days off included.
     public static func typicalMonthsPerGrade(minutes m: Double) -> Double {
         let points: [(Double, Double)] = [(15, 10), (30, 5.5), (60, 3.5), (120, 2.5), (240, 2)]
+        if m < 1 { return .infinity }                       // not practising: no progress to forecast
         if m <= 15 { return 10 * 15 / max(m, 5) }
         for (a, b) in zip(points, points.dropFirst()) where m <= b.0 {
             return a.1 + (b.1 - a.1) * (m - a.0) / (b.0 - a.0)
@@ -81,6 +82,18 @@ public struct ProgressForecast: Sendable {
             if left >= need { g = next; left -= need } else { g += left / cost; left = 0 }
         }
         return min(g, 8)
+    }
+
+    /// Months until `grade` is reached, or nil when it is more than 20 years away at this pace.
+    public func months(toReach grade: Int) -> Double? {
+        guard position(afterMonths: 0) < Double(grade) else { return 0 }
+        var lo = 0.0, hi = 240.0
+        guard position(afterMonths: hi) >= Double(grade) - 1e-9 else { return nil }
+        for _ in 0..<50 {
+            let mid = (lo + hi) / 2
+            if position(afterMonths: mid) >= Double(grade) - 1e-9 { hi = mid } else { lo = mid }
+        }
+        return hi
     }
 
     /// Tempo after `months` if the measured weekly gain continues, tapering off (3% less each week), at most +60 BPM.

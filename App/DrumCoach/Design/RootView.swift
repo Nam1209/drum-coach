@@ -55,6 +55,7 @@ struct RootView: View {
         return .today
     }()
     @State private var columns: NavigationSplitViewVisibility = .automatic
+    @Environment(\.modelContext) private var context
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columns) {
@@ -74,6 +75,9 @@ struct RootView: View {
                 .id(selection)
         }
         .tint(Theme.shell)
+        #if DEBUG
+        .task { DemoData.seedIfRequested(context) }
+        #endif
     }
 
     @ViewBuilder
