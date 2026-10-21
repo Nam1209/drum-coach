@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DrumCoach – Plan</title>
+<style>
+:root{
+  --bg:#f6f4f1; --surface:#ffffff; --surface-2:#efebe6; --text:#1d1b19; --muted:#6b645c; --line:#ddd6cd;
+  --accent:#e2692f; --accent-soft:#f6d9c8; --good:#2f9e55; --warn:#e8892b; --bad:#d63b3b; --info:#7aa6b8;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#161412; --surface:#211e1b; --surface-2:#2b2723; --text:#f1ece6; --muted:#a39a90; --line:#3a352f;
+    --accent:#f08048; --accent-soft:#4a2e20; --good:#4cc477; --warn:#f0a050; --bad:#f06161; --info:#8fbccd;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161412; --surface:#211e1b; --surface-2:#2b2723; --text:#f1ece6; --muted:#a39a90; --line:#3a352f;
+  --accent:#f08048; --accent-soft:#4a2e20; --good:#4cc477; --warn:#f0a050; --bad:#f06161; --info:#8fbccd;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:32px 16px 80px}
+header.hero{background:var(--accent);color:#fff;border-radius:20px;padding:28px 28px 24px;margin-bottom:28px}
+header.hero h1{margin:0 0 6px;font-size:2rem;letter-spacing:-.02em}
+header.hero p{margin:0;opacity:.92}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 28px}
+nav.toc a{background:var(--surface);border:1px solid var(--line);color:var(--text);text-decoration:none;padding:6px 12px;border-radius:999px;font-size:.9rem}
+nav.toc a:hover{border-color:var(--accent);color:var(--accent)}
+section{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin-bottom:20px}
+h2{margin:0 0 12px;font-size:1.35rem}
+h3{margin:18px 0 8px;font-size:1.05rem}
+p,li{color:var(--text)}
+.muted{color:var(--muted)}
+ul{padding-left:20px;margin:8px 0}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:.85rem;text-transform:uppercase;letter-spacing:.04em}
+.tablewrap{overflow-x:auto}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.card{background:var(--surface-2);border-radius:12px;padding:14px 16px}
+.card h4{margin:0 0 6px}
+.pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.8rem;font-weight:600}
+.p-good{background:var(--good);color:#fff}.p-warn{background:var(--warn);color:#fff}.p-bad{background:var(--bad);color:#fff}.p-acc{background:var(--accent-soft);color:var(--accent)}
+.note{border-left:4px solid var(--accent);background:var(--surface-2);padding:10px 14px;border-radius:8px;margin:12px 0}
+code{background:var(--surface-2);padding:1px 6px;border-radius:6px;font-size:.88em}
+pre{background:var(--surface-2);padding:12px 14px;border-radius:10px;overflow-x:auto;font-size:.85rem;line-height:1.5}
+
+/* mockup: practice screen */
+.mock{background:var(--surface-2);border-radius:16px;padding:16px;border:1px solid var(--line)}
+.mock-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.mock-title{font-weight:700}
+.staff{position:relative;height:150px;background:var(--surface);border-radius:12px;overflow:hidden}
+.staff .ln{position:absolute;left:12px;right:12px;height:1px;background:var(--muted);opacity:.5}
+.playhead{position:absolute;top:8px;bottom:8px;width:10px;border-radius:6px;background:var(--muted);opacity:.25}
+.nh{position:absolute;width:16px;height:12px;border-radius:50%;transform:rotate(-20deg)}
+.stem{position:absolute;width:2px}
+.mark{position:absolute;width:4px;height:26px;border-radius:2px;background:var(--warn)}
+.lbl{position:absolute;font-size:.72rem;font-weight:700}
+.hand{position:absolute;bottom:6px;font-weight:800;font-size:.95rem;color:var(--info)}
+.strip{margin-top:12px;background:var(--surface);border-radius:12px;height:110px;position:relative}
+.strip .axis{position:absolute;left:40px;right:12px;top:55px;height:1px;background:var(--line)}
+.strip .now{position:absolute;left:52%;top:8px;bottom:8px;width:2px;background:var(--text)}
+.strip .cnt{position:absolute;top:44px;font-size:.8rem;color:var(--muted);font-weight:700}
+.strip .bar{position:absolute;width:6px;height:28px;border-radius:3px}
+.strip .lane{position:absolute;left:10px;width:24px;height:24px;border-radius:50%;background:var(--info);color:#fff;font-size:.75rem;font-weight:800;display:flex;align-items:center;justify-content:center}
+.score{display:flex;align-items:flex-end;justify-content:space-between;margin-top:12px}
+.score b{font-size:2.4rem;line-height:1}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:.85rem}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+
+/* mockup: click pattern */
+.cp{display:flex;gap:12px;justify-content:center;margin:10px 0}
+.cp .col{display:flex;flex-direction:column;gap:6px;align-items:center}
+.cp .cell{width:52px;height:30px;border-radius:8px;background:var(--surface);border:1px solid var(--line)}
+.cp .l3{background:var(--accent);border-color:var(--accent)}
+.cp .l2{background:var(--accent);opacity:.65;border-color:transparent}
+.cp .l1{background:var(--accent);opacity:.35;border-color:transparent}
+.cp .snd{font-size:.72rem;color:var(--muted)}
+.cp .lab{font-weight:700}
+
+/* timeline */
+.ms{display:grid;grid-template-columns:44px 1fr;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.ms:last-child{border-bottom:0}
+.ms .num{width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center}
+.ms h4{margin:4px 0 4px}
+.tasks{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tasks span{background:var(--surface-2);border-radius:8px;padding:2px 8px;font-size:.82rem}
+.mvp{outline:2px dashed var(--accent);outline-offset:4px;border-radius:12px}
+footer{color:var(--muted);font-size:.85rem;text-align:center;margin-top:24px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🥁 DrumCoach – app iPad tập trống</h1>
+  <p>Mục tiêu: Rockschool Grade 8 · Tập theo Stick Control · Pad &amp; trống điện · Tempo hiện tại 50–90 BPM</p>
+</header>
+
+<nav class="toc">
+  <a href="#tong-quan">Tổng quan</a>
+  <a href="#man-hinh-tap">Màn hình tập</a>
+  <a href="#cham-diem">Chấm điểm</a>
+  <a href="#metronome">Metronome</a>
+  <a href="#level">Test level</a>
+  <a href="#dem">Đếm nhịp</a>
+  <a href="#lo-trinh">Lộ trình build</a>
+  <a href="#ky-thuat">Kỹ thuật</a>
+  <a href="#luu-y">Lưu ý</a>
+</nav>
+
+<section id="tong-quan">
+  <h2>Tổng quan</h2>
+  <p>Trong lúc tập, bạn <b>đeo tai nghe</b> để nghe metronome. iPad dùng <b>micro</b> nghe tiếng bạn đánh (pad hoặc trống điện), rồi so từng cú đánh với nốt trên khuông nhạc đang chạy theo tempo.</p>
+  <div class="grid2">
+    <div class="card"><h4>Bạn đang gặp</h4>
+      <ul>
+        <li>Không biết mình đang ở trình độ nào</li>
+        <li>Bị bí ở nhiều chỗ</li>
+        <li>Đếm thành tiếng bị giật, ngắt ở âm "&amp;"</li>
+      </ul>
+    </div>
+    <div class="card"><h4>App giải quyết</h4>
+      <ul>
+        <li>Test level, đạt khi được trên 90%</li>
+        <li>Chỉ ra cụ thể điểm yếu (sớm hay muộn, ở vị trí "e", "&amp;" hay "a")</li>
+        <li>Giọng đếm mẫu mượt, kèm chế độ Count Coach để luyện đếm</li>
+      </ul>
+    </div>
+  </div>
+  <p class="muted">Giao diện tham khảo app Drum Journal mà bạn đang dùng và video "24K Magic" (khuông nhạc có playhead chạy).</p>
+</section>
+
+<section id="man-hinh-tap">
+  <h2>Màn hình tập (mockup)</h2>
+  <div class="mock">
+    <div class="mock-top"><span class="mock-title">Single Paradiddle</span><span class="pill p-acc">♩ = 70 · 1:00</span></div>
+    <div class="staff" id="staff">
+      <div class="ln" style="top:40px"></div><div class="ln" style="top:52px"></div><div class="ln" style="top:64px"></div><div class="ln" style="top:76px"></div><div class="ln" style="top:88px"></div>
+      <div class="playhead" style="left:47%"></div>
+      <span class="lbl" style="left:5%;top:20px;color:var(--warn)">SNARE</span>
+      <!-- notes built by script -->
+    </div>
+    <div class="strip">
+      <div class="lane" style="top:12px">R</div><div class="lane" style="bottom:12px;background:var(--muted)">L</div>
+      <div class="axis"></div>
+      <span class="cnt" style="left:12%">1</span><span class="cnt" style="left:23%">&amp;</span><span class="cnt" style="left:34%">2</span><span class="cnt" style="left:45%">&amp;</span><span class="cnt" style="left:56%">3</span><span class="cnt" style="left:67%">&amp;</span><span class="cnt" style="left:78%">4</span><span class="cnt" style="left:89%">&amp;</span>
+      <div class="bar" style="left:12%;top:12px;background:var(--good)"></div>
+      <div class="bar" style="left:22%;bottom:12px;background:var(--warn)"></div>
+      <div class="bar" style="left:34%;top:12px;background:var(--good)"></div>
+      <div class="bar" style="left:45%;top:12px;background:var(--bad)"></div>
+      <div class="bar" style="left:56%;bottom:12px;background:var(--line)"></div>
+      <div class="bar" style="left:67%;top:12px;background:var(--line)"></div>
+      <div class="bar" style="left:78%;bottom:12px;background:var(--line)"></div>
+      <div class="bar" style="left:89%;bottom:12px;background:var(--line)"></div>
+      <div class="now"></div>
+    </div>
+    <div class="score">
+      <div><div class="muted" style="font-size:.85rem">Score</div><b>87%</b></div>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--good)"></i>Đúng</span>
+        <span><i class="dot" style="background:var(--warn)"></i>Sớm/muộn</span>
+        <span><i class="dot" style="background:var(--bad)"></i>Trượt</span>
+      </div>
+    </div>
+  </div>
+  <h3>Những gì có trên màn hình</h3>
+  <ul>
+    <li><b>Khuông nhạc</b> có playhead chạy theo tempo. Nốt đang đánh sáng lên, chữ R/L nằm dưới nốt, nhãn HI-HAT/SNARE hiện ở lần đầu một bộ phận xuất hiện.</li>
+    <li>Hai kiểu hiển thị: <b>trang tĩnh</b> (playhead chạy, xuống dòng) và <b>cuộn ngang</b> (khuông trôi, playhead đứng yên).</li>
+    <li><b>Dải R/L</b> giống Drum Journal: làn R ở trên, làn L ở dưới, nhãn đếm "1 &amp; 2 &amp;" chạy qua vạch đứng.</li>
+    <li>Nút BPM −/+ và tap tempo, chọn thời lượng (30 giây, 1, 2, 5 phút), chọn giá trị nốt, nút <b>FLIP</b> đổi tay.</li>
+    <li>Banner <b>"Nên dùng tai nghe"</b> khi app phát hiện âm thanh đang ra loa.</li>
+    <li>Dòng "Lần trước: 50 BPM, 79%" kèm biểu đồ nhỏ.</li>
+  </ul>
+</section>
+
+<section id="cham-diem">
+  <h2>Chấm điểm từng nốt</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Màu</th><th>Điều kiện (mặc định: Vừa)</th><th>Hiển thị</th><th>Điểm</th></tr>
+    <tr><td><span class="pill p-good">Xanh lá</span></td><td>lệch ≤ 30 ms</td><td>nốt chuyển xanh</td><td>1</td></tr>
+    <tr><td><span class="pill p-warn">Cam – sớm</span></td><td>sớm hơn 30 ms</td><td>vạch cam <b>trước</b> nốt, kèm số "−42"</td><td>0.5</td></tr>
+    <tr><td><span class="pill p-warn">Cam – muộn</span></td><td>muộn hơn 30 ms</td><td>vạch cam <b>sau</b> nốt, kèm số "+38"</td><td>0.5</td></tr>
+    <tr><td><span class="pill p-bad">Đỏ</span></td><td>không đánh, hoặc lệch ra ngoài cửa sổ ghép</td><td>nốt chuyển đỏ</td><td>0</td></tr>
+    <tr><td>Đánh thừa</td><td>cú đánh không khớp nốt nào</td><td>chấm xám</td><td>−0.5</td></tr>
+  </table></div>
+  <div class="note"><b>Cách tính %:</b> % = tổng điểm chia cho tổng số nốt, nhân 100, kẹp trong khoảng 0–100.<br>
+  Ví dụ 10 nốt có 8 xanh, 1 cam, 1 đỏ: (8 + 0.5) / 10 = <b>85%</b>.</div>
+  <p>Có ba mức độ khó trong Settings: <b>Dễ</b> 45 ms · <b>Vừa</b> 30 ms · <b>Khó</b> 20 ms.</p>
+  <p>Màn hình kết quả cuối bài gồm: % lớn, số nốt xanh / cam / đỏ, xu hướng chung ("hay đánh sớm 18 ms"), và vị trí đếm yếu nhất ("&amp;" trễ nhiều nhất).</p>
+</section>
+
+<section id="metronome">
+  <h2>Metronome</h2>
+  <div class="grid2">
+    <div class="mock">
+      <div class="mock-title" style="text-align:center">Click Pattern</div>
+      <div class="cp">
+        <div class="col"><div class="cell l3"></div><div class="cell l3"></div><div class="cell l3"></div><span class="lab">1</span><span class="snd">click</span></div>
+        <div class="col"><div class="cell"></div><div class="cell"></div><div class="cell l1"></div><span class="lab">e</span><span class="snd">hi-hat</span></div>
+        <div class="col"><div class="cell"></div><div class="cell l2"></div><div class="cell l2"></div><span class="lab">&amp;</span><span class="snd">cowbell</span></div>
+        <div class="col"><div class="cell"></div><div class="cell"></div><div class="cell l1"></div><span class="lab">a</span><span class="snd">hi-hat</span></div>
+      </div>
+      <p class="muted" style="text-align:center;font-size:.85rem;margin:0">Chạm: đổi mức to · Nhấn giữ: chọn âm cho ô</p>
+    </div>
+    <div>
+      <ul>
+        <li><b>Preset:</b> Quarter, 8th, 16th, Triplet, Offbeat, cộng với preset bạn tự lưu</li>
+        <li><b>Mỗi ô "1 e &amp; a"</b> có mức to riêng (tắt / nhỏ / vừa / to) và <b>âm riêng</b> (click, woodblock, cowbell, rimshot, hi-hat, beep, giọng đọc)</li>
+        <li>Số ô mỗi phách: 1 / 2 / 3 / 4 / 6</li>
+        <li><b>Accent Beat 1</b></li>
+        <li><b>Beat Skip:</b> ●●●● / ●○●○ / ●○○○ / ○●○●</li>
+        <li><b>Gap:</b> tắt click vài ô nhịp để luyện giữ nhịp trong đầu</li>
+        <li><b>Tempo ramp:</b> 50 → 90, mỗi lần +2 BPM, chỉ tăng khi bạn chơi đạt</li>
+        <li>Âm lượng riêng cho click, giọng đếm và nhạc nền</li>
+        <li>Click chính xác đến từng sample, không trôi nhịp kể cả sau 10 phút</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="level">
+  <h2>Danh sách bài test level</h2>
+  <div class="note"><b>Quy tắc:</b>
+    <ul>
+      <li>Một bài test chỉ đạt khi được <b>trên 90%</b> (đúng 90.0% thì chưa đạt).</li>
+      <li>Đạt level khi <b>mọi bài test</b> của level đó đều đạt. Kết quả lấy điểm cao nhất của từng bài, nên bạn có thể đạt từng bài ở những buổi khác nhau.</li>
+      <li>Level hiện tại là level cao nhất mà các level bên dưới cũng đã đạt hết.</li>
+      <li>Trong chế độ test, tempo và ngưỡng chấm bị khóa.</li>
+    </ul>
+  </div>
+  <div class="tablewrap"><table>
+    <tr><th>Level</th><th>Nội dung test</th><th>Tempo</th></tr>
+    <tr><td>1</td><td>Nốt đen, móc đơn, single stroke</td><td>60–70</td></tr>
+    <tr><td>2</td><td>Double stroke, sticking 8 nốt kiểu Stick Control</td><td>70</td></tr>
+    <tr><td>3</td><td>Móc kép, paradiddle, accent</td><td>70–80</td></tr>
+    <tr><td>4</td><td>Groove 8th/16th, flam</td><td>80</td></tr>
+    <tr><td>5</td><td>Chùm ba, shuffle, ghost note</td><td>85–90</td></tr>
+    <tr><td>6</td><td>Linear, roll 5/7/9 nét, fill qua tom</td><td>90–100</td></tr>
+    <tr><td>7</td><td>Nhịp lẻ 7/8, 5/4, sextuplet</td><td>100</td></tr>
+    <tr><td>8</td><td>Tổng hợp mức Grade 8: 16th 110+, displacement, đọc nhạc</td><td>110–120</td></tr>
+  </table></div>
+  <p>Mỗi level hiện trạng thái 🔒 / đang làm / ✅, và mỗi bài hiện % tốt nhất. Có nút "Nhờ Claude nhận xét" để nhận <b>lộ trình 4 tuần</b> cho level kế tiếp.</p>
+</section>
+
+<section id="dem">
+  <h2>Đếm nhịp</h2>
+  <ul>
+    <li>Giọng đếm: <code>1 2 3 4</code> · <code>1 &amp; 2 &amp;</code> · <code>1 e &amp; a</code> · <code>1 trip let</code></li>
+    <li><b>Giọng phải mượt:</b> âm tiết không bị cắt cụt, tự co lại cho vừa tempo, phách chính đọc to hơn "e &amp; a". Bạn có thể ghi âm giọng của chính mình.</li>
+    <li><b>Count Coach</b> gồm bốn bước:
+      <ol>
+        <li>Nghe app đếm.</li>
+        <li>Đếm cùng app.</li>
+        <li>Giọng app nhỏ dần.</li>
+        <li>Bạn tự đếm.</li>
+      </ol>
+      Micro chấm từng âm tiết, ví dụ báo "'&amp;' của bạn trễ trung bình 40 ms".</li>
+  </ul>
+</section>
+
+<section id="lo-trinh">
+  <h2>Lộ trình build</h2>
+  <p class="muted">Các mốc trong khung viền đứt là bản đầu tiên bạn tập được hằng ngày.</p>
+  <div class="mvp">
+    <div class="ms"><div class="num">1</div><div><h4>Nền tảng</h4>Model bài tập và định dạng text để gõ bài, ví dụ:
+      <pre>HH: x-x-x-x-x-x-x-x-
+SN: ----o-------o---
+BD: o-------o-o-----
+ST: RLRRLRLLRLRRLRLL</pre><div class="tasks"><span>Task 1 Project + model</span><span>Task 2 DSL, timeline, nhãn đếm</span></div></div></div>
+    <div class="ms"><div class="num">2</div><div><h4>Metronome và giọng đếm</h4>Click pattern, âm riêng cho từng ô, beat skip, gap, tempo ramp<div class="tasks"><span>Task 3 Metronome</span><span>Task 4 Tempo ramp</span></div></div></div>
+    <div class="ms"><div class="num">3</div><div><h4>Khuông nhạc chạy</h4>Playhead, dải R/L, FLIP<div class="tasks"><span>Task 5 Notation + màn hình tập</span></div></div></div>
+    <div class="ms"><div class="num">4</div><div><h4>Nghe và chấm điểm</h4>Micro (và MIDI nếu có), hiệu chỉnh độ trễ, xanh/cam/đỏ, %<div class="tasks"><span>Task 6 Bắt tiếng đánh</span><span>Task 7 Chấm điểm sớm/muộn</span><span>Task 7A Count Coach</span></div></div></div>
+  </div>
+  <div class="ms"><div class="num">5</div><div><h4>Thư viện bài tập</h4>Generator kiểu Stick Control (256 tổ hợp 8 nốt), giáo trình Grade 8 do app tự soạn, trình soạn bài<div class="tasks"><span>Task 8</span></div></div></div>
+  <div class="ms"><div class="num">6</div><div><h4>Claude AI</h4>Nhập bài từ trang PDF sách của bạn, đánh giá theo Rockschool, test level<div class="tasks"><span>Task 9 Claude + PDF</span><span>Task 10 Đánh giá</span><span>Task 10A Test level</span></div></div></div>
+  <div class="ms"><div class="num">7</div><div><h4>Tiến độ</h4>Biểu đồ tempo sạch theo thời gian, heatmap sớm/muộn theo "1 e &amp; a", chuỗi ngày tập<div class="tasks"><span>Task 11</span></div></div></div>
+  <div class="ms"><div class="num">8</div><div><h4>Play-along (tùy chọn)</h4>Chơi theo backing track, đổi tempo, lặp đoạn A–B, ghi âm để nghe lại<div class="tasks"><span>Task 12</span></div></div></div>
+</section>
+
+<section id="ky-thuat">
+  <h2>Kỹ thuật</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Phần</th><th>Chọn</th><th>Vì sao</th></tr>
+    <tr><td>Nền tảng</td><td>Swift / SwiftUI native, iPadOS 18+</td><td>Âm thanh độ trễ thấp, đo được sai lệch tính bằng ms</td></tr>
+    <tr><td>Metronome</td><td>AVAudioEngine, chính xác đến từng sample</td><td>Không trôi nhịp</td></tr>
+    <tr><td>Nghe tiếng đánh</td><td>Micro với thuật toán phát hiện tiếng gõ (onset); CoreMIDI là tùy chọn</td><td>Dùng được cho cả pad và trống điện</td></tr>
+    <tr><td>Khuông nhạc</td><td>SwiftUI Canvas tự vẽ</td><td>Tô màu từng nốt và chạy mượt</td></tr>
+    <tr><td>Lưu dữ liệu</td><td>SwiftData, chỉ trên máy</td><td>Không cần server</td></tr>
+    <tr><td>AI</td><td>Claude API (claude-sonnet-5-5), key lưu trong Keychain</td><td>Đánh giá, lộ trình, đọc trang PDF</td></tr>
+    <tr><td>Kiểm thử</td><td>Logic tách thành Swift package, chạy <code>swift test</code></td><td>Test nhanh, không cần simulator</td></tr>
+  </table></div>
+</section>
+
+<section id="luu-y">
+  <h2>Lưu ý</h2>
+  <ul>
+    <li><b>Bản quyền:</b> app không có sẵn nội dung của Stick Control hay Rockschool. Bạn tự nhập từ sách của mình (gõ tay hoặc dùng Claude đọc trang PDF), và dữ liệu chỉ nằm trên máy bạn.</li>
+    <li><b>Micro không phân biệt tay R hay L.</b> App chỉ chấm thời điểm đánh; chữ R/L để bạn nhìn theo.</li>
+    <li>Mức Pass/Merit/Distinction (60/74/90%) cần đối chiếu lại với syllabus Rockschool hiện hành.</li>
+    <li>Các phần metronome, micro và độ trễ bắt buộc phải thử trên iPad thật.</li>
+  </ul>
+</section>
+
+<footer>Plan chi tiết: docs/superpowers/plans/2026-10-21-drum-coach-ipad.md · 21/10/2026</footer>
+</div>
+
+<script>
+// vẽ các nốt mẫu trên khuông: [x%, màu, tay, sớm(-1)/muộn(+1)/0]
+(function(){
+  const s=document.getElementById('staff');
+  const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v);
+  const notes=[[8,'--good','R',0],[19,'--warn','L',-1],[30,'--good','R',0],[41,'--bad','R',0],[54,'--text','L',0],[65,'--text','R',0],[76,'--text','L',0],[87,'--text','L',0]];
+  notes.forEach(([x,c,h,o])=>{
+    const n=document.createElement('div');n.className='nh';n.style.left=x+'%';n.style.top='58px';n.style.background=`var(${c})`;s.appendChild(n);
+    const st=document.createElement('div');st.className='stem';st.style.left=`calc(${x}% + 14px)`;st.style.top='22px';st.style.height='40px';st.style.background=`var(${c})`;s.appendChild(st);
+    const hd=document.createElement('div');hd.className='hand';hd.style.left=x+'%';hd.textContent=h;s.appendChild(hd);
+    if(o){const m=document.createElement('div');m.className='mark';m.style.left=`calc(${x}% ${o<0?'- 14px':'+ 26px'})`;m.style.top='50px';s.appendChild(m);
+      const t=document.createElement('div');t.className='lbl';t.style.left=`calc(${x}% - 22px)`;t.style.top='4px';t.style.color='var(--warn)';t.textContent=o<0?'−42':'+38';s.appendChild(t);}
+  });
+  [[8,30],[30,41]].forEach(([a,b])=>{const bm=document.createElement('div');bm.style.cssText=`position:absolute;left:calc(${a}% + 14px);width:calc(${b-a}%);top:22px;height:4px;background:var(--text);opacity:.8`;s.appendChild(bm);});
+})();
+</script>
+</body>
+</html>
