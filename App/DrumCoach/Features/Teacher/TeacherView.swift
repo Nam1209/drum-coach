@@ -52,7 +52,7 @@ struct TeacherView: View {
                 PracticeForecastSections()
                 HStack(alignment: .top, spacing: 22) {
                     VStack(spacing: 22) {
-                        if let active = reports.first(where: { $0.appliedAt != nil }), let r = active.report {
+                        if let active = StoredReport.active(in: reports), let r = active.report {
                             ReportSections(title: active.title, report: r)
                         } else {
                             CardSection(L("Kế hoạch của thầy", "Teacher's plan")) {
@@ -72,7 +72,7 @@ struct TeacherView: View {
                                 ForEach(fresh) { s in CardButton(s.title, systemImage: "tray.and.arrow.down") { pending = s } }
                             }
                         }
-                        let older = Array(reports.filter { $0.appliedAt != nil }.dropFirst())
+                        let older = reports.filter { $0.appliedAt != nil && $0.id != StoredReport.active(in: reports)?.id }
                         if !older.isEmpty {
                             CardSection(L("Các báo cáo trước", "Earlier reports")) {
                                 ForEach(older) { s in
@@ -89,7 +89,7 @@ struct TeacherView: View {
             .padding(Theme.pagePadding)
         }
         .background(Theme.canvas)
-        .sheet(item: $pending) { s in ApplyPlanView(stored: s, current: reports.first { $0.appliedAt != nil }) }
+        .sheet(item: $pending) { s in ApplyPlanView(stored: s, current: StoredReport.active(in: reports)) }
         .onChange(of: phase) { _, p in if p == .active, TeacherConnection.isConfigured { Task { await sync(quiet: true) } } }
     }
 
@@ -109,7 +109,8 @@ struct TeacherView: View {
         working = true; defer { working = false }
         do {
             let out = try await TeacherConnection.sync(context)
-            if let first = out.plans.last { pending = first }
+            // A new plan, or (when the user taps Sync) one still waiting to be applied, opens the apply sheet.
+            if let first = out.plans.last { pending = first } else if !quiet, let waiting = reports.first(where: { $0.appliedAt == nil }) { pending = waiting }
             if !quiet || !out.plans.isEmpty || out.exercises > 0 {
                 message = L("Kế hoạch mới: \(out.plans.count) · Bài tập mới: \(out.exercises)", "New plans: \(out.plans.count) · New exercises: \(out.exercises)") + (out.problems.isEmpty ? "" : "\n" + out.problems.joined(separator: "\n"))
             }

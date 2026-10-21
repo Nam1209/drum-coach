@@ -21,6 +21,11 @@ enum TeacherConnection {
         get { Set(d.stringArray(forKey: "notion.importedPlans") ?? []) }
         set { d.set(Array(newValue), forKey: "notion.importedPlans") }
     }
+    /// Fingerprint of each imported plan page's JSON, to notice when Claude rewrites a page.
+    static var planFingerprints: [String: String] {
+        get { d.dictionary(forKey: "notion.planFingerprints") as? [String: String] ?? [:] }
+        set { d.set(newValue, forKey: "notion.planFingerprints") }
+    }
     static var importedExercisePages: Set<String> {
         get { Set(d.stringArray(forKey: "notion.importedExercises") ?? []) }
         set { d.set(Array(newValue), forKey: "notion.importedExercises") }
@@ -121,15 +126,31 @@ enum TeacherConnection {
         }
         let known = Set(ExerciseCatalog.all(ctx).keys)
         var stored: [StoredReport] = [], problems: [String] = []
-        for p in try await bridge.fetchPlans(excluding: importedPlanPages) {
+        // Pages imported before fingerprints existed count as seen with an unknown print, so an edit still comes through.
+        var seen = planFingerprints
+        for id in importedPlanPages where seen[id] == nil { seen[id] = "" }
+        let existing = try ctx.fetch(FetchDescriptor<StoredReport>())
+        for p in try await bridge.fetchPlans(seen: seen, recheckSince: Date().addingTimeInterval(-21 * 86_400)) {
             switch p.report {
             case .success(let r):
                 var clean = r.sanitized(knownExerciseIds: known)
                 clean.resources = await ResourceValidator().validate(clean.resources)
-                let s = StoredReport(title: p.title, created: p.created, report: clean)
+                let sameTitle = existing.filter { $0.title == p.title }
+                if p.isRevision {
+                    // Already have exactly this plan (first sync after updating the app): just remember its print.
+                    if sameTitle.contains(where: { $0.report?.summary == clean.summary && $0.report?.weekPlan == clean.weekPlan }) {
+                        planFingerprints[p.pageId] = p.fingerprint
+                        continue
+                    }
+                    // The rewrite replaces an older version that was never applied.
+                    for old in sameTitle where old.appliedAt == nil { ctx.delete(old) }
+                }
+                // A revision sorts as the newest plan even though the page was created earlier.
+                let s = StoredReport(title: p.title, created: p.isRevision ? Date() : p.created, report: clean)
                 ctx.insert(s)
                 stored.append(s)
                 importedPlanPages.insert(p.pageId)
+                planFingerprints[p.pageId] = p.fingerprint
             case .failure(let e):
                 problems.append("\(p.title): \(e.userMessage)")   // not marked imported: retried next sync
             }

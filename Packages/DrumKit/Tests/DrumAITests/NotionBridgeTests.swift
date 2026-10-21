@@ -203,3 +203,34 @@ private func codeBlock(_ text: String) -> String {
     #expect(text.contains("Tài liệu trong Project"))
     #expect(text.contains("hướng dẫn kỹ thuật"))
 }
+
+/// Claude often rewrites the same "Kế hoạch <day>" page instead of making a new one; the edit must come through.
+@Test(.vietnamese) func editedPlanPageIsFetchedAgainButAnUnchangedOneIsNot() async throws {
+    let page = childPage("plan-1", "Kế hoạch 2026-10-21", "2026-10-21T10:00:00.000Z")
+    let v1 = exampleReport
+    let v2 = exampleReport.replacingOccurrences(of: #""nextCheckpoint":""#, with: #""nextCheckpoint":"Bản sửa "#)
+    #expect(v2 != v1)
+    let now = Date(timeIntervalSince1970: 1_792_600_000)   // a few days later
+
+    let first = FakeTransport([childrenResponse([page]), childrenResponse([codeBlock(v1)])])
+    let got = try await NotionBridge(client: NotionClient(token: "s", transport: first), inboxPageId: "i", plansPageId: "p")
+        .fetchPlans(seen: [:], recheckSince: now.addingTimeInterval(-21 * 86_400))
+    #expect(got.count == 1 && !got[0].isRevision)
+
+    let unchanged = FakeTransport([childrenResponse([page]), childrenResponse([codeBlock(v1)])])
+    #expect(try await NotionBridge(client: NotionClient(token: "s", transport: unchanged), inboxPageId: "i", plansPageId: "p")
+        .fetchPlans(seen: ["plan-1": got[0].fingerprint], recheckSince: now.addingTimeInterval(-21 * 86_400)).isEmpty)
+
+    let edited = FakeTransport([childrenResponse([page]), childrenResponse([codeBlock(v2)])])
+    let again = try await NotionBridge(client: NotionClient(token: "s", transport: edited), inboxPageId: "i", plansPageId: "p")
+        .fetchPlans(seen: ["plan-1": got[0].fingerprint], recheckSince: now.addingTimeInterval(-21 * 86_400))
+    try #require(again.count == 1)
+    #expect(again[0].isRevision)
+    if case .success(let r) = again[0].report { #expect(r.nextCheckpoint.hasPrefix("Bản sửa")) } else { Issue.record("expected success") }
+
+    // Old imported pages are not re-read on every sync.
+    let old = FakeTransport([childrenResponse([page])])
+    #expect(try await NotionBridge(client: NotionClient(token: "s", transport: old), inboxPageId: "i", plansPageId: "p")
+        .fetchPlans(seen: ["plan-1": got[0].fingerprint], recheckSince: now.addingTimeInterval(86_400 * 30)).isEmpty)
+    #expect(old.requests.count == 1)
+}

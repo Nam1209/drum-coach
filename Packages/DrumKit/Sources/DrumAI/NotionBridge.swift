@@ -76,6 +76,40 @@ public struct NotionBridge: Sendable {
         return out
     }
 
+    public struct PlanPage: Sendable {
+        public let pageId: String
+        public let title: String
+        public let created: Date
+        /// Identifies the page's JSON; store it and pass it back in `seen` to notice later edits.
+        public let fingerprint: String
+        /// The page was imported before and Claude has since rewritten it.
+        public let isRevision: Bool
+        public let report: Result<TeacherReport, BridgeError>
+    }
+
+    /// New plan pages, plus pages imported before whose JSON has changed (Claude often rewrites the same day's page).
+    /// `seen` maps imported page ids to their fingerprint; only those created since `recheckSince` are re-read.
+    public func fetchPlans(seen: [String: String], recheckSince: Date) async throws -> [PlanPage] {
+        var out: [PlanPage] = []
+        for p in try await client.childPages(of: plansPageId).sorted(by: { $0.created < $1.created }) {
+            let known = seen[p.id]
+            if known != nil, p.created < recheckSince { continue }
+            let blocks = try await client.codeBlocks(of: p.id)
+            let print = Self.fingerprint(blocks)
+            guard print != known else { continue }
+            out.append(PlanPage(pageId: p.id, title: p.title, created: p.created, fingerprint: print,
+                                isRevision: known != nil, report: Self.decodeReport(blocks)))
+        }
+        return out
+    }
+
+    /// FNV-1a over the page's code blocks: stable across launches (unlike `hashValue`).
+    static func fingerprint(_ blocks: [String]) -> String {
+        var h: UInt64 = 0xcbf2_9ce4_8422_2325
+        for b in blocks.joined(separator: "\u{1F}").utf8 { h = (h ^ UInt64(b)) &* 0x100_0000_01b3 }
+        return String(h, radix: 16)
+    }
+
     /// DSL exercises Claude wrote (e.g. transcribed from the user's book) per page, skipping anything that does not parse.
     /// Pages with no valid exercise yet are returned with an empty list so the caller can retry them later.
     public func fetchExercisePages(excluding imported: Set<String>) async throws -> [(pageId: String, dsl: [String])] {

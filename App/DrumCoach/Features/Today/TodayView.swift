@@ -156,7 +156,7 @@ struct TodayView: View {
 
     /// Day of the active plan (1–7, counting from when it was applied) or a default for the current level.
     private var todayPlan: (day: DayPlan, source: String) {
-        if let active = reports.first(where: { $0.appliedAt != nil }), let r = active.report, !r.weekPlan.isEmpty, let applied = active.appliedAt {
+        if let active = StoredReport.active(in: reports), let r = active.report, !r.weekPlan.isEmpty, let applied = active.appliedAt {
             let n = (Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: applied), to: Calendar.current.startOfDay(for: Date())).day ?? 0) % 7 + 1
             if let d = r.weekPlan.first(where: { $0.day == n }) ?? r.weekPlan.first { return (d, L("Theo \(active.title) · ngày \(d.day)", "From \(active.title) · day \(d.day)")) }
         }

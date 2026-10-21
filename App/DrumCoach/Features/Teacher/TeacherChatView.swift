@@ -41,8 +41,7 @@ struct TeacherChatView: View {
     private func send() async {
         guard let key = Keychain.get(Keychain.claudeKey), !key.isEmpty else { error = L("Cần API key trong Cài đặt (hoặc hỏi thầy trong Project trên Claude).", "You need an API key in Settings (or ask the teacher in the Project on Claude)."); return }
         if chat == nil {
-            let active = (try? context.fetch(FetchDescriptor<StoredReport>(sortBy: [SortDescriptor(\.created, order: .reverse)])))?
-                .first { $0.appliedAt != nil }?.report
+            let active = StoredReport.active(in: (try? context.fetch(FetchDescriptor<StoredReport>())) ?? [])?.report
             chat = TeacherChat(client: ClaudeClient(apiKey: key, model: model), digest: HistoryStore.digest(context),
                                profile: TeacherConnection.profile, lastReport: active)
         }
