@@ -1,6 +1,7 @@
 import DrumAnalysis
 import DrumAudio
 import DrumCore
+import DrumLibrary
 import SwiftData
 import SwiftUI
 
@@ -13,10 +14,10 @@ struct PracticeView: View {
     @State private var taps: [Date] = []
     private let exercises: [Exercise]
 
-    init(exercises: [Exercise], voiceBank: CountVoiceBank) {
+    init(exercises: [Exercise], voiceBank: CountVoiceBank, testItem: LevelTestItem? = nil) {
         self.exercises = exercises
         self.voiceBank = voiceBank
-        _model = StateObject(wrappedValue: PracticeViewModel(exercise: exercises[0], voiceBank: voiceBank))
+        _model = StateObject(wrappedValue: PracticeViewModel(exercise: exercises[0], voiceBank: voiceBank, testItem: testItem))
     }
 
     var body: some View {
@@ -98,19 +99,26 @@ struct PracticeView: View {
                 Button("Tap") { tapTempo() }.buttonStyle(.bordered)
                 Button { showSheet = true } label: { Image(systemName: "slider.horizontal.3") }.buttonStyle(.bordered)
             }
-            .disabled(model.isPlaying)
+            .disabled(model.isPlaying || model.testItem != nil)
+            if model.testItem != nil {
+                Label("Bài test: tempo, thời lượng và độ khó (±30 ms) bị khóa. Cần trên 90% để đạt.", systemImage: "lock")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
             HStack(spacing: 16) {
                 Button(model.isPlaying ? "Dừng" : "Bắt đầu") { toggle() }
                     .buttonStyle(.borderedProminent).controlSize(.large).frame(minWidth: 160)
                 Picker("Thời lượng", selection: $model.durationSeconds) {
                     Text("30s").tag(30.0); Text("1 phút").tag(60.0); Text("2 phút").tag(120.0); Text("5 phút").tag(300.0)
                 }
+                .disabled(model.testItem != nil)
                 Picker("Chế độ", selection: $model.mode) {
                     ForEach(InputMode.allCases) { Text($0.title).tag($0) }
                 }
-                Toggle("FLIP", isOn: $model.flipped).toggleStyle(.button)
-                Picker("Độ khó", selection: difficulty) {
-                    Text("Dễ ±45ms").tag(45.0); Text("Vừa ±30ms").tag(30.0); Text("Khó ±20ms").tag(20.0)
+                if model.testItem == nil {
+                    Toggle("FLIP", isOn: $model.flipped).toggleStyle(.button)
+                    Picker("Độ khó", selection: difficulty) {
+                        Text("Dễ ±45ms").tag(45.0); Text("Vừa ±30ms").tag(30.0); Text("Khó ±20ms").tag(20.0)
+                    }
                 }
             }
             .disabled(model.isPlaying)

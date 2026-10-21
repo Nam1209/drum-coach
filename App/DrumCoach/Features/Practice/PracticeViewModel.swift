@@ -2,6 +2,7 @@ import DrumAI
 import DrumAnalysis
 import DrumAudio
 import DrumCore
+import DrumLibrary
 import Foundation
 import SwiftData
 import SwiftUI
@@ -56,6 +57,8 @@ final class PracticeViewModel: ObservableObject {
     @Published var error: String?
 
     let engine: MetronomeEngine
+    /// When set, this run is a level test: tempo, length and scoring are locked.
+    let testItem: LevelTestItem?
     var modelContext: ModelContext?
     static let countInBars = 1
 
@@ -65,9 +68,14 @@ final class PracticeViewModel: ObservableObject {
     private var tasks: [Task<Void, Never>] = []
     private var startedAt = Date()
 
-    init(exercise: Exercise, voiceBank: CountVoiceBank) {
+    init(exercise: Exercise, voiceBank: CountVoiceBank, testItem: LevelTestItem? = nil) {
         self.exercise = exercise
-        let saved = SettingsStore.loadMetronome() ?? MetronomeSettings(bpm: 70, pattern: .eighths, accentBeatOne: true)
+        self.testItem = testItem
+        var saved = SettingsStore.loadMetronome() ?? MetronomeSettings(bpm: 70, pattern: .eighths, accentBeatOne: true)
+        if let testItem {
+            saved.bpm = testItem.bpm
+            durationSeconds = testItem.duration
+        }
         settings = saved
         engine = MetronomeEngine(voiceBank: voiceBank, settings: saved)
     }
@@ -94,7 +102,8 @@ final class PracticeViewModel: ObservableObject {
         liveScore = nil
         finishedStats = nil
         matcher = nil
-        rules = SettingsStore.scoring
+        rules = testItem == nil ? SettingsStore.scoring : ScoringRules()
+        if let testItem { settings.bpm = testItem.bpm; durationSeconds = testItem.duration; flipped = false }
 
         let repeats = max(1, Int((durationSeconds / exerciseSeconds).rounded(.up)))
         var s = settings
@@ -153,7 +162,8 @@ final class PracticeViewModel: ObservableObject {
         if let ctx = modelContext {
             let session = PracticeSession(date: startedAt, exerciseId: exercise.id.uuidString, title: exercise.title,
                                        skill: exercise.source, bpm: settings.bpm, seconds: Date().timeIntervalSince(startedAt),
-                                       mode: mode.rawValue, goodWindowMs: rules.goodWindow * 1000, stats: stats)
+                                       mode: mode.rawValue, goodWindowMs: rules.goodWindow * 1000, stats: stats,
+                                          isLevelTest: testItem != nil, levelTestId: testItem?.id)
             ctx.insert(session)
             try? ctx.save()
             lastSession = session

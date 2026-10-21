@@ -12,6 +12,9 @@ struct DrumCoachApp: App {
                 Tab("Tập", systemImage: "music.note") {
                     PracticeView(exercises: StarterExercises.all, voiceBank: voiceBank)
                 }
+                Tab("Level", systemImage: "trophy") {
+                    NavigationStack { LevelListView(voiceBank: voiceBank) }
+                }
                 Tab("Thư viện", systemImage: "books.vertical") {
                     NavigationStack { LibraryView(voiceBank: voiceBank) }
                 }
