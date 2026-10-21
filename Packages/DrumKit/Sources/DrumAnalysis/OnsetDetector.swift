@@ -9,13 +9,15 @@ public struct OnsetDetector: Sendable {
     public let sampleRate: Double
     public var threshold: Double
     public var minInterval: TimeInterval
+    /// Minimum share of an onset's energy above 2 kHz (0 = any sound). Set from a `PadProfile` so only stick-like
+    /// cracks count, not voices or hums.
+    public var minBrightness: Double = 0
     /// Onsets inside these host-time ranges are dropped (metronome bleeding into the mic).
     public var suppressWindows: [ClosedRange<TimeInterval>] = []
 
     private let hop = 64
-    private let hpAlpha: Double
-    private var hpPrevIn = 0.0, hpPrevOut = 0.0
-    private var pending: [Double] = []
+    private var filters: BrightnessFilters
+    private var pending: [(low: Double, high: Double)] = []
     private var pendingStart: TimeInterval?
     private var recentPeaks: [Double] = []
     private var noiseFloor = 0.0
@@ -28,18 +30,18 @@ public struct OnsetDetector: Sendable {
         self.sampleRate = sampleRate
         self.threshold = threshold
         self.minInterval = minInterval
-        let rc = 1 / (2 * Double.pi * 150)
-        hpAlpha = rc / (rc + 1 / sampleRate)
+        filters = BrightnessFilters(sampleRate: sampleRate)
+    }
+
+    /// Tuned to the pad and room measured by `PadProfiler`.
+    public init(sampleRate: Double, profile: PadProfile, minInterval: TimeInterval = 0.025) {
+        self.init(sampleRate: sampleRate, threshold: profile.threshold, minInterval: minInterval)
+        minBrightness = profile.minBrightness
     }
 
     public mutating func process(_ frames: [Float], startTime: TimeInterval) -> [(time: TimeInterval, strength: Double)] {
         if pending.isEmpty { pendingStart = startTime }
-        for x in frames {
-            let y = hpAlpha * (hpPrevOut + Double(x) - hpPrevIn)
-            hpPrevIn = Double(x)
-            hpPrevOut = y
-            pending.append(y)
-        }
+        for x in frames { pending.append(filters.next(Double(x))) }
         var out: [(time: TimeInterval, strength: Double)] = []
         var consumed = 0
         while pending.count - consumed >= hop {
@@ -54,7 +56,8 @@ public struct OnsetDetector: Sendable {
         return out
     }
 
-    private mutating func analyze(_ hopSamples: ArraySlice<Double>, hopStart: TimeInterval) -> (time: TimeInterval, strength: Double)? {
+    private mutating func analyze(_ hopFilters: ArraySlice<(low: Double, high: Double)>, hopStart: TimeInterval) -> (time: TimeInterval, strength: Double)? {
+        let hopSamples = hopFilters.map(\.low)[...]
         let peak = hopSamples.map(abs).max() ?? 0
         let recent = recentPeaks.isEmpty ? 0 : recentPeaks.reduce(0, +) / Double(recentPeaks.count)
         recentPeaks.append(peak)
@@ -62,7 +65,7 @@ public struct OnsetDetector: Sendable {
 
         let level = max(threshold, noiseFloor * 5)
         var result: (time: TimeInterval, strength: Double)?
-        if peak > level, peak > recent * 2 {
+        if peak > level, peak > recent * 2, minBrightness == 0 || BrightnessFilters.brightness(hopFilters) >= minBrightness {
             let offset = hopSamples.firstIndex { abs($0) > level }.map { $0 - hopSamples.startIndex } ?? 0
             let t = hopStart + Double(offset) / sampleRate
             if t - lastOnset >= minInterval {

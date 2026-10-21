@@ -13,13 +13,29 @@ enum SettingsStore {
         return s.upgradedFromFirstRelease()
     }
 
-    /// Measured extra latency (seconds) per input mode.
+    /// Measured extra latency (seconds) per input mode, kept separately for each output device (speaker, GO link,
+    /// AirPods…) because each adds its own delay. Falls back to the last value measured on any device.
     static func latency(for mode: InputMode) -> TimeInterval {
-        UserDefaults.standard.double(forKey: "latency.\(mode.rawValue)")
+        let d = UserDefaults.standard
+        return d.object(forKey: deviceKey(mode)) == nil ? d.double(forKey: "latency.\(mode.rawValue)") : d.double(forKey: deviceKey(mode))
     }
 
     static func setLatency(_ value: TimeInterval, for mode: InputMode) {
         UserDefaults.standard.set(value, forKey: "latency.\(mode.rawValue)")
+        UserDefaults.standard.set(value, forKey: deviceKey(mode))
+    }
+
+    /// True when this input has been calibrated with the output device in use now.
+    static func isCalibratedForCurrentOutput(_ mode: InputMode) -> Bool {
+        UserDefaults.standard.object(forKey: deviceKey(mode)) != nil
+    }
+
+    private static func deviceKey(_ mode: InputMode) -> String { "latency.\(mode.rawValue).\(AudioSessionConfig.outputName)" }
+
+    /// The pad and room measured with 8 taps (nil = not done yet: the default sensitivity is used).
+    static var padProfile: PadProfile? {
+        get { UserDefaults.standard.data(forKey: "padProfile.v1").flatMap { try? JSONDecoder().decode(PadProfile.self, from: $0) } }
+        set { UserDefaults.standard.set(newValue.flatMap { try? JSONEncoder().encode($0) }, forKey: "padProfile.v1") }
     }
 
     /// MIDI note → drum overrides learned from the user's kit (Task 16 MIDI learn).

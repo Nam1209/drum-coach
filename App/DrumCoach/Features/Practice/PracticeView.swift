@@ -132,6 +132,12 @@ struct PracticeView: View {
     private var statusNote: (text: String, icon: String, color: Color)? {
         if let e = model.error { return (e, "exclamationmark.circle", Theme.missed) }
         if let r = model.scoringOffReason, model.isPlaying { return (r, "speaker.wave.2", Theme.offTime) }
+        if AudioSessionConfig.isUsingBluetooth, model.mode != .listenOnly {
+            return (L("Tai nghe Bluetooth trễ 100–300 ms và không ổn định, nên điểm sớm/muộn sẽ không chính xác. Dùng tai nghe có dây hoặc GO link.", "Bluetooth headphones lag 100–300 ms and drift, so early/late scores won't be accurate. Use wired headphones or a USB DAC."), "airpods", Theme.offTime)
+        }
+        if !model.isPlaying, model.mode == .pad || model.mode == .eDrum, !SettingsStore.isCalibratedForCurrentOutput(model.mode) {
+            return (L("Chưa hiệu chỉnh độ trễ với \(AudioSessionConfig.outputName). Vào Cài đặt → Hiệu chỉnh độ trễ để điểm chính xác.", "Latency not calibrated for \(AudioSessionConfig.outputName) yet. Go to Settings → Latency calibration for accurate scores."), "dot.radiowaves.left.and.right", .secondary)
+        }
         if model.showHeadphoneWarning {
             return (L("Âm thanh đang ra loa. Cắm tai nghe để app chấm điểm khi tập với pad.", "Sound is coming from the speaker. Plug in headphones so the app can score you on a pad."), "headphones", .secondary)
         }
