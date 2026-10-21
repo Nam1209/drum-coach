@@ -4,6 +4,8 @@ public enum ClickSound: String, Codable, CaseIterable, Sendable {
     case click, beep, woodblock, cowbell, hiHat, rimshot
     /// A clock's tick: a few milliseconds of bright transient, no ringing pitch.
     case tick
+    /// A mechanical wooden metronome, built from a measured reference: hard transient + inharmonic resonances at ~1.2 kHz.
+    case mechanical
     /// Speaks the counting syllable ("1", "e", "&", "a") at this slot.
     case voice
 }
@@ -36,11 +38,20 @@ public struct LevelTone: Codable, Sendable, Equatable, Hashable {
 public enum ToneLadder {
     /// A wooden metronome: a brighter, louder block on beat 1 and the same warm "tok" on the other beats.
     public static let `default`: [Int: LevelTone] = [
-        5: LevelTone(sound: .woodblock, pitchHz: 980, gainDb: -1), // accent block — beat 1
-        4: LevelTone(sound: .woodblock, pitchHz: 760, gainDb: -5), // block — beats 2, 3, 4
-        3: LevelTone(sound: .woodblock, pitchHz: 850, gainDb: -10),// light block — "&"
-        2: LevelTone(sound: .woodblock, pitchHz: 900, gainDb: -14),// faint block — clear "e"/"a"
-        1: LevelTone(sound: .hiHat, pitchHz: 0, gainDb: -20),      // whisper — background "e"/"a"
+        5: LevelTone(sound: .mechanical, pitchHz: 1_240, gainDb: -1), // "tock" — beat 1, a touch brighter and louder
+        4: LevelTone(sound: .mechanical, pitchHz: 1_195, gainDb: -4), // "tick" — beats 2, 3, 4 (the reference sound)
+        3: LevelTone(sound: .mechanical, pitchHz: 1_150, gainDb: -9), // lighter — "&"
+        2: LevelTone(sound: .mechanical, pitchHz: 1_100, gainDb: -13),// faint — clear "e"/"a"
+        1: LevelTone(sound: .hiHat, pitchHz: 0, gainDb: -20),         // whisper — background "e"/"a"
+    ]
+
+    /// The fifth factory ladder (deeper wooden blocks), recognised in saved settings.
+    public static let deepWoodDefault: [Int: LevelTone] = [
+        5: LevelTone(sound: .woodblock, pitchHz: 980, gainDb: -1),
+        4: LevelTone(sound: .woodblock, pitchHz: 760, gainDb: -5),
+        3: LevelTone(sound: .woodblock, pitchHz: 850, gainDb: -10),
+        2: LevelTone(sound: .woodblock, pitchHz: 900, gainDb: -14),
+        1: LevelTone(sound: .hiHat, pitchHz: 0, gainDb: -20),
     ]
 
     /// The fourth factory ladder (the same wooden blocks, a little higher), recognised in saved settings.
@@ -80,7 +91,7 @@ public enum ToneLadder {
     ]
 
     /// Every factory ladder shipped before the current one.
-    public static var factoryLadders: [[Int: LevelTone]] { [legacyDefault, woodblockDefault, clockTickDefault, brightWoodDefault] }
+    public static var factoryLadders: [[Int: LevelTone]] { [legacyDefault, woodblockDefault, clockTickDefault, brightWoodDefault, deepWoodDefault] }
 
     /// Saved settings still on the old factory ladder move to the new one; a ladder the user edited is kept.
     public static func upgraded(_ ladder: [Int: LevelTone]) -> [Int: LevelTone] {

@@ -178,14 +178,34 @@ private let sr = 48_000.0
     #expect(CountVoiceBank.resample(tone, from: 48_000, to: 48_000) == tone)
 }
 
-@Test func defaultClicksSoundLikeAWoodenMetronome() {
-    // Chosen by ear: the dry, hard wood block ("B"). Rejected earlier: high ringing notes (1320–1760 Hz beeps).
-    #expect((2...5).allSatisfy { ToneLadder.default[$0]?.sound == .woodblock })
-    #expect(ToneLadder.default.values.allSatisfy { $0.pitchHz <= 1_000 })
-    let f0 = ToneLadder.default[4]!.pitchHz
-    let wood = ClickSynth.render(sound: .woodblock, pitchHz: f0, sampleRate: 48_000)
-    #expect(wood == ClickSynth.wood(f0, sr: 48_000, character: .dry))
-    #expect(wood.count <= 4_800)                                         // over within 0.1 s: nothing rings on
+/// Goertzel power at `f` Hz (48 kHz audio).
+private func power(_ x: [Float], at f: Double) -> Double {
+    let k = 2 * cos(2 * Double.pi * f / 48_000)
+    var s1 = 0.0, s2 = 0.0
+    for v in x { let s0 = Double(v) + k * s1 - s2; s2 = s1; s1 = s0 }
+    return s1 * s1 + s2 * s2 - k * s1 * s2
+}
+
+private func db(_ ratio: Double) -> Double { 10 * log10(ratio) }
+
+/// The user's analysis of the wooden metronome they want: transient + inharmonic resonances peaking at 1195 Hz.
+@Test func mechanicalClickMatchesTheReferenceSpectrum() {
+    let s = ClickSynth.render(sound: .mechanical, pitchHz: 1_195, sampleRate: 48_000)
+    let main = power(s, at: 1_195)
+    for f in [1_037.0, 393, 3_463, 2_695, 5_268, 527, 914, 3_803, 4_113] { #expect(power(s, at: f) < main, "\(f) Hz") }
+    #expect(db(power(s, at: 393) / main) > db(power(s, at: 5_268) / main))      // body −10 dB above the −18 dB shimmer
+    #expect(db(power(s, at: 120) / main) < -25)                                  // almost nothing below 300 Hz
+    // Sharp: the peak comes within ~1 ms, and the level is 20 dB down 7–10 ms later.
+    let peakIndex = s.indices.max { abs(s[$0]) < abs(s[$1]) }!
+    #expect(peakIndex <= 72)                                                     // 1.5 ms
+    func rms(_ from: Int, _ n: Int) -> Double { sqrt(s[from..<min(from + n, s.count)].reduce(0) { $0 + Double($1 * $1) } / Double(n)) }
+    #expect(20 * log10(rms(peakIndex + 432, 48) / rms(max(0, peakIndex - 24), 48)) < -14)   // ~10 ms after the peak
+    #expect(s.count <= Int(0.17 * 48_000))
+}
+
+@Test func defaultClicksAreTheMechanicalMetronome() {
+    #expect((2...5).allSatisfy { ToneLadder.default[$0]?.sound == .mechanical })
+    #expect(ToneLadder.default.values.allSatisfy { $0.pitchHz <= 1_300 })       // no high ringing beeps
 }
 
 @Test func clockTickFactoryLadderIsUpgradedToo() {
@@ -235,7 +255,7 @@ private let sr = 48_000.0
 
 @Test func everyEarlierFactoryLadderUpgradesToTheCurrentOne() {
     #expect(ToneLadder.factoryLadders.contains(ToneLadder.brightWoodDefault))
+    #expect(ToneLadder.factoryLadders.contains(ToneLadder.deepWoodDefault))
     for ladder in ToneLadder.factoryLadders { #expect(ToneLadder.upgraded(ladder) == ToneLadder.default) }
     #expect(!ToneLadder.factoryLadders.contains(ToneLadder.default))
-    #expect(ToneLadder.default[5]!.pitchHz < ToneLadder.brightWoodDefault[5]!.pitchHz)   // a little deeper
 }

@@ -13,9 +13,51 @@ public enum ClickSynth {
         case .rimshot: tone(max(pitchHz, 400), partials: [(1, 0.6), (2.3, 0.4)], decay: 0.015, length: 0.06, sr: sampleRate, noise: 0.6)
         case .hiHat: tone(0, partials: [], decay: 0.02, length: 0.06, sr: sampleRate, noise: 1)
         case .voice: tone(pitchHz > 0 ? pitchHz : 1000, partials: [(1, 1)], decay: 0.01, length: 0.03, sr: sampleRate, noise: 0)
+        case .mechanical: mechanical(pitchHz > 0 ? pitchHz : 1_195, sr: sampleRate)
         case .tick: tone(pitchHz > 0 ? pitchHz : 2000, partials: [(1, 0.5), (1.83, 0.2)], decay: 0.0018, length: 0.012,
                          sr: sampleRate, noise: 0.9, attack: 0.0002)
         }
+    }
+
+    /// A mechanical wooden metronome, rebuilt from the user's spectral analysis of a reference recording:
+    /// a ~1 ms noise transient (300 Hz–10 kHz) that drops 20 dB within ~8 ms, then inharmonic resonances
+    /// (main peak 1195 Hz) about 20 dB below it that fade to −40 dB in 85–150 ms. `pitch` moves the whole set.
+    static func mechanical(_ pitch: Double, sr: Double) -> [Float] {
+        let count = Int(0.16 * sr), scale = pitch / 1_195
+        var out = [Double](repeating: 0, count: count)
+        let attack = 0.001
+        func onset(_ t: Double) -> Double { t < attack ? 0.5 - 0.5 * cos(Double.pi * t / attack) : 1 }
+
+        // Transient: band-limited noise (two high-pass and one low-pass first-order stages).
+        var rng = SplitMix(seed: 0x7e1c)
+        let hp = exp(-2 * Double.pi * 300 / sr), lp = exp(-2 * Double.pi * 10_000 / sr)
+        var hp1 = (x: 0.0, y: 0.0), hp2 = (x: 0.0, y: 0.0), low = 0.0
+        for i in 0..<count {
+            let t = Double(i) / sr
+            let w = (rng.nextUnit() * 2 - 1) * onset(t) * exp(-t / 0.0025)
+            let a = hp * (hp1.y + w - hp1.x); hp1 = (w, a)
+            let b = hp * (hp2.y + a - hp2.x); hp2 = (a, b)
+            low = (1 - lp) * b + lp * low
+            out[i] += low * 2.2
+        }
+
+        // Resonances: (Hz in the reference, level dB relative to the main peak, decay seconds).
+        let modes: [(Double, Double, Double)] = [
+            (1_195, 0, 0.037), (1_037, -12, 0.037), (393, -10, 0.065), (3_463, -13, 0.030), (2_695, -16, 0.030),
+            (5_268, -18, 0.065), (527, -19, 0.037), (914, -19, 0.037), (3_803, -19, 0.030), (4_113, -19, 0.030),
+        ]
+        for (k, (hz, level, decay)) in modes.enumerated() {
+            let f = hz * scale
+            guard f < sr / 2 else { continue }
+            let amp = 0.1 * pow(10, level / 20), phase = Double(k) * 1.7
+            for i in 0..<count {
+                let t = Double(i) / sr
+                out[i] += amp * onset(t) * exp(-t / decay) * sin(2 * Double.pi * f * t + phase)
+            }
+        }
+        for i in 0..<count { out[i] *= min(1, Double(count - i) / Double(count) * 10) }   // clean end
+        let peak = out.map(abs).max() ?? 0
+        return out.map { Float(peak > 0 ? $0 * 0.9 / peak : 0) }
     }
 
     /// How a wooden block rings: the strike, and its resonant modes as (frequency ratio, decay seconds, level).

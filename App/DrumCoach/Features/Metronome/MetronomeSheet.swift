@@ -154,6 +154,7 @@ struct ClickPatternGrid: View {
         case .rimshot: "rimshot"
         case .voice: L("giọng đọc", "voice")
         case .tick: L("kim đồng hồ", "clock tick")
+        case .mechanical: L("máy nhịp cơ", "mechanical metronome")
         }
     }
 }
