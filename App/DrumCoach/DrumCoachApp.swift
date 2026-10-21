@@ -24,6 +24,7 @@ struct DrumCoachApp: App {
                 Tab("Tiến độ", systemImage: "chart.line.uptrend.xyaxis") {
                     NavigationStack {
                         List {
+                            NavigationLink("Biểu đồ") { ProgressChartsView() }
                             NavigationLink("Hành trình") { JourneyView() }
                             NavigationLink("Lịch sử & backup") { HistoryView() }
                         }
