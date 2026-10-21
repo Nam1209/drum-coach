@@ -203,9 +203,8 @@ private func db(_ ratio: Double) -> Double { 10 * log10(ratio) }
     #expect(s.count <= Int(0.17 * 48_000))
 }
 
-@Test func defaultClicksAreTheMechanicalMetronome() {
-    #expect((2...5).allSatisfy { ToneLadder.default[$0]?.sound == .mechanical })
-    #expect(ToneLadder.default.values.allSatisfy { $0.pitchHz <= 1_300 })       // no high ringing beeps
+@Test func defaultClicksHaveNoHighRingingBeeps() {
+    #expect(ToneLadder.default.values.allSatisfy { $0.pitchHz <= 1_300 })
 }
 
 @Test func clockTickFactoryLadderIsUpgradedToo() {

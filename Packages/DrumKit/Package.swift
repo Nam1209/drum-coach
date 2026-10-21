@@ -10,7 +10,7 @@ let package = Package(
     targets: [
         .target(name: "DrumCore"),
         .target(name: "DrumAnalysis", dependencies: ["DrumCore"]),
-        .target(name: "DrumAudio", dependencies: ["DrumCore", "DrumAnalysis"]),
+        .target(name: "DrumAudio", dependencies: ["DrumCore", "DrumAnalysis"], resources: [.copy("Resources/Clicks")]),
         .target(name: "DrumLibrary", dependencies: ["DrumCore", "DrumAnalysis"]),
         .target(name: "DrumAI", dependencies: ["DrumCore", "DrumAnalysis", "DrumLibrary"]),
         .testTarget(name: "DrumCoreTests", dependencies: ["DrumCore"]),

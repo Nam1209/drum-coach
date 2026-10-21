@@ -12,7 +12,9 @@ final class MetronomeRenderer: @unchecked Sendable {
         /// Refreshed every callback, so the audio clock never drifts away from the host clock.
         var anchorHost: TimeInterval?
         var anchorSample: Int64 = 0
-        var toneCache: [LevelTone: [Float]] = [:]
+        /// Every take of each tone; consecutive clicks rotate through them.
+        var toneCache: [LevelTone: [[Float]]] = [:]
+        var take = 0
         var syllableCache: [String: [Float]] = [:]
         var volume: Float = 1
         var voiceVolume: Float = 1
@@ -54,7 +56,9 @@ final class MetronomeRenderer: @unchecked Sendable {
                         s.mixer.trigger(samples: samples, gain: s.voiceVolume * ClickSynth.linearGain(db: e.tone.gainDb), atFrame: offset)
                     }
                 default:
-                    if let samples = s.toneCache[e.tone] {
+                    if let takes = s.toneCache[e.tone], !takes.isEmpty {
+                        let samples = takes[s.take % takes.count]
+                        s.take &+= 1
                         s.mixer.trigger(samples: samples, gain: s.volume * ClickSynth.linearGain(db: e.tone.gainDb), atFrame: offset)
                     }
                     s.lastBar = e.bar
@@ -202,13 +206,13 @@ public final class MetronomeEngine: ObservableObject {
         r.state.withLock { $0.syllableCache = fitted }
     }
 
-    nonisolated static func renderTones(_ ladder: [Int: LevelTone], sampleRate: Double) -> [LevelTone: [Float]] {
-        var cache: [LevelTone: [Float]] = [:]
+    nonisolated static func renderTones(_ ladder: [Int: LevelTone], sampleRate: Double) -> [LevelTone: [[Float]]] {
+        var cache: [LevelTone: [[Float]]] = [:]
         for tone in ladder.values {
             for sound in ClickSound.allCases where sound != .voice {
                 var t = tone
                 t.sound = sound
-                cache[t] = ClickSynth.render(sound: sound, pitchHz: tone.pitchHz > 0 ? tone.pitchHz : 1000, sampleRate: sampleRate)
+                cache[t] = ClickSynth.variants(sound: sound, pitchHz: tone.pitchHz > 0 ? tone.pitchHz : 1000, sampleRate: sampleRate)
             }
         }
         return cache

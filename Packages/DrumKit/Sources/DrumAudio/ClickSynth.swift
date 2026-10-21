@@ -1,11 +1,38 @@
+import AVFoundation
 import Foundation
 
 /// Synthesizes metronome sounds so the app needs no sample files.
 public enum ClickSynth {
     public static func linearGain(db: Double) -> Float { Float(pow(10, db / 20)) }
 
+    /// Every take of a sound at this tuning and output rate. Recorded sounds have several takes so repeated clicks
+    /// are not identical (that sameness is what makes a metronome sound fake); synthetic ones have one.
+    public static func variants(sound: ClickSound, pitchHz: Double, sampleRate: Double) -> [[Float]] {
+        guard let takes = recordings[sound], !takes.isEmpty else { return [render(sound: sound, pitchHz: pitchHz, sampleRate: sampleRate)] }
+        let tuning = pitchHz > 0 ? pitchHz / 1_000 : 1
+        // Playing a 48 kHz take as if it were recorded at 48 kHz × tuning shifts its pitch by `tuning`.
+        return takes.map { CountVoiceBank.resample($0, from: 48_000 * tuning, to: sampleRate) }
+    }
+
+    /// The bundled recordings (48 kHz mono), loaded once.
+    private static let recordings: [ClickSound: [[Float]]] = [
+        .metronome: (1...4).compactMap { load("mechanical-\($0)") },
+        .sticks: (1...2).compactMap { load("sticks-\($0)") },
+    ]
+
+    private static func load(_ name: String) -> [Float]? {
+        guard let url = Bundle.module.url(forResource: name, withExtension: "wav", subdirectory: "Clicks"),
+              let file = try? AVAudioFile(forReading: url),
+              let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)),
+              (try? file.read(into: buffer)) != nil, let channel = buffer.floatChannelData?[0] else { return nil }
+        return Array(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
+    }
+
     public static func render(sound: ClickSound, pitchHz: Double, sampleRate: Double) -> [Float] {
         switch sound {
+        case .metronome, .sticks:
+            variants(sound: sound, pitchHz: pitchHz, sampleRate: sampleRate).first
+                ?? tone(1_000, partials: [(1, 1)], decay: 0.01, length: 0.03, sr: sampleRate, noise: 0.3)
         case .click: tone(pitchHz, partials: [(1, 1), (2.7, 0.2)], decay: 0.012, length: 0.03, sr: sampleRate, noise: 0.06)
         case .beep: tone(pitchHz, partials: [(1, 1), (2, 0.3)], decay: 0.05, length: 0.12, sr: sampleRate, noise: 0)
         case .woodblock: wood(pitchHz > 0 ? pitchHz : 900, sr: sampleRate, character: .dry)
