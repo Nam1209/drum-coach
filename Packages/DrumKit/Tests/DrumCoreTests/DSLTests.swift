@@ -87,3 +87,14 @@ ST: RLRRLRLLRLRRLRLL
     let ex = try ExerciseDSL.parse("time: 4/4\ngrid: 3\nSN: xxxxxxxxxxxx")
     #expect(ex.notes[1].position == Rational(1, 3))
 }
+
+@Test func sameTextGivesStableId() throws {
+    #expect(try ExerciseDSL.parse(paradiddleText).id == ExerciseDSL.parse(paradiddleText).id)
+    #expect(try ExerciseDSL.parse(paradiddleText).id != ExerciseDSL.parse("time: 4/4\ngrid: 1\nSN: xxxx").id)
+}
+
+@Test func hugeNumbersRejectedNotCrash() {
+    #expect(throws: DSLError.missingHeader("grid")) { try ExerciseDSL.parse("time: 4/4\ngrid: 9223372036854775807\nSN: x") }
+    #expect(throws: DSLError.missingHeader("time")) { try ExerciseDSL.parse("time: 9223372036854775807/4\ngrid: 1\nSN: x") }
+    #expect(throws: DSLError.missingHeader("time")) { try ExerciseDSL.parse("time: 4/9223372036854775807\ngrid: 1\nSN: x") }
+}

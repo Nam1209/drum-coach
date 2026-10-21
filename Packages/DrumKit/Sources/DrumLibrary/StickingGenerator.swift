@@ -22,6 +22,7 @@ public enum StickingGenerator {
             e.notes[i].articulation = .accent
         }
         e.title += " · accent"
+        e.id = Exercise.stableID(for: "\(base.id)|accent|\(accentEvery)|\(offset)")
         return e
     }
 
@@ -36,6 +37,7 @@ public enum StickingGenerator {
             }
         }
         e.title += " · \(rightHand.displayName)/\(leftHand.displayName)"
+        e.id = Exercise.stableID(for: "\(base.id)|orchestrate|\(rightHand.rawValue)|\(leftHand.rawValue)")
         return e
     }
 
@@ -53,7 +55,7 @@ public enum StickingGenerator {
                 right.toggle()
             }
         }
-        return Exercise(title: "Đọc nhạc #\(seed)", source: "Generated", timeSignature: TimeSignature(beats: 4, unit: 4),
+        return Exercise(id: Exercise.stableID(for: "random|\(seed)|\(bars)|\(subdivision)|\(rests)"), title: "Đọc nhạc #\(seed)", source: "Generated", timeSignature: TimeSignature(beats: 4, unit: 4),
                         bars: bars, suggestedTempo: 60...90, notes: notes)
     }
 
@@ -77,7 +79,8 @@ public enum StickingGenerator {
         let perBar = 4 * subdivision
         let bars = max(1, (hands.count + perBar - 1) / perBar)
         let notes = hands.enumerated().map { NoteEvent(position: Rational($0.offset, subdivision), voice: voice, hand: $0.element) }
-        return Exercise(title: title, source: "Stick Control-style", timeSignature: TimeSignature(beats: 4, unit: 4),
+        return Exercise(id: Exercise.stableID(for: "sticking|\(subdivision)|\(voice.rawValue)|" + hands.map(\.rawValue).joined()),
+                        title: title, source: "Stick Control-style", timeSignature: TimeSignature(beats: 4, unit: 4),
                         bars: bars, suggestedTempo: 50...100, notes: notes)
     }
 

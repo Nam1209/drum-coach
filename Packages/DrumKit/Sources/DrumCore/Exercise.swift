@@ -77,6 +77,20 @@ public struct Exercise: Codable, Identifiable, Hashable, Sendable {
         self.notes = notes
     }
 
+    /// Deterministic UUID for a piece of text (FNV-1a, two lanes), so the same built-in or teacher-written
+    /// exercise keeps the same id across launches and history stays grouped per exercise.
+    public static func stableID(for text: String) -> UUID {
+        let normalized = text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.joined(separator: "\n")
+        var a: UInt64 = 0xcbf2_9ce4_8422_2325, b: UInt64 = 0x8422_2325_cbf2_9ce4
+        for byte in normalized.utf8 {
+            a = (a ^ UInt64(byte)) &* 0x0000_0100_0000_01B3
+            b = (b ^ UInt64(byte)) &* 0x0000_0100_0000_01B3 &+ 0x9E37_79B9
+        }
+        let bytes = withUnsafeBytes(of: a.bigEndian) { Array($0) } + withUnsafeBytes(of: b.bigEndian) { Array($0) }
+        return UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+                           bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]))
+    }
+
     /// Total length in quarter-note beats.
     public var lengthInBeats: Rational { timeSignature.beatsInQuarters * Rational(bars, 1) }
 }

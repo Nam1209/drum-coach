@@ -53,3 +53,14 @@ private func sticking(_ e: Exercise) -> String { e.notes.compactMap { $0.hand?.r
     #expect(a.bars == 4)
     #expect(StickingGenerator.random(seed: 2, bars: 4, subdivision: 2, rests: true).notes != a.notes)
 }
+
+@Test func generatedExercisesHaveStableDistinctIds() {
+    let a = StickingGenerator.singleBeat(length: 8, subdivision: 2, balancedOnly: false)
+    let b = StickingGenerator.singleBeat(length: 8, subdivision: 2, balancedOnly: false)
+    #expect(a.map(\.id) == b.map(\.id))
+    #expect(Set(a.map(\.id)).count == a.count)
+    #expect(StickingGenerator.random(seed: 4, bars: 4, subdivision: 2, rests: true).id == StickingGenerator.random(seed: 4, bars: 4, subdivision: 2, rests: true).id)
+    let acc = StickingGenerator.withAccents(a[0], accentEvery: 4, offset: 0)
+    let orch = StickingGenerator.orchestrate(a[0], rightHand: .hiHat, leftHand: .snare)
+    #expect(Set([a[0].id, acc.id, orch.id]).count == 3)
+}

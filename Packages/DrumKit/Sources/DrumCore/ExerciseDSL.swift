@@ -46,9 +46,11 @@ public enum ExerciseDSL {
         }
 
         guard let timeText = headers["time"] else { throw .missingHeader("time") }
-        guard let gridText = headers["grid"], let grid = Int(gridText), grid > 0 else { throw .missingHeader("grid") }
+        // Bounded so text from Notion/Claude can never overflow the arithmetic below.
+        guard let gridText = headers["grid"], let grid = Int(gridText), (1...48).contains(grid) else { throw .missingHeader("grid") }
         let parts = timeText.split(separator: "/").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
-        guard parts.count == 2, parts[0] > 0, parts[1] > 0 else { throw .missingHeader("time") }
+        guard parts.count == 2, (1...32).contains(parts[0]), [1, 2, 4, 8, 16, 32].contains(parts[1]) else { throw .missingHeader("time") }
+        guard rows.allSatisfy({ $0.cells.count <= 20_000 }) else { throw .lengthNotMultipleOfBar }
         let ts = TimeSignature(beats: parts[0], unit: parts[1])
 
         let length = rows.first?.cells.count ?? sticking?.count ?? 0
@@ -81,7 +83,7 @@ public enum ExerciseDSL {
         }
         notes.sort { $0.position == $1.position ? $0.voice.staffStep > $1.voice.staffStep : $0.position < $1.position }
 
-        return Exercise(title: headers["title"] ?? "Untitled", source: "User", timeSignature: ts,
+        return Exercise(id: Exercise.stableID(for: text), title: headers["title"] ?? "Untitled", source: "User", timeSignature: ts,
                         bars: length / cellsPerBar, suggestedTempo: parseTempo(headers["tempo"]), notes: notes)
     }
 
