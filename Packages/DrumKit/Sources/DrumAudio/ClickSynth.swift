@@ -1,0 +1,60 @@
+import Foundation
+
+/// Synthesizes metronome sounds so the app needs no sample files.
+public enum ClickSynth {
+    public static func linearGain(db: Double) -> Float { Float(pow(10, db / 20)) }
+
+    public static func render(sound: ClickSound, pitchHz: Double, sampleRate: Double) -> [Float] {
+        switch sound {
+        case .click: tone(pitchHz, partials: [(1, 1), (2.7, 0.4)], decay: 0.012, length: 0.03, sr: sampleRate, noise: 0.15)
+        case .beep: tone(pitchHz, partials: [(1, 1), (2, 0.3)], decay: 0.05, length: 0.12, sr: sampleRate, noise: 0)
+        case .woodblock: tone(pitchHz, partials: [(1, 1), (2.76, 0.5), (5.4, 0.25)], decay: 0.02, length: 0.07, sr: sampleRate, noise: 0.05)
+        case .cowbell: tone(pitchHz, partials: [(1, 1), (1.48, 0.8)], decay: 0.06, length: 0.2, sr: sampleRate, noise: 0)
+        case .rimshot: tone(max(pitchHz, 400), partials: [(1, 0.6), (2.3, 0.4)], decay: 0.015, length: 0.06, sr: sampleRate, noise: 0.6)
+        case .hiHat: tone(0, partials: [], decay: 0.02, length: 0.06, sr: sampleRate, noise: 1)
+        case .voice: tone(pitchHz > 0 ? pitchHz : 1000, partials: [(1, 1)], decay: 0.01, length: 0.03, sr: sampleRate, noise: 0)
+        }
+    }
+
+    /// Sum of decaying sine partials plus optional high-passed noise, normalized to a 0.9 peak.
+    private static func tone(_ f0: Double, partials: [(Double, Double)], decay: Double, length: Double,
+                             sr: Double, noise: Double) -> [Float] {
+        let count = Int(length * sr)
+        var out = [Float](repeating: 0, count: count)
+        var rng = SplitMix(seed: 0x5eed)
+        var lastNoise = 0.0
+        let attack = Int(0.0005 * sr)
+        for i in 0..<count {
+            let t = Double(i) / sr
+            var env = exp(-t / decay)
+            if i < attack { env *= Double(i) / Double(max(attack, 1)) }
+            let tail = Double(count - i) / Double(count)       // force a clean fade to zero
+            env *= min(1, tail * 8)
+            var v = 0.0
+            for (ratio, amp) in partials { v += amp * sin(2 * .pi * f0 * ratio * t) }
+            if noise > 0 {
+                let w = rng.nextUnit() * 2 - 1
+                v += noise * (w - lastNoise)                     // first-order high-pass for a brighter tick
+                lastNoise = w
+            }
+            out[i] = Float(v * env)
+        }
+        let peak = out.map(abs).max() ?? 0
+        if peak > 0 { let k = 0.9 / peak; for i in out.indices { out[i] *= k } }
+        return out
+    }
+}
+
+/// Deterministic PRNG so renders are reproducible.
+struct SplitMix {
+    var state: UInt64
+    init(seed: UInt64) { state = seed }
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
+    }
+    mutating func nextUnit() -> Double { Double(next() >> 11) / Double(1 << 53) }
+}
