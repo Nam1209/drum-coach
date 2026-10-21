@@ -20,3 +20,22 @@ public enum LatencyCalibrator {
         return s.count % 2 == 1 ? s[s.count / 2] : (s[s.count / 2 - 1] + s[s.count / 2]) / 2
     }
 }
+
+/// One calibration pass: a count-in, then `clicks` quarter notes the player hits along with.
+public struct CalibrationRun: Sendable {
+    public let bpm: Double
+    public let countInBeats: Int
+    public let clicks: Int
+
+    public init(bpm: Double = 80, countInBeats: Int = 4, clicks: Int = 16) {
+        self.bpm = bpm
+        self.countInBeats = countInBeats
+        self.clicks = clicks
+    }
+
+    public var duration: TimeInterval { Double(countInBeats + clicks) * 60 / bpm }
+
+    public func expected(beatZero: TimeInterval) -> [TimeInterval] {
+        (countInBeats..<(countInBeats + clicks)).map { beatZero + Double($0) * 60 / bpm }
+    }
+}

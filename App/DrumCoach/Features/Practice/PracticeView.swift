@@ -5,12 +5,15 @@ import SwiftUI
 struct PracticeView: View {
     @StateObject private var model: PracticeViewModel
     @State private var showSheet = false
+    @State private var showCalibration = false
+    private let voiceBank: CountVoiceBank
     @State private var error: String?
     @State private var taps: [Date] = []
     private let exercises: [Exercise]
 
     init(exercises: [Exercise], voiceBank: CountVoiceBank) {
         self.exercises = exercises
+        self.voiceBank = voiceBank
         _model = StateObject(wrappedValue: PracticeViewModel(exercise: exercises[0], voiceBank: voiceBank))
     }
 
@@ -34,6 +37,7 @@ struct PracticeView: View {
             .background(Color(.systemGroupedBackground))
         }
         .sheet(isPresented: $showSheet) { MetronomeSheet(settings: $model.settings) }
+        .sheet(isPresented: $showCalibration) { CalibrationView(voiceBank: voiceBank) }
         .onChange(of: model.settings) { _, new in SettingsStore.saveMetronome(new) }
         .onDisappear { model.stop() }
     }
@@ -50,6 +54,8 @@ struct PracticeView: View {
                 ForEach(NotationDisplay.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented).frame(width: 180)
+            Button { showCalibration = true } label: { Image(systemName: "dot.radiowaves.left.and.right") }
+                .buttonStyle(.bordered).accessibilityLabel("Hiệu chỉnh độ trễ")
         }
     }
 

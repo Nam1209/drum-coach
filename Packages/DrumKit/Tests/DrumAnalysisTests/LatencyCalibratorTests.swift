@@ -24,3 +24,12 @@ private let expected = (0..<16).map { Double($0) * 0.75 }
 @Test func calibratorNeedsEightPairs() {
     #expect(LatencyCalibrator.estimate(expected: Array(expected.prefix(7)), detected: Array(expected.prefix(7))) == nil)
 }
+
+@Test func calibrationRunExpectedTimes() {
+    let run = CalibrationRun(bpm: 80, countInBeats: 4, clicks: 16)
+    let e = run.expected(beatZero: 100)
+    #expect(e.count == 16)
+    #expect(e.first == 100 + 4 * 0.75)
+    #expect(abs(e.last! - (100 + 19 * 0.75)) < 1e-9)
+    #expect(abs(run.duration - 20 * 0.75) < 1e-9)
+}
