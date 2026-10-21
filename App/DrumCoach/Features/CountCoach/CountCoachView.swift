@@ -5,7 +5,7 @@ import SwiftUI
 
 /// Practise counting out loud evenly: listen → count along → the voice fades → count alone with a gapped click.
 struct CountCoachView: View {
-    enum Stage: Int, CaseIterable, Identifiable {
+    enum Phase: Int, CaseIterable, Identifiable {
         case listen = 1, along, fade, alone
         var id: Int { rawValue }
         var title: String {
@@ -27,57 +27,91 @@ struct CountCoachView: View {
     }
 
     let voiceBank: CountVoiceBank
-    @State private var stage: Stage = .listen
+    @State private var stage: Phase = .listen
     @State private var mode: CountMode = .eighths
     @State private var bpm: Double = 60
-    @State private var running = false
+    @State private var run: Task<Void, Never>?
     @State private var result: CountEvenness?
     @State private var heard = 0
     @State private var error: String?
     @State private var engine: MetronomeEngine?
 
     private let bars = 8
+    private var running: Bool { run != nil }
 
     var body: some View {
-        Form {
-            Section {
-                Picker("Giai đoạn", selection: $stage) { ForEach(Stage.allCases) { Text($0.title).tag($0) } }
-                    .pickerStyle(.segmented)
-                Text(stage.hint).foregroundStyle(.secondary)
-                Picker("Cách đếm", selection: $mode) {
-                    Text("1 2 3 4").tag(CountMode.quarters)
-                    Text("1 & 2 &").tag(CountMode.eighths)
-                    Text("1 e & a").tag(CountMode.sixteenths)
-                    Text("1 trip let").tag(CountMode.triplets)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                PageHeader(title: "Đếm nhịp", subtitle: "Đếm to theo click. App nghe giọng bạn và đo độ đều của từng âm.")
+                Stage {
+                    VStack(alignment: .leading, spacing: 18) {
+                        Picker("Giai đoạn", selection: $stage) { ForEach(Phase.allCases) { Text($0.title).tag($0) } }
+                            .pickerStyle(.segmented)
+                        Text(stage.hint).foregroundStyle(.secondary)
+                        Picker("Cách đếm", selection: $mode) {
+                            Text("1 2 3 4").tag(CountMode.quarters)
+                            Text("1 & 2 &").tag(CountMode.eighths)
+                            Text("1 e & a").tag(CountMode.sixteenths)
+                            Text("1 trip let").tag(CountMode.triplets)
+                        }
+                        .pickerStyle(.segmented)
+                        syllables
+                        HStack(spacing: 28) {
+                            PlayButton(isPlaying: running) { running ? stop() : start() }
+                            TempoControl(bpm: $bpm, range: 40...120, disabled: running)
+                            Spacer()
+                            Readout(value: running ? "\(heard)" : result.map { "\(Int((max(0, 1 - $0.gapRatioStdDev) * 100).rounded()))%" } ?? "–",
+                                    caption: running ? "âm đã nghe" : "độ đều", size: 44)
+                        }
+                    }
                 }
-                Stepper("Tempo: \(Int(bpm)) BPM", value: $bpm, in: 40...120, step: 2)
+                        if let error { Label(error, systemImage: "exclamationmark.circle").foregroundStyle(Theme.missed) }
+                if let result { resultView(result) }
             }
-            .disabled(running)
-            Section {
-                Button(running ? "Đang chạy… (nghe được \(heard) âm)" : "Bắt đầu \(bars) ô nhịp") { Task { await go() } }
-                    .disabled(running)
-                if let error { Text(error).foregroundStyle(.red) }
-            }
-            if let result {
-                Section("Kết quả") {
-                    labelRow(result)
-                    Text(String(format: "Độ đều giữa các âm: %.0f%% (càng gần 0%% càng đều)", result.gapRatioStdDev * 100))
-                    Text(advice(result)).bold()
+            .padding(Theme.pagePadding)
+        }
+        .background(Theme.canvas)
+        .onDisappear { stop() }
+    }
+
+    /// One bar of syllables; the one being counted lights up while running.
+    private var syllables: some View {
+        TimelineView(.animation(paused: !running)) { _ in
+            let labels = Counting.labels(mode: mode, beats: 4)
+            let now = engine?.beatZeroHostTime.map { (HostClock.now() - $0) * bpm / 60 }
+            let inBar = now.flatMap { $0 >= 0 ? $0.truncatingRemainder(dividingBy: 4) : nil }
+            let current = inBar.flatMap { b in labels.lastIndex { $0.position.doubleValue <= b + 1e-6 } }
+            HStack(spacing: 8) {
+                ForEach(Array(labels.enumerated()), id: \.offset) { i, l in
+                    Text(l.label)
+                        .font(Theme.number(labels.count > 8 ? 22 : 30))
+                        .foregroundStyle(i == current ? Theme.shell : Color.secondary.opacity(0.45))
+                        .frame(maxWidth: .infinity)
                 }
             }
         }
-        .navigationTitle("Count Coach")
+        .accessibilityHidden(true)
+    }
+
+    private func resultView(_ r: CountEvenness) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Kết quả").font(.title3.weight(.semibold))
+            labelRow(r)
+            Text(advice(r)).font(.headline)
+            Text(String(format: "Độ lệch giữa các khoảng: %.0f%% (càng gần 0%% càng đều).", r.gapRatioStdDev * 100))
+                .font(.callout).foregroundStyle(.secondary)
+        }
     }
 
     private func labelRow(_ r: CountEvenness) -> some View {
         HStack(spacing: 10) {
             ForEach(r.offsetsByLabel.sorted { $0.key < $1.key }, id: \.key) { label, ms in
                 VStack {
-                    Text(label == "number" ? "số" : label).font(.title2.bold())
-                    Text(String(format: "%+.0f ms", ms)).font(.caption).monospacedDigit()
+                    Text(label == "number" ? "số" : label).font(Theme.number(24))
+                    Text(String(format: "%+.0f ms", ms)).font(Theme.number(13, weight: .medium))
                 }
                 .padding(10)
-                .background(RoundedRectangle(cornerRadius: 10).fill((abs(ms) <= 25 ? Color.green : .orange).opacity(0.25)))
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill((abs(ms) <= 25 ? Theme.onTime : Theme.offTime).opacity(0.16)))
             }
         }
     }
@@ -90,9 +124,16 @@ struct CountCoachView: View {
             : "Bạn nói \"\(label)\" sớm \(Int((-ms).rounded())) ms → đừng vội, chờ đúng giữa hai phách."
     }
 
+    private func start() {
+        run = Task { await go(); run = nil; engine = nil }
+    }
+
+    private func stop() {
+        run?.cancel()
+    }
+
     private func go() async {
-        running = true; result = nil; heard = 0; error = nil
-        defer { running = false }
+        result = nil; heard = 0; error = nil
         var s = MetronomeSettings(bpm: bpm, pattern: .quarter, accentBeatOne: true, voiceCount: mode)
         switch stage {
         case .listen, .along: s.voiceVolume = 1
@@ -109,6 +150,7 @@ struct CountCoachView: View {
             try metro.start(settings: s)
         } catch {
             self.error = "Không mở được âm thanh: \(error.localizedDescription)"
+            mic.stop()
             return
         }
         var onsets: [TimeInterval] = []
@@ -116,7 +158,7 @@ struct CountCoachView: View {
         if stage == .fade {
             try? await Task.sleep(for: .seconds(barSeconds * 3))
             var quiet = s; quiet.voiceVolume = 0.2; metro.update(quiet)
-            try? await Task.sleep(for: .seconds(barSeconds * 2))
+            if !Task.isCancelled { try? await Task.sleep(for: .seconds(barSeconds * 2)) }
             quiet.voiceVolume = 0; metro.update(quiet)
             try? await Task.sleep(for: .seconds(barSeconds * Double(bars - 4) + 0.3))
         } else {
@@ -125,7 +167,7 @@ struct CountCoachView: View {
         collector.cancel()
         let zero = metro.beatZeroHostTime
         metro.stop(); mic.stop()
-        guard stage != .listen, let zero else { return }
+        guard !Task.isCancelled, stage != .listen, let zero else { return }
         // Expected syllables from bar 2 (bar 1 is the count-in).
         var expected: [(time: TimeInterval, label: String)] = []
         let labels = Counting.labels(mode: mode, beats: 4)

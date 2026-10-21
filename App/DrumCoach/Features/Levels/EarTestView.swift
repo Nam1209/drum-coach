@@ -25,8 +25,8 @@ struct EarTestView: View {
             .pickerStyle(.segmented)
             Section {
                 Text(kind == .grooveRecall
-                     ? "Nghe groove 2 ô nhịp (hi-hat, snare, kick), rồi chơi lại 4 ô nhịp. ♩ = \(Int(test.bpm))"
-                     : "Nghe một ô nhịp fill trên snare, chơi lại, rồi chọn đúng bản nhạc trong 2 lựa chọn. ♩ = \(Int(test.bpm))")
+                     ? "Nghe groove 2 ô nhịp (hi-hat, snare, kick), rồi chơi lại 4 ô nhịp. Tempo \(Int(test.bpm)) BPM."
+                     : "Nghe một ô nhịp fill trên snare, chơi lại, rồi chọn đúng bản nhạc trong 2 lựa chọn. Tempo \(Int(test.bpm)) BPM.")
                 Button("▶︎ Nghe mẫu") { try? player.play(test.prompt, bpm: test.bpm) }
                 Button("Chơi lại để chấm điểm") { showPractice = true }
                 if let playedScore { Text("Điểm chơi lại: \(Int(playedScore.rounded()))%") }
@@ -52,7 +52,7 @@ struct EarTestView: View {
             }
             Button("Bài khác") { seed = UInt64.random(in: 1...1_000_000); chosen = nil; playedScore = nil }
         }
-        .navigationTitle("Ear Test · Grade \(grade)")
+        .navigationTitle("Ear test, Grade \(grade)")
         .sheet(isPresented: $showPractice, onDismiss: {
             playedScore = (try? context.fetch(.init(sortBy: [SortDescriptor(\PracticeSession.date, order: .reverse)])))?.first?.score
         }) {
@@ -103,6 +103,6 @@ struct GMQuizView: View {
             }
             Button("Bộ câu hỏi khác") { seed = UInt64.random(in: 1...1_000_000); answers = [:] }
         }
-        .navigationTitle("GMQ · Grade \(grade)")
+        .navigationTitle("Câu hỏi kiến thức, Grade \(grade)")
     }
 }

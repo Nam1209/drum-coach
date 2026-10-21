@@ -34,7 +34,7 @@ struct LibraryView: View {
                     }
                 }
             }
-            Section { NavigationLink("🎵 Chơi theo nhạc / backing track") { PlayAlongView() } }
+            Section { NavigationLink("Chơi theo nhạc (backing track)") { PlayAlongView() } }
             Section {
                 ForEach(StarterExercises.all) { practiceLink($0) }
             } header: {

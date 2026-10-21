@@ -55,7 +55,7 @@ struct JourneyView: View {
                 ForEach(review.fixedWeaknesses, id: \.self) { Label($0, systemImage: "checkmark.seal").foregroundStyle(.green) }
             }
             Section("Lỗi còn lại") {
-                if review.remainingWeaknesses.isEmpty { Text("Không có lỗi lặp lại đáng kể 🎉").foregroundStyle(.secondary) }
+                if review.remainingWeaknesses.isEmpty { Text("Không có lỗi lặp lại đáng kể").foregroundStyle(.secondary) }
                 ForEach(review.remainingWeaknesses, id: \.self) { Label($0, systemImage: "exclamationmark.triangle").foregroundStyle(.orange) }
             }
         }

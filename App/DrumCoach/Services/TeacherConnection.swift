@@ -61,7 +61,7 @@ enum TeacherConnection {
             lastNotionBackup = Date()
         } catch {
             // The report went through; tell the user the off-device backup did not.
-            return out.pageTitle + " (⚠️ backup lên Notion chưa được: \(Friendly.message(error)))"
+            return out.pageTitle + " (chưa sao lưu lên Notion được chưa được: \(Friendly.message(error)))"
         }
         return out.pageTitle
     }

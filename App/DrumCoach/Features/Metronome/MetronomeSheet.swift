@@ -2,21 +2,21 @@ import DrumAudio
 import DrumCore
 import SwiftUI
 
-/// "Metronome & Âm thanh": click pattern grid (5 levels per slot), presets, accent, beat skip, gap, counting voice, volumes.
+/// "Máy nhịp và âm thanh": click pattern grid (5 levels per slot), presets, accent, beat skip, gap, counting voice, volumes.
 struct MetronomeSheet: View {
     @Binding var settings: MetronomeSettings
     @Environment(\.dismiss) private var dismiss
     @State private var preview = TonePreview()
 
     private static let presets: [(String, ClickPattern)] = [
-        ("Quarter", .quarter), ("8th", .eighths), ("16th", .sixteenths), ("Triplet", .triplets), ("Offbeat", .offbeat),
+        ("Đen", .quarter), ("Móc đơn", .eighths), ("Móc kép", .sixteenths), ("Chùm ba", .triplets), ("Nghịch phách", .offbeat),
     ]
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Preset") {
-                    Picker("Preset", selection: presetBinding) {
+                Section("Mẫu có sẵn") {
+                    Picker("Mẫu có sẵn", selection: presetBinding) {
                         ForEach(Self.presets.indices, id: \.self) { Text(Self.presets[$0].0).tag(Optional($0)) }
                         Text("Tùy chỉnh").tag(Int?.none)
                     }
@@ -32,19 +32,19 @@ struct MetronomeSheet: View {
                     }
                     NavigationLink("Thang âm (5 mức)") { ToneLadderEditor(ladder: $settings.ladder, volume: settings.volume) }
                 } header: {
-                    Text("Click Pattern")
+                    Text("Mẫu click")
                 } footer: {
-                    Text("Chạm ô: chọn mức 1–5 (chạm lại để tắt) · Nhấn giữ cột: đổi âm cho ô")
+                    Text("Chạm ô để chọn mức 1–5, chạm lại để tắt. Nhấn giữ một cột để đổi âm cho ô đó.")
                 }
                 Section {
-                    Toggle("Accent Beat 1", isOn: $settings.accentBeatOne)
+                    Toggle("Nhấn phách 1", isOn: $settings.accentBeatOne)
                     Picker("Swing / shuffle", selection: $settings.swing) {
                         Text("Thẳng").tag(Swing.straight)
                         Text("Nhẹ (58%)").tag(0.58)
                         Text("Triplet (67%)").tag(2.0 / 3.0)
                         Text("Shuffle mạnh (72%)").tag(0.72)
                     }
-                    Picker("Beat Skip", selection: $settings.beatSkip) {
+                    Picker("Bỏ phách", selection: $settings.beatSkip) {
                         Text("●●●●").tag(BeatSkip.all)
                         Text("●○●○").tag(BeatSkip.oneOnOneOff)
                         Text("●○○○").tag(BeatSkip.beatOneOnly)
@@ -70,7 +70,7 @@ struct MetronomeSheet: View {
                     LabeledSlider(title: "Nhạc nền", value: $settings.musicVolume)
                 }
             }
-            .navigationTitle("Metronome & Âm thanh")
+            .navigationTitle("Máy nhịp và âm thanh")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Xong") { dismiss() } } }
         }

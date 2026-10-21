@@ -15,7 +15,7 @@ struct ProgressChartsView: View {
         List {
             Section {
                 HStack(spacing: 32) {
-                    stat("🔥 Chuỗi ngày", "\(p.streakDays)")
+                    stat("Chuỗi ngày", "\(p.streakDays)")
                     stat("⏱ 7 ngày qua", "\(Int(p.minutesThisWeek)) phút")
                     if let w = p.weakestBeatPosition { stat("Vị trí yếu nhất", "\"\(w)\"") }
                 }

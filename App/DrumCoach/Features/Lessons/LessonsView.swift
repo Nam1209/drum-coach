@@ -77,28 +77,77 @@ struct LessonsView: View {
     @AppStorage("lessonChecks") private var checksRaw = ""
 
     var body: some View {
-        List(Self.lessons) { lesson in
-            NavigationLink("\(lesson.id). \(lesson.title)") {
-                List {
-                    Section("Nội dung") { ForEach(lesson.points, id: \.self) { Text("• " + $0) } }
-                    Section("Tự kiểm tra") {
-                        ForEach(lesson.checklist, id: \.self) { item in
-                            let key = "\(lesson.id):\(item)"
-                            Button { toggle(key) } label: {
-                                Label(item, systemImage: checks.contains(key) ? "checkmark.square.fill" : "square")
-                            }
-                        }
+        let lesson = Self.lessons.first { $0.id == selected } ?? Self.lessons[0]
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                PageHeader(title: "Bài học", subtitle: "Nền tảng trước khi tăng tốc")
+                HStack(alignment: .top, spacing: 22) {
+                    lessonList.frame(maxWidth: 340)
+                    detail(lesson)
+                }
+            }
+            .padding(Theme.pagePadding)
+        }
+        .background(Theme.canvas)
+    }
+
+    @State private var selected = 1
+
+    private var lessonList: some View {
+        VStack(spacing: 0) {
+            ForEach(Self.lessons) { l in
+                let done = !l.checklist.isEmpty && l.checklist.allSatisfy { checks.contains("\(l.id):\($0)") }
+                Button { selected = l.id } label: {
+                    HStack(spacing: 14) {
+                        Text("\(l.id)").font(Theme.number(15, weight: .medium)).foregroundStyle(.secondary).frame(width: 20)
+                        Text(l.title).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                        Spacer()
+                        if done { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.onTime) }
                     }
-                    if let p = lesson.practice, let ex = try? ExerciseDSL.parse(p.dsl) {
-                        Section {
-                            NavigationLink("Tập ngay: \(p.title)") { PracticeView(exercises: [ex], voiceBank: voiceBank, bpm: p.bpm) }
+                    .padding(.horizontal, 16).padding(.vertical, 13)
+                    .background(selected == l.id ? Theme.shell.opacity(0.12) : .clear)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                if l.id != Self.lessons.last?.id { Divider().padding(.leading, 50) }
+            }
+        }
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.stage))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func detail(_ lesson: Lesson) -> some View {
+        Stage {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(lesson.title).font(.title2.weight(.bold))
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(lesson.points, id: \.self) { point in
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Circle().fill(Theme.shell).frame(width: 6, height: 6).offset(y: -3)
+                            Text(point)
                         }
                     }
                 }
-                .navigationTitle(lesson.title)
+                Divider()
+                Text("Tự kiểm tra").font(.headline)
+                ForEach(lesson.checklist, id: \.self) { item in
+                    let key = "\(lesson.id):\(item)"
+                    Button { toggle(key) } label: {
+                        Label(item, systemImage: checks.contains(key) ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(checks.contains(key) ? Theme.onTime : .primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                if let p = lesson.practice, let ex = try? ExerciseDSL.parse(p.dsl) {
+                    NavigationLink { PracticeView(exercises: [ex], voiceBank: voiceBank, bpm: p.bpm) } label: {
+                        Text("Tập ngay: \(p.title)").font(.callout.weight(.semibold))
+                            .padding(.horizontal, 16).padding(.vertical, 9)
+                            .background(Capsule().fill(Theme.shell)).foregroundStyle(.white)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
-        .navigationTitle("Bài học nền tảng")
     }
 
     private var checks: Set<String> { Set(checksRaw.split(separator: "|").map(String.init)) }
