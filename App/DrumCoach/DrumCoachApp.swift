@@ -33,6 +33,9 @@ struct DrumCoachApp: App {
                 Tab("Thư viện", systemImage: "books.vertical") {
                     NavigationStack { LibraryView(voiceBank: voiceBank) }
                 }
+                Tab("Bài học", systemImage: "graduationcap") {
+                    NavigationStack { LessonsView(voiceBank: voiceBank) }
+                }
                 Tab("Đếm nhịp", systemImage: "waveform") {
                     NavigationStack { CountCoachView(voiceBank: voiceBank) }
                 }

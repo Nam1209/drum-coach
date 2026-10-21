@@ -21,6 +21,12 @@ public struct Level: Sendable, Identifiable, Hashable {
     public let id: Int
     public let title: String
     public let tests: [LevelTestItem]
+
+    public init(id: Int, title: String, tests: [LevelTestItem]) {
+        self.id = id
+        self.title = title
+        self.tests = tests
+    }
 }
 
 /// Default level tests, one level per Rockschool grade (app-authored; replaced by book data from PrivateLibrary when present).

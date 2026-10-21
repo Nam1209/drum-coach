@@ -13,7 +13,7 @@ enum ExerciseCatalog {
             for (i, dsl) in unit.exercises.enumerated() { if var e = try? ExerciseDSL.parse(dsl) { e.source = unit.skill; out["cur-\(unit.id)-\(i + 1)"] = e } }
         }
         for (i, e) in PASRudiments.all.enumerated() { out["pas-\(i + 1)"] = e }
-        for level in LevelCatalog.levels { for t in level.tests { if let e = try? ExerciseDSL.parse(t.dsl) { out[t.id] = e } } }
+        for level in BookLibrary.levels { for t in level.tests { if let e = try? ExerciseDSL.parse(t.dsl) { out[t.id] = e } } }
         if let ctx, let mine = try? ctx.fetch(FetchDescriptor<StoredExercise>()) {
             for s in mine { if let e = s.exercise { out[s.id.uuidString] = e } }
         }

@@ -13,8 +13,11 @@ struct LevelListView: View {
     private var progress: LevelProgress {
         var best: [String: Double] = [:]
         for a in attempts { if let id = a.levelTestId { best[id] = max(best[id] ?? 0, a.score) } }
-        return LevelProgress(bestScores: best)
+        return LevelProgress(bestScores: best, levels: levels)
     }
+
+    private let levels = BookLibrary.levels
+    private let books = BookLibrary.load()
 
     var body: some View {
         let p = progress
@@ -33,7 +36,18 @@ struct LevelListView: View {
                         .font(.callout)
                 }
             }
-            ForEach(LevelCatalog.levels) { level in
+            let missing = PrivateLibraryLoader.missingGrades(available: books.map(\.grade), current: p.currentLevel)
+            if !missing.isEmpty {
+                Section {
+                    Label("Hãy upload sách Rockschool Grade \(missing.map(String.init).joined(separator: ", ")) để có bài test đúng sách cho các level tiếp theo.",
+                          systemImage: "book.closed").foregroundStyle(.orange)
+                }
+            }
+            Section("Luyện các phần thi khác") {
+                NavigationLink("Ear Test (nghe rồi đánh lại)") { EarTestView(grade: max(1, p.currentLevel + 1)) }
+                NavigationLink("Câu hỏi kiến thức (GMQ)") { GMQuizView(grade: max(1, p.currentLevel + 1)) }
+            }
+            ForEach(levels) { level in
                 Section {
                     ForEach(level.tests) { item in
                         if let ex = try? ExerciseDSL.parse(item.dsl) {

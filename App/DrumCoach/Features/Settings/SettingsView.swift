@@ -31,8 +31,9 @@ struct SettingsView: View {
             Section("Nhắc tập") {
                 Stepper("Giờ nhắc hằng ngày: \(reminderHour):00", value: $reminderHour, in: 5...23)
             }
-            Section("Độ trễ") {
+            Section("Thiết bị") {
                 Button("Hiệu chỉnh độ trễ pad / trống điện") { showCalibration = true }
+                NavigationLink("MIDI learn (Roland TD-7)") { MIDILearnView() }
             }
             Section {
                 ForEach(VoiceRecorder.labels, id: \.self) { label in

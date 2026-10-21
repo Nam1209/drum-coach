@@ -14,7 +14,12 @@ targets:
   DrumCoach:
     type: application
     platform: iOS
-    sources: [App/DrumCoach]
+    sources:
+      - path: App/DrumCoach
+      - path: PrivateLibrary
+        type: folder
+        buildPhase: resources
+        optional: true
     dependencies:
       - package: DrumKit
         product: DrumKit
