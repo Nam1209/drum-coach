@@ -4,18 +4,21 @@ import DrumCore
 /// 90%+ earns 10–20 (Distinction), 75–90% earns 3–8 (Merit), 60–75% earns 1–3 (Pass), 40–60% is the learning zone (0),
 /// under 40% loses 1–5. Harder timing windows earn more; passing a level test adds 50. Runs stopped within 10 s, or that
 /// the app barely heard (90%+ of notes missed — usually the mic, not the player), don't count either way. Playing an
-/// exercise through to the end adds a small bonus, so finishing always beats stopping.
+/// exercise through to the end adds a bonus that grows with its length, so finishing always beats stopping.
 public enum PracticePoints {
     public static let levelTestBonus = 50
     /// Shorter runs are try-outs: no reward (so it can't be farmed) and no penalty.
     public static let minimumSeconds: Double = 10
-    /// For playing to the last note (not scaled by difficulty).
-    public static let completionBonus = 2
+    /// For playing to the last note: +1 per 30 s, at least 2 and at most 10, so sticking with a long exercise pays more
+    /// (not scaled by difficulty).
+    public static func completionBonus(seconds: Double) -> Int {
+        min(10, max(2, Int((seconds / 30).rounded())))
+    }
 
     public static func points(score: Double, goodWindowMs: Double, isLevelTest: Bool,
                               seconds: Double = .infinity, missedFraction: Double = 0, completed: Bool = false) -> Int {
         guard seconds >= minimumSeconds, missedFraction < 0.9 else { return 0 }
-        return forScore(score, goodWindowMs: goodWindowMs, isLevelTest: isLevelTest) + (completed ? completionBonus : 0)
+        return forScore(score, goodWindowMs: goodWindowMs, isLevelTest: isLevelTest) + (completed ? completionBonus(seconds: seconds) : 0)
     }
 
     private static func forScore(_ score: Double, goodWindowMs: Double, isLevelTest: Bool) -> Int {

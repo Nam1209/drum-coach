@@ -74,7 +74,7 @@ struct ResultsView: View {
                         .foregroundStyle(earned > 0 ? Theme.onTime : earned < 0 ? Theme.missed : .secondary)
                     Text(L("điểm lần này", "points this run")).font(.footnote).foregroundStyle(.secondary)
                     if s.completed, s.seconds >= PracticePoints.minimumSeconds, s.missedFraction < 0.9 {
-                        Label(L("+\(PracticePoints.completionBonus) hoàn thành bài", "+\(PracticePoints.completionBonus) for finishing"), systemImage: "flag.checkered")
+                        Label(L("+\(PracticePoints.completionBonus(seconds: s.seconds)) hoàn thành bài", "+\(PracticePoints.completionBonus(seconds: s.seconds)) for finishing"), systemImage: "flag.checkered")
                             .font(.caption.weight(.semibold)).foregroundStyle(Theme.onTime)
                     }
                 }

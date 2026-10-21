@@ -65,3 +65,12 @@ import Testing
     #expect(PracticePoints.points(score: 95, goodWindowMs: 30, isLevelTest: false, seconds: 8, completed: true) == 0)
     #expect(PracticePoints.points(score: 0, goodWindowMs: 30, isLevelTest: false, seconds: 60, missedFraction: 1, completed: true) == 0)
 }
+
+@Test func longerExercisesEarnABiggerFinishingBonus() {
+    #expect(PracticePoints.completionBonus(seconds: 20) == 2)      // short: the minimum
+    #expect(PracticePoints.completionBonus(seconds: 60) == 2)
+    #expect(PracticePoints.completionBonus(seconds: 120) == 4)
+    #expect(PracticePoints.completionBonus(seconds: 300) == 10)
+    #expect(PracticePoints.completionBonus(seconds: 1200) == 10)   // capped
+    #expect(PracticePoints.points(score: 50, goodWindowMs: 30, isLevelTest: false, seconds: 180, completed: true) == 6)
+}
