@@ -449,16 +449,18 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
           <div class="row" style="justify-content:space-between"><b style="font-size:20px">Tập bao lâu mỗi ngày?</b><div class="seg" id="budgetSeg"><button data-m="30">30 phút</button><button class="on" data-m="60">1 tiếng</button><button data-m="120">2 tiếng</button><button data-m="240">4 tiếng</button></div></div>
           <div id="budgetBlocks" style="display:flex;flex-direction:column;gap:10px"></div>
           <div class="row" style="gap:32px;align-items:flex-end">
-            <div class="readout"><div class="v" id="budgetNext" style="font-size:34px">3–4</div><div class="foot sec">tháng lên Grade 3</div></div>
+            <div class="readout"><div class="v" id="budgetNext" style="font-size:34px">3–4</div><div class="foot sec" id="budgetNextLabel">tháng lên Grade 3</div></div>
             <div class="readout"><div class="v" id="budgetG8" style="font-size:34px">23–30</div><div class="foot sec">tháng tới Grade 8</div></div>
             <div class="readout"><div class="v" id="budgetRest" style="font-size:34px">0</div><div class="foot sec">ngày nghỉ mỗi tuần</div></div>
           </div>
           <div id="budgetWarn" class="callout" style="display:flex;flex-direction:column;gap:6px"></div>
-          <div class="row"><button class="btn primary" id="budgetApply">Dùng mức này cho kế hoạch</button><span class="foot sec">Ước tính cho người lớn tập đều, không phải cam kết.</span></div>
+          <div class="row"><button class="btn primary" id="budgetApply">Dùng mức này cho kế hoạch</button><span class="foot sec">Ước tính theo tốc độ học và điểm của hồ sơ đang chọn, không phải cam kết.</span></div>
         </div>
         <div class="stage" style="display:flex;flex-direction:column;gap:14px">
-          <div class="row" style="justify-content:space-between"><b style="font-size:20px">Dự đoán theo lịch tập thật</b><div class="seg" id="fcSeg"><button class="on" data-w="7">7 ngày qua</button><button data-w="30">30 ngày qua</button></div></div>
+          <div class="row" style="justify-content:space-between"><b style="font-size:20px">Dự đoán cho riêng bạn</b><div class="seg" id="fcSeg"><button class="on" data-w="7">7 ngày qua</button><button data-w="30">30 ngày qua</button></div></div>
+          <div class="row" style="gap:10px"><span class="foot sec">Hồ sơ mẫu để demo:</span><div class="seg" id="personaSeg"><button class="on" data-p="me">Bạn</button><button data-p="fast">Học nhanh, tập ít</button><button data-p="sloppy">Tập nhiều nhưng ẩu</button></div></div>
           <svg id="fcBars" viewBox="0 0 600 120" style="width:100%;height:auto" role="img" aria-label="Phút tập mỗi ngày"></svg>
+          <div><div class="foot sec" style="margin-bottom:6px">Dự đoán dựa trên</div><div class="list" style="background:var(--canvas)" id="fcFactors"></div></div>
           <div class="callout sec" id="fcSummary"></div>
           <div class="list" style="background:var(--canvas)" id="fcRows"></div>
           <div class="callout" id="fcCompare"></div>
@@ -1167,8 +1169,13 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
       if (k < b.s.length - 1) h += `<div class="foot sec">Nghỉ ${b.br} phút</div>`;
     });
     $('#budgetBlocks').innerHTML = h;
-    $('#budgetNext').textContent = range(units(CUR_GRADE, CUR_GRADE + 1), b.mpg);
-    $('#budgetG8').textContent = range(units(CUR_GRADE, 8), b.mpg);
+    // Personal: this learner's pace, score and tests passed, at the chosen minutes a day.
+    const P = PERSONAS[persona], sc = P.score[1];
+    const monthsTo = target => { let lo = 0, hi = 240; for (let k = 0; k < 40; k++) { const mid = (lo + hi) / 2; positionAfter(mid, budget, P, sc) >= target - 1e-6 ? hi = mid : lo = mid; } return hi; };
+    const span = m => m < 1 ? 'dưới 1' : `${Math.max(1, Math.floor(m * .85))}–${Math.ceil(m * 1.15)}`;
+    $('#budgetNext').textContent = span(monthsTo(CUR_GRADE + 1));
+    $('#budgetNextLabel').textContent = `tháng lên Grade ${CUR_GRADE + 1}`;
+    $('#budgetG8').textContent = span(monthsTo(8));
     $('#budgetRest').textContent = b.rest;
     $('#budgetWarn').innerHTML = b.w.map(t => `<span style="color:${css(budget === 240 && t !== brk ? '--off' : '--sec')}">${t}</span>`).join('');
     drawForecast();
@@ -1176,35 +1183,61 @@ select { font: inherit; color: var(--shell); background: none; border: 0; text-a
   segs($('#budgetSeg'), b => { budget = +b.dataset.m; drawBudget(); });
   $('#budgetApply').onclick = () => toast(`Đã đặt ${budget >= 60 ? budget / 60 + ' tiếng' : budget + ' phút'} mỗi ngày. Kế hoạch tuần tới của thầy sẽ theo mức này.`);
 
-  // Demo history: minutes practised per day, oldest first.
+  // Demo learners: minutes practised per day (oldest first), tests passed toward the next grade, how long past grades took,
+  // average score, and Paradiddle tempo at 90%+ with its weekly gain.
   const LOG30 = [40, 0, 35, 50, 0, 30, 45, 25, 0, 60, 40, 30, 0, 0, 45, 35, 50, 30, 0, 40, 55, 30, 35, 0, 45, 30, 0, 60, 40, 35];
-  let fcWin = 7;
-  // Months per grade at an average of `m` minutes a day (counting days off), interpolated between the plans.
-  function mpgAt(m) {
+  const PERSONAS = {
+    me: { log: LOG30, passed: 2, past: [[1, 3, 35], [2, 4, 40]], score: [81, 84], bpm: 72, perWeek: 1.5 },
+    fast: { log: LOG30.map(m => Math.round(m * .6)), passed: 4, past: [[1, 1.5, 20], [2, 2.5, 20]], score: [93, 92], bpm: 84, perWeek: 2 },
+    sloppy: { log: LOG30.map(m => m ? m * 2 + 30 : 0), passed: 0, past: [[1, 4, 90], [2, 5, 90]], score: [57, 59], bpm: 70, perWeek: .8 },
+  };
+  let fcWin = 7, persona = 'me';
+  // Same rules as ProgressForecast in the app.
+  function typicalMpg(m) {
     const pts = [[15, 10], [30, 5.5], [60, 3.5], [120, 2.5], [240, 2]];
-    if (m <= pts[0][0]) return pts[0][1] * pts[0][0] / Math.max(m, 5);
+    if (m <= 15) return 10 * 15 / Math.max(m, 5);
     for (let i = 1; i < pts.length; i++) if (m <= pts[i][0]) { const [a, ma] = pts[i - 1], [b2, mb] = pts[i]; return ma + (mb - ma) * (m - a) / (b2 - a); }
     return 2;
   }
-  function gradeAfter(months, m) { let g = CUR_GRADE + 0.0, left = months; while (left > 0 && g < 8) { const next = Math.floor(g) + 1, cost = mpgAt(m) * (next >= 6 ? 1.5 : 1), need = (next - g) * cost; if (left >= need) { g = next; left -= need; } else { g += left / cost; left = 0; } } return g; }
-  function bpmAfter(months, m) { const perWeek = 1.5 * Math.sqrt(Math.max(m, 5) / 34); let bpm = 72; for (let w = 0; w < months * 4.3; w++) bpm += perWeek * Math.pow(.97, w); return Math.round(Math.min(bpm, 160)); }
+  const wgt = g => g >= 6 ? 1.5 : 1;
+  function paceOf(past) { if (!past.length) return 1; const act = past.reduce((a, p) => a + p[1], 0), exp = past.reduce((a, p) => a + typicalMpg(p[2]) * wgt(p[0]), 0); return Math.min(2, Math.max(.5, act / exp)); }
+  const qualityOf = sc => sc >= 90 ? .9 : sc >= 75 ? 1 : sc >= 60 ? 1.2 : 1.5;
+  function positionAfter(months, m, P, score) {
+    let g = CUR_GRADE + P.passed / 5, left = months; const per = typicalMpg(m) * paceOf(P.past) * qualityOf(score);
+    while (left > 1e-9 && g < 8) { const next = Math.floor(g) + 1, cost = per * wgt(next), need = (next - g) * cost; if (left >= need) { g = next; left -= need; } else { g += left / cost; left = 0; } }
+    return Math.min(g, 8);
+  }
+  function bpmAfter(months, m, baseM, P) { const pw = P.perWeek * Math.sqrt(m / Math.max(baseM, 5)), w = months * 52 / 12; return Math.round(P.bpm + Math.min(pw * (1 - Math.pow(.97, w)) / .03, 60)); }
   const gText = g => g >= 8 ? 'Grade 8' : `Grade ${Math.floor(g)}${g % 1 > .05 ? ` (đang ${Math.round(g % 1 * 100)}% tới Grade ${Math.floor(g) + 1})` : ''}`;
+  const pct = x => Math.round(Math.abs(1 - x) * 100);
   function drawForecast() {
-    const days = LOG30.slice(-fcWin), avg = days.reduce((a, b) => a + b, 0) / days.length, on = days.filter(Boolean).length;
-    const W = 600, bw = W / days.length, max = 60, sec = css('--sec');
+    const P = PERSONAS[persona], days = P.log.slice(-fcWin), avg = days.reduce((a, b) => a + b, 0) / days.length, on = days.filter(Boolean).length;
+    const score = fcWin === 7 ? P.score[0] : P.score[1], pace = paceOf(P.past), q = qualityOf(score);
+    const W = 600, bw = W / days.length, max = Math.max(60, ...days), sec = css('--sec');
     $('#fcBars').innerHTML = days.map((m, i) => `<rect x="${i * bw + bw * .15}" y="${100 - m / max * 90}" width="${bw * .7}" height="${Math.max(2, m / max * 90)}" rx="3" fill="${css(m ? '--shell' : '--hair')}"/>`).join('') +
       `<line x1="0" x2="${W}" y1="${100 - avg / max * 90}" y2="${100 - avg / max * 90}" stroke="${css('--off')}" stroke-dasharray="4 4"/>` +
       `<text x="0" y="116" font-size="11" fill="${sec}">${fcWin} ngày trước</text><text x="${W}" y="116" font-size="11" fill="${sec}" text-anchor="end">hôm nay</text>`;
-    $('#fcSummary').textContent = `Bạn tập ${on}/${fcWin} ngày, trung bình ${Math.round(avg)} phút mỗi ngày (tính cả ngày nghỉ). Nếu giữ nhịp này:`;
+    const effect = (x, faster, slower) => x < .98 ? `<span style="color:${css('--on')}">${faster.replace('%', pct(x) + '%')}</span>` : x > 1.02 ? `<span style="color:${css('--miss')}">${slower.replace('%', pct(x) + '%')}</span>` : '<span class="sec">như mức trung bình</span>';
+    const rows = [
+      ['Thời gian', `${Math.round(avg)} phút/ngày, tập ${on}/${fcWin} ngày`, `<span class="sec">thường mất ${typicalMpg(avg).toFixed(1).replace('.', ',')} tháng mỗi Grade</span>`],
+      ['Đã hoàn thành', `${P.passed}/5 bài kiểm tra Grade ${CUR_GRADE + 1}`, `<span class="sec">bắt đầu từ ${(CUR_GRADE + P.passed / 5).toFixed(1).replace('.', ',')}</span>`],
+      ['Tốc độ học', P.past.map(p => `Grade ${p[0]} mất ${String(p[1]).replace('.', ',')} tháng`).join(', '), effect(pace, 'nhanh hơn % so với người tập cùng thời gian', 'chậm hơn % so với người tập cùng thời gian')],
+      ['Chất lượng', `điểm trung bình ${score}%`, effect(q, 'tập sạch, nhanh hơn %', score < 60 ? 'dưới 60% nhiều, chậm hơn %' : 'còn ẩu, chậm hơn %')],
+      ['Tempo', `Paradiddle ${P.bpm} BPM, tăng ${String(P.perWeek).replace('.', ',')} BPM mỗi tuần`, '<span class="sec">tăng chậm dần theo thời gian</span>'],
+    ];
+    $('#fcFactors').innerHTML = rows.map(r => `<div class="item" style="align-items:flex-start"><span style="width:110px;flex:none" class="sec">${r[0]}</span><div style="flex:1"><div>${r[1]}</div><div class="foot">${r[2]}</div></div></div>`).join('');
+    $('#fcSummary').textContent = 'Nếu giữ nhịp tập và chất lượng như hiện tại:';
     $('#fcRows').innerHTML = [[1, '1 tháng tới'], [3, '3 tháng tới'], [6, 'Nửa năm tới'], [12, '1 năm tới']].map(([mo, label]) =>
-      `<div class="item"><span style="width:110px">${label}</span><div style="flex:1"><div>${gText(gradeAfter(mo, avg))}</div><div class="foot sec">Paradiddle khoảng ${bpmAfter(mo, avg)} BPM, thêm ${Math.round(avg * 30 * mo / 60)} giờ tập</div></div></div>`).join('');
-    const g6 = gradeAfter(6, avg), g6b = gradeAfter(6, budget);
-    $('#fcCompare').innerHTML = budget > avg + 5
-      ? `Nếu tập <b>${budget >= 60 ? budget / 60 + ' tiếng' : budget + ' phút'}</b> mỗi ngày như mức đã chọn: sau nửa năm khoảng <b>${gText(g6b)}</b>, thay vì ${gText(g6)}.`
-      : `<span class="sec">Mức đã chọn không cao hơn nhịp tập hiện tại. Chọn mức cao hơn ở bên trái để so sánh.</span>`;
+      `<div class="item"><span style="width:110px">${label}</span><div style="flex:1"><div>${gText(positionAfter(mo, avg, P, score))}</div><div class="foot sec">Paradiddle khoảng ${bpmAfter(mo, avg, avg, P)} BPM, thêm ${Math.round(avg * 30 * mo / 60)} giờ tập</div></div></div>`).join('');
+    const g6 = positionAfter(6, avg, P, score), g6b = positionAfter(6, budget, P, score), g6c = positionAfter(6, avg, P, Math.max(score, 90));
+    const name = budget >= 60 ? budget / 60 + ' tiếng' : budget + ' phút';
+    let tip = budget > avg + 5 ? `Nếu tập <b>${name}</b> mỗi ngày như mức đã chọn: sau nửa năm khoảng <b>${gText(g6b)}</b>, thay vì ${gText(g6)}.` : '';
+    if (score < 90) tip += `${tip ? '<br>' : ''}Nếu giữ thời gian như cũ nhưng tập chậm lại cho sạch (trên 90%): sau nửa năm khoảng <b>${gText(g6c)}</b>.`;
+    $('#fcCompare').innerHTML = tip || '<span class="sec">Bạn đang tập đều và sạch. Chọn mức thời gian cao hơn ở bên trái để so sánh.</span>';
   }
-  segs($('#fcSeg'), b => { fcWin = +b.dataset.w; drawForecast(); });
+  segs($('#personaSeg'), b => { persona = b.dataset.p; drawBudget(); });
   drawBudget();
+  segs($('#fcSeg'), b => { fcWin = +b.dataset.w; drawForecast(); });
 
   // ---------- Settings ----------
   $('#calib').onclick = () => toast('Gõ pad theo 8 tiếng click. Độ trễ đo được: 38 ms, đã lưu.');
