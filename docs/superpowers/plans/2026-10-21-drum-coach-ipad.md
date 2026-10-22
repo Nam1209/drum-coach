@@ -44,7 +44,27 @@
   - Banner "Nên dùng tai nghe".
   - Dòng "Lần trước: 50 BPM, 79%" kèm biểu đồ nhỏ.
 
+**Giáo viên AI (người dùng: "tôi không có giáo viên thực tế, nên giáo viên AI khá quan trọng"):**
+- **Lưu lịch sử tập lâu dài**, không giới hạn thời gian, và **lưu từ buổi tập đầu tiên**. Vì vậy việc lưu mỗi lần chơi được đưa vào Task 7, không đợi tới cuối.
+- AI đọc lịch sử dài hạn, chỉ ra **cần sửa gì**, **lên kế hoạch tập**, và **gợi ý video YouTube hoặc tài liệu**.
+- Có thêm buổi tập có cấu trúc ("Hôm nay tập gì") và thư viện 40 rudiment PAS (từ phần tham khảo Drumeo).
+
+**Tài liệu và thiết bị người dùng cung cấp (2026-10-21):**
+- **Tài liệu:** Stick Control (bản scan PDF) và Rockschool Drums Grade 1–4 (PDF).
+- **Grade 5–8:** người dùng sẽ upload sau. Họ yêu cầu: "báo tôi khi tôi đạt grade 6, tôi sẽ upload doc 6,7,8". Hiện **chưa có sách Grade 5**.
+- **Thiết bị:** Roland **TD-4K** (chỉ có MIDI OUT 5 chân, cần cáp USB-MIDI), pad 12", dùi 5A.
+- **Cấu trúc thi Rockschool thật (lấy từ sách):**
+  - Grade 1–5: 3 bài biểu diễn (3×20 điểm), Technical Exercises (15), Sight Reading hoặc Improvisation & Interpretation (10), Ear Tests (10), GMQ (5).
+  - Grade 6–8: Sight Reading / I&I được thay bằng Quick Study Piece.
+  - Mức điểm: Pass 60%, Merit 74%, Distinction 90%.
+  - Tempo bài kỹ thuật: G1–2 ♩=70, G3–4 ♩=75; fill test ♩=70–80.
+  - Ear Test gồm: Fill Playback & Recognition, Groove Recall.
+- **Giáo trình nền tảng** (tư thế, cầm dùi, cú đánh, đếm, cách tập Stick Control/Rockschool) nằm ở `docs/giao-trinh.html`. Task 16 đưa nội dung này vào app.
+
 **Các quyết định Claude tự đưa ra (người dùng có thể đổi):**
+- **Level = Rockschool Grade 1…8.** Nội dung test lấy từ Technical Exercises và Fill của sách tương ứng, ở đúng tempo của sách. Quy tắc "trên 90% mới đạt" trùng với mức Distinction. Bảng 8 level tự soạn ở Task 10A chỉ dùng cho grade nào chưa có sách.
+- **Nội dung chép từ sách không commit vào git.** Bài tập chuyển từ sách (DSL) nằm trong `PrivateLibrary/` (được `.gitignore` bỏ qua), app nạp lúc chạy. Repo chỉ chứa code và bài do app tự soạn.
+- **Thông báo thiếu sách:** khi người dùng đạt grade N mà chưa có sách grade N+1, app hiện "Hãy upload sách Grade N+1". Riêng khi đạt Grade 5, app nhắc upload Grade 6, 7, 8 (theo yêu cầu). Sách Grade 5 hiện còn thiếu nên app sẽ nhắc ngay khi đạt Grade 4.
 - **Ngưỡng "đúng":** |lệch| ≤ 30 ms, chỉnh được trong Settings (Dễ 45 / Vừa 30 / Khó 20 ms). Lệch lớn hơn nhưng vẫn nằm trong cửa sổ ghép là cam; ngoài cửa sổ là đỏ.
 - **Cách tính %:** mỗi nốt xanh được 1 điểm, cam 0.5, đỏ 0. % = tổng điểm / tổng số nốt × 100. Cú đánh thừa trừ 0.5 điểm mỗi cú. Kết quả kẹp trong 0…100.
 - Native Swift/SwiftUI vì cần độ trễ âm thanh thấp và CoreMIDI.
@@ -60,9 +80,20 @@
 - Platform của package: `.iOS(.v18), .macOS(.v15)`.
 - Không dùng dependency bên thứ ba trong runtime (chỉ dùng XcodeGen lúc build).
 - Mọi thời gian dùng kiểu `TimeInterval` (giây, host time). Chuyển sang ms chỉ ở tầng hiển thị.
-- Model Claude mặc định là `claude-sonnet-5-5`, có thể chọn `claude-opus-5-5` trong Settings. Endpoint `https://api.anthropic.com/v1/messages`, header `anthropic-version: 2023-06-01`.
+- **AI:** Claude API gọi bằng HTTP thuần qua URLSession (Swift không có SDK chính thức). Endpoint `https://api.anthropic.com/v1/messages`, header `anthropic-version: 2023-06-01`.
+- **Model mặc định cho mọi tính năng là `claude-opus-5-5`.** Settings cho phép đổi sang `claude-sonnet-5-5` để tiết kiệm. Dùng `thinking: {type: "adaptive"}`. Đặt `output_config.effort` rõ ràng (vì mặc định của Opus 5.5 là `medium`): báo cáo tuần và test level dùng `high`, chat dùng `low`, đọc PDF dùng `medium`.
+- **Không dùng `tool_choice` kiểu `tool`/`any`**: Opus 5.5 và Sonnet 5.5 trả về lỗi 400. Ép JSON bằng structured outputs `output_config: {format: {type: "json_schema", schema: …}}`.
+- **Web search:** server tool `{"type": "web_search_20260209", "name": "web_search", "max_uses": 5}`. Lỗi của tool trả về trong block `web_search_tool_result` (HTTP 200), không phải exception.
+- **Refusal fallback:** gửi header `anthropic-beta: server-side-fallback-2026-07-01` cùng `fallbacks: "default"`. Luôn kiểm tra `stop_reason == "refusal"` trước khi đọc `content`.
+- Prompt caching: system prompt và ngữ pháp DSL cố định ở đầu request, đặt `cache_control: {type: "ephemeral"}`, không chèn timestamp vào system.
 - Chữ trong UI viết bằng tiếng Việt. Thuật ngữ trống giữ nguyên tiếng Anh (Hi-Hat, Snare, Kick, Paradiddle, Flam…).
 - Không ship bất kỳ văn bản hay bài nhạc nào chép từ Stick Control hoặc Rockschool.
+- **Ký app bằng Apple ID miễn phí (Personal Team), không có tài khoản Apple Developer trả phí.** Hệ quả:
+  - Không dùng capability cần tài khoản trả phí: iCloud/CloudKit, Push Notifications, App Groups. Local notification thì dùng được.
+  - Bundle ID cố định là `com.natelee.drumcoach` và **không bao giờ được đổi**. Đổi bundle ID thì iPad coi như app mới, và dữ liệu của app cũ không chuyển sang.
+  - Profile hết hạn sau 7 ngày. Bấm Run lại trong Xcode (qua cáp hoặc Wi-Fi) sẽ cài đè lên app cũ, **dữ liệu SwiftData vẫn giữ nguyên**. Dữ liệu chỉ mất khi xóa app.
+  - Backup (Task 13) gồm: tự động đẩy file JSON lên Notion mỗi lần "Gửi cho thầy" hoặc mỗi Chủ nhật; xuất thủ công ra Files bằng document picker; và `UIFileSharingEnabled` để thư mục Documents hiện trong app Files. Không dùng iCloud container.
+  - Màn hình Settings hiện "Ngày hết hạn bản cài: …" và nhắc trước 1 ngày bằng local notification.
 
 ## Review Focus
 
@@ -243,16 +274,28 @@ public enum Counting { public static func labels(mode: CountMode, beats: Int) ->
 **Interfaces – Produces:**
 ```swift
 public enum ClickKind: Sendable, Hashable { case downbeat, beat, subdivision, voice(String) } // voice("e") = âm tiết đếm
-public struct ClickEvent: Sendable, Hashable { public let sampleTime: Int64; public let kind: ClickKind; public let bar: Int; public let level: Int; public let sound: ClickSound }
+public struct ClickEvent: Sendable, Hashable { public let sampleTime: Int64; public let kind: ClickKind; public let bar: Int; public let level: Int; public let tone: LevelTone }
 public enum ClickSound: String, Codable, CaseIterable, Sendable { case click, woodblock, cowbell, rimshot, hiHat, beep, voice } // voice = đọc âm tiết "1/e/&/a" ngay tại ô đó
-public struct ClickSlot: Codable, Sendable, Equatable { public var level: Int /* 0 = tắt, 1 nhỏ, 2 vừa, 3 to — giống 3 ô chồng trong Drum Journal */ ; public var sound: ClickSound }
+public struct ClickSlot: Codable, Sendable, Equatable { public var level: Int /* 0 = tắt, 1…5 — 5 ô chồng */ ; public var sound: ClickSound? /* nil = dùng âm mặc định của mức */ }
+/// Mỗi mức có ÂM + CAO ĐỘ + ĐỘ TO riêng để nghe là phân biệt được ngay (người dùng yêu cầu: "mức 1 khác các mức khác").
+public struct LevelTone: Codable, Sendable, Equatable { public var sound: ClickSound; public var pitchHz: Double; public var gainDb: Double }
+public enum ToneLadder {
+  public static let `default`: [Int: LevelTone] = [
+    5: .init(sound: .beep,      pitchHz: 1760, gainDb: 0),    // chuông cao — phách 1 / accent
+    4: .init(sound: .click,     pitchHz: 1320, gainDb: -2),   // click cao — phách 2, 3, 4
+    3: .init(sound: .cowbell,   pitchHz: 880,  gainDb: -5),   // cowbell — "&"
+    2: .init(sound: .woodblock, pitchHz: 660,  gainDb: -9),   // woodblock trầm — "e"/"a" rõ
+    1: .init(sound: .hiHat,     pitchHz: 0,    gainDb: -14),  // hi-hat khẽ — "e"/"a" nền
+  ]
+  public static func tone(for slot: ClickSlot, ladder: [Int: LevelTone]) -> LevelTone? // nil khi level 0; slot.sound ghi đè sound của mức
+}
 public struct ClickPattern: Codable, Sendable, Equatable {
   public var slots: [ClickSlot]                 // 1 phách chia làm slots.count ô: 4 = "1 e & a", 3 = "1 trip let", 2 = "1 &", 1 = "1"
-  public static let quarter: ClickPattern       // [3]
-  public static let eighths: ClickPattern       // [3,0,2,0] (đếm "1 e & a", click vào 1 và &)
-  public static let sixteenths: ClickPattern    // [3,1,2,1]
-  public static let triplets: ClickPattern      // [3,1,1]
-  public static let offbeat: ClickPattern       // [0,0,3,0] (chỉ click vào &)
+  public static let quarter: ClickPattern       // [5]
+  public static let eighths: ClickPattern       // [4,0,3,0] (click vào phách và &)
+  public static let sixteenths: ClickPattern    // [4,1,3,1]
+  public static let triplets: ClickPattern      // [4,2,2]
+  public static let offbeat: ClickPattern       // [0,0,4,0] (chỉ click vào &)
 }
 public enum BeatSkip: String, Codable, CaseIterable, Sendable { case all, oneOnOneOff /* ●○●○ */, beatOneOnly /* ●○○○ */, backbeat /* ○●○● */ }
 public struct MetronomeSettings: Sendable, Codable, Equatable {
@@ -292,18 +335,24 @@ public enum ClickSchedule {
 @Test func backbeatOnly() { /* beatSkip .backbeat → chỉ có phách 2 và 4 */ }
 @Test func clickPatternLevels() { // pattern [3,0,2,0] ở 60 BPM, 48 kHz
   let e = ClickSchedule.events(settings: .init(bpm: 60, pattern: .eighths, …), sampleRate: 48000, from: 0, to: 48000)
-  #expect(e.map(\.sampleTime) == [0, 24000]); #expect(e.map(\.level) == [3, 2]) }  // ClickEvent có thêm `level: Int` và `sound: ClickSound`
-@Test func perSlotSound() { /* slot "&" chọn .cowbell → event ở 1/2 phách có sound .cowbell */ }
+  #expect(e.map(\.sampleTime) == [0, 24000]); #expect(e.map(\.level) == [4, 3]) }
+@Test func levelsHaveDistinctTones() { // mỗi mức 1…5 khác nhau về sound hoặc pitch
+  let tones = (1...5).compactMap { ToneLadder.default[$0] }
+  #expect(Set(tones.map { "\($0.sound)-\($0.pitchHz)" }).count == 5)
+  #expect(tones.map(\.gainDb) == tones.map(\.gainDb).sorted(by: >)) }  // mức cao hơn thì to hơn
+@Test func accentBeatOneUsesLevel5() { /* accentBeatOne + pattern quarter → phách 1 có tone mức 5, phách 2–4 mức 4 */ }
+@Test func slotSoundOverridesLadder() { /* slot level 3, sound .rimshot → tone.sound == .rimshot, pitch/gain vẫn của mức 3 */ }
+@Test func perSlotSound() { /* slot "&" chọn .rimshot → event ở 1/2 phách có tone.sound .rimshot */ }
 @Test func beatSkipOneOnOneOff() { /* 4/4, pattern quarter → chỉ có phách 1 và 3 */ }
 @Test func beatSkipBeatOneOnly() { /* chỉ có phách 1 */ }
-@Test func tripletPatternTiming() { /* [3,1,1] ở 60 BPM → 0, 16000, 32000 */ }
+@Test func tripletPatternTiming() { /* [4,2,2] ở 60 BPM → 0, 16000, 32000 */ }
 @Test func voiceSyllables() { /* voiceCount .sixteenths → kinds .voice("1"), .voice("e"), .voice("&"), .voice("a") */ }
 ```
 - [ ] **Bước 2:** `swift test --filter DrumAudioTests` → FAIL.
 - [ ] **Bước 3:** Implement `ClickSchedule` (thuần). `MetronomeEngine` dùng một `AVAudioSourceNode` render callback: mỗi buffer gọi `ClickSchedule.events` cho đoạn sample của buffer đó rồi mix sample click hoặc giọng vào đúng frame offset. Cách này cho độ chính xác tới từng sample và không phụ thuộc vào timer. `CountVoiceBank` dùng `AVSpeechSynthesizer.write(_:toBufferCallback:)` render trước các âm tiết "one…twelve, e, and, a, trip, let" thành `AVAudioPCMBuffer` ở 48 kHz, cắt bỏ khoảng lặng đầu, rồi cache vào thư mục Caches. **Giọng đếm phải liền mạch** (người dùng phàn nàn rằng tiếng đếm bị giật ở âm "&"): mỗi âm tiết có fade-in 3 ms và fade-out 15 ms, không bao giờ bị cắt cụt; nếu âm tiết dài hơn ô thời gian của nó ở tempo hiện tại thì nén thời lượng (time-compress, giữ cao độ) cho vừa 90% ô; phách chính đọc to hơn "e & a" 4 dB để nghe ra nhịp điệu nói tự nhiên. Có thêm tùy chọn **tự ghi âm giọng mình** cho từng âm tiết trong Settings. Thêm test thuần `syllableFitsSlot`: hàm `CountVoiceBank.stretchFactor(syllableDuration: 0.35, slot: 60/90/4)` phải trả về < 1 và kết quả × 0.35 ≤ 0.9 × slot. Đặt `AVAudioSession` là `.playAndRecord` với `[.defaultToSpeaker, .allowBluetoothA2DP]` và `setPreferredIOBufferDuration(0.005)`.
   **Màn hình "Metronome & Âm thanh"** (sheet, theo mẫu Drum Journal):
   - Preset: Quarter / 8th / 16th / Triplet / Offbeat.
-  - **Click Pattern:** mỗi ô "1 e & a" là một cột 3 ô chồng; chạm vào cột để đổi mức to 0→1→2→3→0. **Nhấn giữ** một cột để chọn âm thanh riêng cho ô đó (click, woodblock, cowbell, rimshot, hi-hat, beep, giọng đọc). Nhãn dưới cột sáng lên theo nhịp đang chạy.
+  - **Click Pattern:** mỗi ô "1 e & a" là một cột **5 ô chồng**; chạm vào ô thứ N để đặt mức N (chạm lại ô đang chọn để tắt), vuốt lên/xuống trên cột để tăng/giảm. Dưới mỗi cột hiện tên âm của mức đang chọn. Có trang **"Thang âm"** cho chỉnh âm, cao độ và độ to của từng mức 1…5, có nút nghe thử từng mức, và nút khôi phục `ToneLadder.default`. **Nhấn giữ** một cột để chọn âm thanh riêng cho ô đó (click, woodblock, cowbell, rimshot, hi-hat, beep, giọng đọc). Nhãn dưới cột sáng lên theo nhịp đang chạy.
   - Đổi số ô mỗi phách: 1 / 2 / 3 / 4 / 6.
   - Accent Beat 1.
   - Beat Skip: Tất cả / ●○●○ / ●○○○ / ○●○●.
@@ -312,7 +361,7 @@ public enum ClickSchedule {
   - Âm lượng riêng cho click, giọng đếm và nhạc nền.
   - Lưu được preset của mình.
 
-  App tự tạo các file âm thanh (click, woodblock…) bằng DSP lúc chạy, không cần file mẫu. Mức to ánh xạ sang 1 = −14 dB, 2 = −6 dB, 3 = 0 dB.
+  App tự tạo âm thanh (click, beep, woodblock, cowbell, hi-hat, rimshot) bằng DSP lúc chạy, theo `pitchHz` và `gainDb` của từng mức, không cần file mẫu. Accent Beat 1 = phách 1 tự lên mức 5.
 - [ ] **Bước 4:** Test → PASS. Kiểm tra tay trên iPad thật: so với một metronome khác ở 60 và 200 BPM, nghe thấy không lệch.
 - [ ] **Bước 5:** Commit `feat: sample-accurate metronome with spoken counting`.
 
@@ -419,7 +468,9 @@ public struct SessionStats: Codable, Sendable, Equatable {
   public let missed: Int; public let wrongVoice: Int; public let extra: Int
   public let byBeatPosition: [String: Double]  // "1","e","&","a" → độ lệch trung bình (ms), để tìm điểm yếu
   public let byVoice: [Voice: Double]
-  public let velocityCV: Double?               // độ đều lực đánh (chỉ có với MIDI)
+  public let velocityCV: Double?               // độ đều lực đánh: MIDI dùng velocity, micro dùng strength của onset
+  public let loudnessByHandDb: [Hand: Double]  // độ to trung bình của từng tay (dB tương đối) — tay trái có nhỏ hơn tay phải không
+  public let accentContrastDb: Double?         // nốt accent to hơn nốt thường bao nhiêu dB (nil nếu bài không có accent)
 }
 ```
 - [ ] **Bước 1: Test**
@@ -438,12 +489,15 @@ public struct SessionStats: Codable, Sendable, Equatable {
   #expect(r.score(eightGoodOneLateOneMissed, totalNotes: 10, extraHits: 0) == 85)
   #expect(r.score(allGood10, totalNotes: 10, extraHits: 4) == 80)       // 10 − 4×0.5 = 8
   #expect(r.score([], totalNotes: 10, extraHits: 30) == 0) }            // không bao giờ âm
+@Test func dynamics() { /* R strength 1.0, L strength 0.5 → loudnessByHandDb[.left]! - loudnessByHandDb[.right]! ≈ -6.02; accent 1.0 và nốt thường 0.25 → accentContrastDb ≈ 12.04; không có accent → nil */ }
 @Test func stats() { /* offset -10, +10, +40 ms, 1 missed → accuracy 2/4, mean +13.3, missed 1 */ }
 ```
 - [ ] **Bước 2:** FAIL. **Bước 3:** Implement. Khi ở chế độ micro, coi các nốt có cùng `time` là một "cụm" và một hit ghép với cả cụm. Trong PracticeViewModel, mỗi lần bấm Play tạo `HitMatcher` mới, gọi `expire` theo từng frame. **Phản hồi trực tiếp** (cả trên khuông nhạc lẫn dải R/L), theo `ScoringRules.grade`:
 - **Xanh lá:** đúng.
 - **Cam:** một vạch cam nằm **bên trái nốt** nếu sớm, **bên phải** nếu muộn; khoảng cách tới nốt tỉ lệ với số ms lệch; có kèm số "−42" hoặc "+38".
 - **Đỏ:** trượt.
+
+**Lưu lịch sử ngay từ task này:** mỗi lần chơi (kể cả khi bấm dừng sớm) lưu thành một `PracticeSession` bằng SwiftData. Bản ghi gồm: thời điểm, exerciseId và tên bài, BPM, thời lượng, chế độ pad/e-drum, mức độ khó, score, `SessionStats`. Lưu thêm **thống kê theo tay dự kiến**: micro không biết tay nào đánh, nhưng bài tập có sticking R/L, nên gán được độ lệch của từng nốt cho tay "lẽ ra phải đánh". Thêm `byHand: [Hand: Double]` vào `SessionStats`. Model `PracticeSession` được tạo ở task này; Task 10 chỉ thêm field `assessment`.
 
 Trong lúc chơi hiện **Score %** chạy trực tiếp. Màn hình kết quả cuối bài gồm: **% hoàn thành** (chữ lớn), số nốt xanh / cam / đỏ, xu hướng chung ("hay đánh sớm 18 ms"), và vị trí đếm yếu nhất. `TimingStrip` là dải ngang có vạch 0 ở giữa và các chấm của 16 cú đánh gần nhất, để thấy ngay mình đang có xu hướng nhanh hay chậm. Cuối mỗi lần chơi hiện bảng tóm tắt `SessionStats`.
 - [ ] **Bước 4:** PASS.
@@ -516,17 +570,17 @@ public enum Grade8Curriculum { public static let units: [CurriculumUnit] }
 public protocol HTTPTransport: Sendable { func send(_ req: URLRequest) async throws -> (Data, HTTPURLResponse) } // fake trong test
 public struct ClaudeClient: Sendable {
   public init(apiKey: String, model: String, transport: HTTPTransport)
-  /// Gọi Messages API, ép trả về JSON qua một tool duy nhất (tool_choice: {type: "tool", name}), trả về `input` của tool đã decode.
-  public func structured<T: Decodable & Sendable>(system: String, content: [ContentBlock], toolName: String, schema: JSONValue, as: T.Type, maxTokens: Int) async throws(ClaudeError) -> T
+  /// Gọi Messages API với structured outputs (output_config.format json_schema), decode text JSON trả về thành T. Tham số `webSearch: Bool` bật server tool web_search_20260209.
+  public func structured<T: Decodable & Sendable>(system: String, content: [ContentBlock], schema: JSONValue, as: T.Type, effort: Effort, webSearch: Bool, maxTokens: Int) async throws(ClaudeError) -> T
 }
 public enum ContentBlock: Sendable { case text(String), imagePNG(Data) }
-public enum ClaudeError: Error, Equatable { case missingKey, http(Int, String), noToolUse, decoding(String), network(String) }
+public enum ClaudeError: Error, Equatable { case missingKey, http(Int, String), refused(String?), decoding(String), network(String) }
 public enum PageTranscriber { public static func transcribe(pagePNG: Data, client: ClaudeClient) async throws(ClaudeError) -> [String /* DSL */] }
 ```
 - [ ] **Bước 1: Test** (fake transport):
-  - request có header `x-api-key`, `anthropic-version: 2023-06-01`, body có `model`, `tools[0].name`, `tool_choice`;
-  - response mẫu có block `tool_use` thì decode thành T;
-  - status 401 → `.http(401, …)`; response không có `tool_use` → `.noToolUse`;
+  - request có header `x-api-key`, `anthropic-version: 2023-06-01`, body có `model`, `output_config.format.type == "json_schema"`, `thinking.type == "adaptive"`, `fallbacks == "default"`, **không có** `tool_choice`; response có `stop_reason: "refusal"` → `.refused`;
+  - response mẫu có text là JSON hợp lệ thì decode thành T;
+  - status 401 → `.http(401, …)`; JSON không khớp schema → `.decoding`;
   - `PageTranscriber` loại bỏ những chuỗi DSL mà `ExerciseDSL.parse` báo lỗi.
 - [ ] **Bước 2:** FAIL. **Bước 3:** Implement. `PDFImportView`: chọn file PDF (UIDocumentPicker), render trang bằng PDFKit ra PNG rộng 1600 px, gửi kèm prompt hướng dẫn chuyển từng bài trên trang sang DSL (có mô tả ngữ pháp DSL ở Task 2 và ví dụ). Hiện từng bài đọc được kèm khuông nhạc xem trước để người dùng sửa hoặc lưu. Ghi rõ trong UI: "Chỉ dùng với sách bạn sở hữu; dữ liệu chỉ lưu trên máy này."
 - [ ] **Bước 4:** PASS. Kiểm tra tay với một trang Stick Control của người dùng.
@@ -625,7 +679,257 @@ public struct ProgressSummary: Sendable { public init(sessions: [(date: Date, ex
 
 ---
 
-## Mốc 8 (tùy chọn): Play-along
+## Mốc 8: Giáo viên AI
+
+Đây là "người thầy" của người dùng. Nguyên tắc:
+1. **Lịch sử không bao giờ mất.** Lưu trên máy, kèm backup ra file.
+2. **Gửi bản tóm tắt chứ không gửi dữ liệu thô.** Lịch sử nhiều tháng được nén thành một bản tóm tắt vài KB trước khi gửi Claude.
+3. **Thầy có trí nhớ.** Một "hồ sơ học viên" lưu mục tiêu, các lời khuyên đã đưa, và người dùng đã làm theo hay chưa.
+4. **Link phải là thật.** Không để AI bịa link YouTube.
+
+### Task 13: Lịch sử dài hạn – tóm tắt + backup + nhật ký
+
+**Files:** Create `DrumAnalysis/HistorySummarizer.swift`, `App/Models/JournalEntry.swift`, `App/.../Progress/HistoryView.swift`, `App/Services/BackupService.swift`; Test `HistorySummarizerTests.swift`, `App/…/BackupTests` (unit test target của app)
+
+**Interfaces – Produces:**
+```swift
+public struct SessionRecord: Codable, Sendable { public let date: Date; public let exerciseId: String; public let title: String; public let skill: String; public let bpm: Double; public let minutes: Double; public let score: Double; public let stats: SessionStats; public let isLevelTest: Bool }
+public struct HistoryDigest: Codable, Sendable, Equatable {
+  public let totalMinutes: Double; public let daysPracticed: Int; public let firstDate: Date?; public let currentLevel: Int
+  public let weekly: [WeekRollup]          // tối đa 26 tuần gần nhất: phút tập, score trung bình, độ lệch trung bình
+  public let perExercise: [ExerciseTrend]  // tempo sạch tốt nhất (score > 90) theo từng tháng, số lần tập, lần tập cuối
+  public let recurringWeaknesses: [String] // ví dụ "'&' trễ +28 ms trong 6/8 tuần", "tay L sớm −20 ms"
+  public let last7Days: [SessionRecord]    // chi tiết nhất cho tuần gần đây
+  public let journal: [String]             // ghi chú tự viết trong 30 ngày gần nhất
+}
+public enum HistorySummarizer { public static func digest(_ records: [SessionRecord], journal: [(Date, String)], currentLevel: Int, now: Date, calendar: Calendar) -> HistoryDigest }
+```
+- [ ] **Bước 1: Test:**
+  - 2 năm dữ liệu giả (≈ 1500 buổi): `weekly.count == 26`, và JSON của digest nhỏ hơn 24 KB.
+  - Một điểm yếu "&" trễ +30 ms xuất hiện trong 6/8 tuần → có trong `recurringWeaknesses`. Trễ 1 tuần thì không tính.
+  - Chưa có lịch sử → digest rỗng, không crash.
+  - `perExercise` chỉ lấy tempo của các lần có score > 90.
+- [ ] **Bước 2:** FAIL. **Bước 3:** Implement.
+  - **Nhật ký:** sau mỗi buổi tập có ô ghi chú tùy chọn (cảm nhận, đau mỏi, chỗ khó).
+  - **HistoryView:** lịch tập dạng calendar, bấm vào một ngày để xem các lần chơi.
+  - **Backup:** xuất toàn bộ lịch sử ra một file JSON (`DrumCoach-backup-YYYY-MM-DD.json`) vào Files hoặc iCloud Drive, và nhập lại được. Mỗi Chủ nhật tự backup vào thư mục Documents của app (bật trong Files). Test round-trip: xuất rồi nhập vào store rỗng phải ra cùng số bản ghi và cùng score.
+- [ ] **Bước 3b: Tổng kết giai đoạn (người dùng muốn "sau 3 tháng review lại xem mình đã đi tới đâu"):**
+
+  Thêm:
+  ```swift
+  public struct PeriodReview: Codable, Sendable, Equatable {
+    public let from: Date; public let to: Date; public let totalHours: Double; public let daysPracticed: Int; public let longestStreak: Int
+    public let levelStart: Int; public let levelEnd: Int; public let levelsPassed: [(Int, Date)]   // mốc đạt từng level
+    public let exerciseDeltas: [(title: String, cleanBpmStart: Double?, cleanBpmEnd: Double?)]  // tempo sạch (score > 90) ở 2 tuần đầu so với 2 tuần cuối
+    public let offsetStartMs: Double; public let offsetEndMs: Double; public let scoreStart: Double; public let scoreEnd: Double
+    public let fixedWeaknesses: [String]; public let remainingWeaknesses: [String]
+  }
+  public enum HistorySummarizer { public static func periodReview(_ records: [SessionRecord], levelHistory: [(Int, Date)], from: Date, to: Date, calendar: Calendar) -> PeriodReview }
+  ```
+  (Mảng tuple không Codable: dùng struct nhỏ thay thế, tên do implementer chọn.)
+
+  Test:
+  - Dữ liệu giả 90 ngày, tempo bài A tăng từ 60 lên 84 → `exerciseDeltas` của A là (60, 84).
+  - Điểm yếu "&" trễ có ở tháng 1 nhưng không còn ở tháng 3 → nằm trong `fixedWeaknesses`.
+  - Khoảng thời gian không có dữ liệu → các giá trị `nil`/0, không crash.
+
+  **Màn hình "Hành trình"** (không cần AI):
+  - chọn khoảng thời gian: 1 / 3 / 6 tháng / từ đầu;
+  - thẻ "Trước → Sau" cho từng bài: tempo sạch, độ lệch, %;
+  - dòng thời gian các level đã đạt; tổng giờ tập; chuỗi ngày dài nhất;
+  - điểm yếu đã sửa được và điểm yếu còn lại.
+
+  Nút **"Nhờ thầy tổng kết giai đoạn"** gửi `PeriodReview` qua cầu nối Notion (Task 13B), cùng luồng với báo cáo tuần nhưng trang có tên `Tổng kết YYYY-MM-DD`. Thầy viết nhận xét cả giai đoạn và mục tiêu cho 3 tháng tới. App nhắc vào mỗi mốc 3 tháng kể từ buổi tập đầu tiên.
+- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: long-term practice history, digest, period review and backup`.
+
+### Task 13B: Cầu nối Claude Pro qua Notion (cách mặc định, không tốn API)
+
+Người dùng dùng **gói Claude Pro**. Gói này không có API, nên app không gọi Claude trực tiếp mà đi qua Notion. Claude trong app Claude (Pro) có connector Notion nên đọc/ghi được, còn DrumCoach đọc/ghi qua Notion API bằng internal integration token.
+
+Luồng hoạt động:
+1. **Bấm "Gửi cho thầy"** trong DrumCoach. App làm ba việc:
+   - tạo trang con `Báo cáo YYYY-MM-DD` dưới trang `DrumCoach › Hộp thư`, chứa `HistoryDigest` và `StudentProfile` dạng JSON trong code block;
+   - copy lời nhắn ngắn vào clipboard ("Thầy ơi, xem báo cáo YYYY-MM-DD");
+   - mở app Claude bằng `https://claude.ai/new` (universal link).
+2. **Trong Project "Thầy dạy trống" trên Claude:** người dùng dán lời nhắn rồi gửi. Theo hướng dẫn của Project, Claude:
+   - đọc báo cáo mới nhất trong Hộp thư;
+   - phân tích và dùng web search tìm video;
+   - tạo trang `Kế hoạch YYYY-MM-DD` dưới `DrumCoach › Kế hoạch`, gồm phần đọc cho người (tiến bộ, 3 điều cần sửa, video) và một code block ```json chứa `TeacherReport`.
+3. **Bấm "Đồng bộ"** trong DrumCoach. App tự đồng bộ thêm mỗi lần mở app. App:
+   - đọc trang Kế hoạch mới nhất chưa import và ghép các rich_text của code block thành JSON;
+   - decode thành `TeacherReport` rồi kiểm tra: DSL parse được, exerciseId có thật, link YouTube có thật (oEmbed);
+   - hiện màn hình **"Áp dụng kế hoạch mới?"** để so plan cũ và plan mới;
+   - khi bấm Áp dụng thì cập nhật "Hôm nay tập gì", tempo mục tiêu và bài mới vào thư viện, rồi ghi `fixFirst` vào `pastAdvice`.
+
+**Files:** Create `DrumAI/NotionClient.swift`, `DrumAI/NotionBridge.swift`, `DrumAI/TeacherProjectKit.swift`, `App/.../Teacher/SyncView.swift`, `App/.../Teacher/ApplyPlanView.swift`; Test `NotionBridgeTests.swift`
+
+**Interfaces – Produces:**
+```swift
+public struct NotionClient: Sendable {   // Notion REST API, header "Notion-Version" lấy theo bản hiện hành lúc implement
+  public init(token: String, transport: HTTPTransport)
+  public func createChildPage(parent: String, title: String, codeBlockJSON: String) async throws -> String   // tách JSON thành các rich_text ≤ 2000 ký tự
+  public func childPages(of parent: String) async throws -> [(id: String, title: String, created: Date)]
+  public func codeBlocks(of page: String, language: String) async throws -> [String]                       // ghép rich_text lại
+}
+public struct NotionBridge: Sendable {
+  public init(client: NotionClient, inboxPageId: String, plansPageId: String)
+  public func send(digest: HistoryDigest, profile: StudentProfile, date: Date) async throws -> (pageTitle: String, prompt: String)
+  public func fetchNewPlans(after lastImported: Date?) async throws -> [(title: String, report: Result<TeacherReport, BridgeError>)]
+}
+public enum BridgeError: Error, Equatable { case noJSONBlock, invalidJSON(String), schemaMismatch(String) }
+public enum TeacherProjectKit {
+  public static let projectInstructions: String   // hướng dẫn dán vào Project trên claude.ai: vai trò thầy, quy trình đọc Hộp thư → ghi Kế hoạch, schema JSON, ngữ pháp DSL, danh sách exerciseId
+}
+```
+- [ ] **Bước 1: Test** (fake transport):
+  - Digest 24 KB → request tạo trang có code block được tách thành các rich_text, mỗi cái ≤ 2000 ký tự; ghép lại phải ra đúng chuỗi ban đầu.
+  - Trang Kế hoạch có JSON hợp lệ → `.success`; không có code block → `.noJSONBlock`; JSON hỏng → `.invalidJSON`; thiếu field → `.schemaMismatch`.
+  - `fetchNewPlans(after:)` bỏ qua trang cũ hơn hoặc bằng `lastImported`.
+  - `projectInstructions` chứa schema `TeacherReport` và ví dụ DSL. Ví dụ JSON trong instructions phải decode được thành `TeacherReport` (test bắt lỗi khi schema code và instructions lệch nhau).
+- [ ] **Bước 2:** FAIL. **Bước 3:** Implement.
+  - **Màn hình cài đặt một lần** "Kết nối thầy AI", hướng dẫn từng bước kèm nút copy:
+    1. Tạo Notion integration và dán token (lưu Keychain).
+    2. Tạo trang DrumCoach, share trang đó cho integration, dán link trang. App tự tạo 2 trang con Hộp thư và Kế hoạch.
+    3. Trên claude.ai tạo Project "Thầy dạy trống", dán `projectInstructions`, bật connector Notion và web search.
+  - Chạy được cả khi không có mạng: báo cáo chờ gửi lại sau.
+- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: Claude Pro bridge via Notion (send digest, sync and apply plan)`.
+
+**Liên quan đến Task 9, 10, 14:** `ClaudeClient` (API) trở thành **tùy chọn**, chỉ dùng khi người dùng nhập API key trong Settings; khi đó "Gửi cho thầy" chạy tự động hoàn toàn. Không có key thì: đọc PDF làm qua Project (gửi ảnh trang, Claude ghi bài DSL vào trang `DrumCoach › Bài tập mới`, app Sync về), đánh giá Task 10 dùng `localFallback`, còn chat với thầy làm ngay trong Project trên claude.ai (Task 15 bỏ TeacherChatView khi không có key).
+
+### Task 14: Giáo viên AI – báo cáo tuần, kế hoạch, tài liệu gợi ý
+
+**Files:** Create `DrumAI/TeacherReport.swift`, `DrumAI/StudentProfile.swift`, `DrumAI/ResourceValidator.swift`, `App/.../Teacher/TeacherView.swift`, `App/Models/StoredReport.swift`; Test `TeacherReportTests.swift`, `ResourceValidatorTests.swift`
+
+**Interfaces – Produces:**
+```swift
+public struct StudentProfile: Codable, Sendable, Equatable {
+  public var goal: String = "Rockschool Grade 8"; public var instruments: [String] = ["pad", "trống điện"]; public var minutesPerDay: Int = 30
+  public var notes: [String]               // người dùng tự ghi: "cổ tay trái yếu", "tập buổi tối"
+  public var pastAdvice: [AdviceItem]      // AdviceItem(date, text, followed: Bool?) — thầy nhớ đã dặn gì
+}
+public struct Resource: Codable, Sendable, Equatable { public let kind: String /* youtube | article | book */ ; public let title: String; public let url: URL?; public let why: String; public let searchQuery: String }
+public struct PlannedItem: Codable, Sendable, Equatable { public let exerciseId: String?; public let newExerciseDSL: String?; public let bpm: Int; public let minutes: Int; public let focus: String }
+public struct DayPlan: Codable, Sendable, Equatable { public let day: Int /* 1...7 */; public let warmup: [PlannedItem]; public let main: [PlannedItem]; public let fun: [PlannedItem] }
+public struct TeacherReport: Codable, Sendable, Equatable {
+  public let summary: String; public let progress: [String]; public let fixFirst: [String] /* tối đa 3 điều cần sửa, xếp theo ưu tiên */
+  public let likelyCauses: [String]; public let weekPlan: [DayPlan]; public let resources: [Resource]; public let nextCheckpoint: String
+}
+public enum Teacher {
+  public static func weeklyReport(digest: HistoryDigest, profile: StudentProfile, library: [String: String] /* id → tên + skill */, client: ClaudeClient) async throws(ClaudeError) -> TeacherReport
+}
+public struct ResourceValidator: Sendable {
+  public init(transport: HTTPTransport)
+  /// YouTube: gọi https://www.youtube.com/oembed?url=<url>&format=json; 200 = video có thật, khác 200 thì thay url bằng link tìm kiếm youtube.com/results?search_query=<searchQuery>.
+  /// Link khác: HEAD request, 2xx/3xx thì giữ, không thì thay bằng link tìm kiếm Google.
+  public func validate(_ r: [Resource]) async -> [Resource]
+}
+```
+- [ ] **Bước 1: Test** (fake transport):
+  - Report JSON hợp lệ → decode đúng.
+  - `newExerciseDSL` mà parse lỗi thì bị loại khỏi plan; `exerciseId` không có trong thư viện cũng bị loại.
+  - oEmbed 404 → url thành link tìm kiếm chứa `searchQuery` đã encode; oEmbed 200 → giữ nguyên.
+  - Request gửi Claude có digest, profile, danh sách id thư viện, và tool `web_search` được bật.
+  - Mất mạng → báo lỗi, report cũ vẫn còn.
+- [ ] **Bước 2:** FAIL. **Bước 3:** Implement.
+  - **Gọi Claude:** dùng `claude-opus-5-5` với effort `high`, bật `web_search_20260209` (`max_uses: 5`) để tìm video và tài liệu có thật. Gọi bằng streaming vì báo cáo dài.
+  - **System prompt:** Claude đóng vai giáo viên trống kèm 1-1, nói tiếng Việt, cụ thể và nhẹ nhàng. Phải dựa trên số liệu, phải nhắc lại lời khuyên cũ và đánh giá người dùng đã làm theo chưa. Không quá 3 điều cần sửa mỗi tuần. Ưu tiên bài trong thư viện; thiếu thì viết bài mới bằng DSL. Tài liệu ưu tiên kênh uy tín và phải có `searchQuery`.
+  - **Màn hình "Thầy AI":**
+    - Báo cáo mới nhất: tóm tắt, tiến bộ, 3 điều cần sửa, kế hoạch 7 ngày, danh sách video/tài liệu. Video YouTube mở trong sheet bằng `SFSafariViewController`.
+    - Lịch sử các báo cáo trước.
+    - Nút "Nhờ thầy xem lại" (tạo báo cáo ngay, không đợi tới Chủ nhật).
+    - Sửa hồ sơ học viên.
+    - Nhắc vào Chủ nhật: "Đã đến buổi gặp thầy hằng tuần".
+  - Mỗi lời khuyên `fixFirst` được thêm vào `pastAdvice`. Báo cáo tuần sau đánh giá `followed` dựa trên lịch sử tập.
+  - Hiện ước tính chi phí token trước khi gửi.
+- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: AI teacher weekly report with plan and validated resources`.
+
+### Task 15: "Hôm nay tập gì" + hỏi thầy + thư viện 40 rudiment
+
+**Files:** Create `DrumLibrary/PASRudiments.swift`, `DrumLibrary/SessionRunner.swift`, `DrumAI/TeacherChat.swift`, `App/.../Today/TodayView.swift`, `App/.../Teacher/TeacherChatView.swift`; Test `SessionRunnerTests.swift`, `PASRudimentsTests.swift`, `TeacherChatTests.swift`
+
+**Interfaces – Produces:**
+```swift
+public enum PASRudiments { public static let all: [Exercise] }   // 40 rudiment chuẩn PAS do app tự viết bằng DSL (tên và sticking là kiến thức chung)
+public struct SessionRunner: Sendable {
+  public init(plan: DayPlan)
+  public var current: PlannedItem? { get }; public var remaining: TimeInterval { get }
+  public mutating func tick(_ dt: TimeInterval) -> Bool          // true = chuyển sang phần tiếp theo
+  public mutating func skip(); public var completedMinutes: Double { get }
+}
+public struct TeacherChat: Sendable {
+  public init(client: ClaudeClient, digest: HistoryDigest, profile: StudentProfile, lastReport: TeacherReport?)
+  public mutating func ask(_ question: String) async throws(ClaudeError) -> String   // giữ hội thoại; có thể dùng web search
+}
+```
+- [ ] **Bước 1: Test:**
+  - `PASRudiments.all.count == 40`, mọi bài parse được và có sticking.
+  - SessionRunner: plan 5 + 10 + 10 phút → `tick` qua đúng các mốc 300 s và 900 s; `skip` nhảy sang phần sau; `completedMinutes` đúng.
+  - TeacherChat: request thứ hai chứa cả câu hỏi và câu trả lời của lượt trước; lịch sử chat bị cắt khi quá 20 lượt.
+- [ ] **Bước 2:** FAIL. **Bước 3:** Implement.
+  - **TodayView là màn hình chính của app:** lấy DayPlan của hôm nay từ báo cáo mới nhất (chưa có báo cáo thì dùng plan mặc định theo level), bấm "Bắt đầu buổi tập" để chạy lần lượt Khởi động → Bài chính → Bài vui, mỗi phần mở PracticeView với tempo đã đặt sẵn.
+  - Hết buổi hiện tổng kết và ô nhật ký.
+  - **Nhắc tập hằng ngày:** local notification (`UNUserNotificationCenter`) vào giờ người dùng chọn, nội dung lấy từ DayPlan của hôm nay ("Hôm nay: Stick Control #5–8, Paradiddle 70 BPM — 30 phút"). Hôm đã tập xong thì không nhắc. Test: `ReminderScheduler.content(for: DayPlan?) -> (title, body)`; không có plan thì dùng câu mặc định.
+  - **TeacherChatView:** hỏi đáp tự do ("tại sao tôi hay trễ ở &?"). Thầy thấy được lịch sử và báo cáo gần nhất.
+- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: today's structured session, teacher chat and PAS rudiments`.
+
+### Task 16: Sách Rockschool → Grade test, Ear Test, GMQ, Bài học nền tảng, MIDI learn
+
+**Files:** Create `DrumLibrary/GradeSyllabus.swift`, `DrumLibrary/PrivateLibraryLoader.swift`, `DrumLibrary/EarTest.swift`, `DrumLibrary/GMQuiz.swift`, `DrumAudio/DrumSynth.swift`, `DrumAudio/MIDILearn.swift`, `App/.../Lessons/LessonsView.swift`, `PrivateLibrary/README.md` (chỉ README được commit); Test `GradeSyllabusTests.swift`, `EarTestTests.swift`, `GMQuizTests.swift`, `MIDILearnTests.swift`
+
+**Interfaces – Produces:**
+```swift
+public struct GradeSyllabus: Codable, Sendable { public let grade: Int; public let techGroups: [LevelTestItem]; public let fills: [LevelTestItem]; public let sightReadingBpm: Int; public let source: String /* "book" | "generated" */ }
+public enum PrivateLibraryLoader { public static func load(from dir: URL) throws -> [GradeSyllabus]  // đọc PrivateLibrary/grade-N.json; thiếu file thì fallback LevelCatalog
+                                    public static func missingGrades(available: [Int], current: Int) -> [Int] }
+public enum EarTestKind: String, Codable, Sendable { case fillPlayback, grooveRecall }
+public struct EarTest: Sendable { public init(kind: EarTestKind, grade: Int, seed: UInt64)
+  public let prompt: Exercise; public let choices: [Exercise] /* fillPlayback: 2 lựa chọn */ ; public let bpm: Double
+  public func score(played: SessionStats, chosenIndex: Int?) -> Double }
+public struct GMQuestion: Codable, Sendable { public let text: String; public let options: [String]; public let answer: Int; public let grade: Int }
+public enum GMQuiz { public static func questions(grade: Int, seed: UInt64) -> [GMQuestion] }   // G1: bộ phận trống trên khuông, số chỉ nhịp, nốt đen và móc đơn, dấu lặng, tên các bộ phận
+public struct MIDILearn: Sendable { public init(); public mutating func expect(_ v: Voice); public mutating func received(note: UInt8) -> Voice?; public var map: [UInt8: Voice] { get } }
+```
+- [ ] **Bước 1: Test:**
+  - Thư mục PrivateLibrary rỗng → loader trả về rỗng và app dùng `LevelCatalog`; `grade-1.json` hợp lệ → tech groups ở ♩=70.
+  - `missingGrades(available: [1,2,3,4], current: 4) == [5]`; `missingGrades(available: [1,2,3,4,5], current: 5) == [6,7,8]`.
+  - `EarTest(.grooveRecall)` sinh groove 2 ô nhịp với HH/SN/BD, cùng seed thì ra cùng kết quả.
+  - `fillPlayback` đánh đúng nhịp và chọn đúng đáp án → điểm 100; chọn sai → trừ điểm nhận biết.
+  - Mọi câu GMQ có `answer` nằm trong khoảng của `options`.
+  - MIDILearn: expect(.snare) rồi received(38) → map[38] == .snare; sau đó received(38) thì trả về .snare.
+- [ ] **Bước 2:** FAIL. **Bước 3:** Implement.
+  - **Chuyển sách sang dữ liệu:** dùng Claude (qua Project/Notion, Task 13B, hoặc API) đọc trang Technical Exercises của từng grade rồi ghi ra `PrivateLibrary/grade-N.json`. Người dùng xem trước trên khuông nhạc rồi xác nhận.
+  - **Ear Test:** `DrumSynth` phát mẫu bằng âm trống tổng hợp, có count-in 1 ô nhịp; người dùng đánh lại; chấm bằng HitMatcher.
+  - **GMQ:** dạng quiz trắc nghiệm.
+  - **LessonsView:** 8 bài từ `docs/giao-trinh.html`, mỗi bài có checklist tự kiểm tra và nút "Tập ngay" mở bài tập tương ứng. Ví dụ bài 3 mở bài chỉ-tay-phải / chỉ-tay-trái ở 50 BPM.
+  - **MIDI learn cho TD-4K:** nằm trong Settings, hướng dẫn đánh lần lượt từng pad.
+  - **Thông báo khi đạt grade mà thiếu sách grade sau:** dùng `missingGrades`.
+- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: Rockschool grade syllabus, ear tests, GMQ quiz, lessons and MIDI learn`.
+
+### Task 17: Tự soi tư thế bằng camera
+
+**Files:** Create `App/.../Practice/PostureCameraView.swift`, `App/Services/PracticeRecorder.swift`, `DrumAI/PostureCheck.swift`; Test `PostureCheckTests.swift`
+
+**Interfaces – Produces:**
+```swift
+public struct PostureCheck: Sendable {
+  public static let checklist: [String]   // lấy từ giao-trinh.html bài 1–3: điểm tựa ~1/3, lực nắm nhẹ, mu bàn tay ~45°, hình chữ V, vai thả lỏng, cẳng tay song song pad…
+  public static func pickFrames(count: Int, duration: TimeInterval, avoidFirst: TimeInterval) -> [TimeInterval]  // chọn khung hình rải đều, bỏ đoạn count-in
+  public static func notionPayload(frames: [Data], date: Date, exercise: String) -> (title: String, prompt: String)
+}
+```
+- [ ] **Bước 1: Test:** `pickFrames(count: 4, duration: 60, avoidFirst: 4)` cho ra 4 mốc tăng dần, mốc nào cũng ≥ 4 và < 60; với `duration` nhỏ hơn `avoidFirst` thì trả về rỗng; `checklist` có ít nhất 8 mục.
+- [ ] **Bước 2:** FAIL. **Bước 3:** Implement.
+  - Nút 📷 trong PracticeView bật camera trước (`AVCaptureSession`). Có cửa sổ xem trước nhỏ (picture-in-picture) để tự nhìn mình trong lúc tập.
+  - Bật thêm "Ghi lại" thì lưu video (`AVCaptureMovieFileOutput`) kèm buổi tập.
+  - Xem lại: video đặt cạnh **ảnh/hình minh họa mẫu** và checklist; người dùng tự tick từng mục.
+  - Nút **"Nhờ thầy xem tư thế":** cắt 4 khung hình rồi gửi lên Notion `DrumCoach › Hộp thư` (Task 13B), kèm checklist và lời nhắn, để Claude trong Project nhận xét cách cầm dùi và tư thế.
+  - Video chỉ lưu trên máy; tự xóa sau 30 ngày, trừ video được đánh dấu ⭐.
+  - Thêm `NSCameraUsageDescription`.
+- [ ] **Bước 4:** PASS. **Bước 5:** Commit `feat: posture self-check camera with AI feedback via Notion`.
+
+---
+
+## Mốc 9 (tùy chọn): Play-along
 
 ### Task 12: Chơi theo backing track
 
@@ -639,7 +943,7 @@ public struct ProgressSummary: Sendable { public init(sessions: [(date: Date, ex
 
 ## Thứ tự và kiểm tra cuối
 
-Thứ tự làm: Task 1 → 2 → 3 → 4 → 5 → 6 → 7 → 7A. Đến đây đã có app dùng được hằng ngày: metronome, giọng đếm mượt, khuông nhạc chạy, đo sớm/trễ, luyện đếm. Sau đó làm 8 → 9 → 10 → 10A → 11 → 12.
+Thứ tự làm: Task 1 → 2 → 3 → 4 → 5 → 6 → 7 → 7A. Đến đây đã có app dùng được hằng ngày: metronome, giọng đếm mượt, khuông nhạc chạy, đo sớm/trễ, luyện đếm. Sau đó làm 8 → 9 → 10 → 10A → 13 → 13B → 14 → 15 → 16 → 17 → 11 → 12. Ở Task 14, phần `TeacherReport`, `StudentProfile` và `ResourceValidator` dùng chung cho cả hai đường (Notion và API). Chỉ hàm `Teacher.weeklyReport` là thuộc đường API. Giáo viên AI (13–15) được làm trước biểu đồ tiến độ (11), vì người dùng không có giáo viên thật.
 
 **Stick Control trong app:** generator ở Task 8 sinh các tổ hợp sticking cùng kiểu. Bài trong sách thật thì người dùng nhập qua PDF (Task 9). Mỗi bài mặc định lặp 20 lần liên tục rồi mới chuyển bài, tempo ramp 50 → 90.
 

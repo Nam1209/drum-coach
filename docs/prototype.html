@@ -1,0 +1,1261 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DrumCoach Prototype</title>
+<style>
+:root {
+  --shell: #DA5236; --shell-soft: rgba(218,82,54,.12); --ink: #585858;
+  --on: #1F9D55; --off: #D99100; --miss: #B3192F;
+  --canvas: #F2F2F7; --stage: #FFFFFF; --text: #000000; --sec: rgba(60,60,67,.62); --ter: rgba(60,60,67,.3);
+  --hair: rgba(0,0,0,.08); --side: #F7F7FA; --inv: #FFFFFF;
+  --round: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --canvas: #000000; --stage: #1C1C1E; --text: #FFFFFF; --sec: rgba(235,235,245,.6); --ter: rgba(235,235,245,.3);
+    --hair: rgba(255,255,255,.1); --side: #121214; --inv: #000000; --shell: #F06A4C; --shell-soft: rgba(240,106,76,.18); --ink: #D1D1D6; --on: #30C46E; --off: #F2B233; --miss: #F0505F;
+  }
+}
+:root[data-theme="dark"] {
+  --canvas: #000000; --stage: #1C1C1E; --text: #FFFFFF; --sec: rgba(235,235,245,.6); --ter: rgba(235,235,245,.3);
+  --hair: rgba(255,255,255,.1); --side: #121214; --inv: #000000; --shell: #F06A4C; --shell-soft: rgba(240,106,76,.18); --ink: #D1D1D6; --on: #30C46E; --off: #F2B233; --miss: #F0505F;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { background: var(--canvas); color: var(--text); font: 17px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+#pager button { font-size: 22px; padding: 0 6px; } #pager button:disabled { opacity: .3; cursor: default; }
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--shell); outline-offset: 2px; border-radius: 10px; }
+.num { font-family: var(--round); font-variant-numeric: tabular-nums; font-weight: 600; }
+.sec { color: var(--sec); } .foot { font-size: 13px; } .callout { font-size: 15px; }
+
+/* Shell layout */
+.app { display: grid; grid-template-columns: 280px 1fr; height: 100vh; }
+.side { background: var(--side); border-right: 1px solid var(--hair); padding: 18px 12px; overflow-y: auto; }
+.side h1 { font-size: 28px; font-weight: 700; padding: 6px 12px 14px; }
+.side .group { font-size: 13px; color: var(--sec); padding: 16px 12px 6px; font-weight: 600; }
+.nav { display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 12px; border-radius: 10px; text-align: left; }
+.nav svg { width: 22px; height: 22px; stroke: var(--shell); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.nav.on { background: var(--shell); color: #fff; } .nav.on svg { stroke: #fff; }
+.main { overflow-y: auto; }
+.page { display: none; padding: 28px; max-width: 1180px; flex-direction: column; gap: 22px; }
+.page.on { display: flex; }
+.mobilebar { display: none; }
+
+/* Components */
+.header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.header h2 { font-size: 34px; font-weight: 700; letter-spacing: -.01em; }
+.stage { background: var(--stage); border-radius: 22px; padding: 20px; }
+.readout .v { font-family: var(--round); font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.spacer { flex: 1; }
+.icon-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--stage); display: inline-grid; place-items: center; }
+.icon-btn svg { width: 20px; height: 20px; stroke: var(--shell); fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.btn { padding: 8px 16px; border-radius: 12px; background: var(--shell-soft); color: var(--shell); font-weight: 600; font-size: 15px; }
+.btn.primary { background: var(--shell); color: #fff; }
+.btn:disabled { opacity: .4; cursor: default; }
+.link { color: var(--shell); font-weight: 500; }
+.play { width: 76px; height: 76px; border-radius: 50%; background: var(--shell); position: relative; display: grid; place-items: center; flex: none; }
+.play svg { width: 28px; height: 28px; fill: #fff; margin-left: 4px; }
+.play.playing { background: var(--text); }
+.play.playing svg { fill: var(--inv); margin-left: 0; }
+.play .ring { position: absolute; inset: 0; border-radius: 50%; border: 4px solid var(--shell); opacity: 0; pointer-events: none; }
+.play.playing .ring { animation: pulse var(--beat, .857s) ease-out infinite; }
+@keyframes pulse { from { transform: scale(1.18); opacity: .9; } to { transform: scale(1); opacity: 0; } }
+.tempo { display: flex; align-items: center; gap: 14px; }
+.tempo .step { width: 46px; height: 46px; border-radius: 50%; background: var(--hair); font-size: 24px; font-weight: 600; }
+.tempo .val { text-align: center; min-width: 112px; }
+.round-step { width: 56px; height: 56px; border-radius: 50%; background: var(--hair); display: grid; place-items: center; font-family: var(--round); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.round-step:active { background: var(--shell-soft); }
+.tempo .val .num { font-size: 56px; font-weight: 700; line-height: 1; display: block; }
+.pill { background: var(--stage); border-radius: 12px; padding: 7px 12px; text-align: left; position: relative; }
+.pill small { display: block; font-size: 12px; color: var(--sec); }
+.pill.on { box-shadow: inset 0 0 0 2px var(--shell); }
+.seg { display: inline-flex; background: var(--hair); border-radius: 9px; padding: 2px; }
+.seg button { padding: 5px 14px; border-radius: 7px; font-size: 14px; font-weight: 500; }
+.seg button.on { background: var(--stage); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.list { background: var(--stage); border-radius: 16px; overflow: hidden; }
+.list .item { display: flex; align-items: center; gap: 16px; padding: 14px 18px; width: 100%; text-align: left; border-bottom: 1px solid var(--hair); }
+.list .item:last-child { border-bottom: 0; }
+.list .item .chev { color: var(--ter); font-weight: 700; }
+.section-title { display: flex; justify-content: space-between; align-items: baseline; font-size: 20px; font-weight: 600; margin-bottom: 10px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.menu { position: absolute; top: 46px; right: 0; background: var(--stage); border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,.18); min-width: 260px; z-index: 20; display: none; overflow: hidden; }
+.menu.open { display: block; }
+.menu button { display: block; width: 100%; text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--hair); font-size: 15px; }
+.menu button:last-child { border-bottom: 0; }
+.toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: var(--inv); padding: 12px 20px; border-radius: 14px; font-size: 15px; opacity: 0; transition: .25s; pointer-events: none; z-index: 50; max-width: calc(100% - 32px); }
+.toast.show { opacity: 1; transform: translateX(-50%); }
+.sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; z-index: 40; align-items: center; justify-content: center; padding: 16px; }
+.sheet-bg.open { display: flex; }
+.sheet { background: var(--canvas); border-radius: 22px; width: min(760px, 100%); max-height: 92vh; overflow-y: auto; }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; position: sticky; top: 0; background: var(--canvas); border-bottom: 1px solid var(--hair); z-index: 2; }
+.sheet-body { padding: 22px; display: flex; flex-direction: column; gap: 20px; }
+.form .r { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--hair); gap: 12px; }
+.form .r:last-child { border-bottom: 0; }
+.form-foot { font-size: 13px; color: var(--sec); padding: 6px 18px 0; }
+.form-head { font-size: 13px; color: var(--sec); padding: 0 18px 6px; }
+.switch { width: 51px; height: 31px; border-radius: 16px; background: var(--hair); position: relative; flex: none; transition: .2s; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.2); transition: .2s; }
+.switch.on { background: var(--on); } .switch.on::after { left: 22px; }
+select { font: inherit; color: var(--shell); background: none; border: 0; text-align: right; }
+.bar { height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--shell); border-radius: 3px; }
+.tag { font-size: 12px; padding: 2px 8px; border-radius: 6px; background: var(--hair); color: var(--sec); }
+.tag.good { background: rgba(34,163,90,.14); color: var(--on); }
+
+/* Practice */
+.notation { width: 100%; height: auto; display: block; }
+.lanes { width: 100%; height: 112px; display: block; }
+.timing-strip { display: flex; gap: 3px; align-items: center; height: 26px; width: 220px; justify-content: flex-end; }
+.timing-strip i { width: 9px; border-radius: 3px; }
+.pads { display: none; gap: 16px; }
+.pads.on { display: flex; }
+.pad { flex: 1; min-height: 150px; border-radius: 24px; background: var(--stage); font-family: var(--round); font-size: 40px; font-weight: 600; color: var(--sec); transition: transform .06s; }
+.pad.r { color: var(--ink); }
+.pad:active { transform: scale(.98); background: var(--shell-soft); }
+.auto { display: none; } .auto.on { display: block; }
+
+/* Metronome */
+.bigbpm { font-family: var(--round); font-size: 150px; font-weight: 700; line-height: .95; font-variant-numeric: tabular-nums; }
+.dots { display: flex; gap: 14px; }
+.dots i { width: 22px; height: 22px; border-radius: 50%; background: var(--hair); transition: background .05s; }
+.dots i.hit { background: var(--shell); }
+.dots i.hit.one { background: var(--text); }
+.grid5 { display: grid; gap: 8px; }
+.grid5 .col { display: flex; flex-direction: column-reverse; gap: 4px; align-items: center; }
+.grid5 .cell { width: 100%; height: 22px; border-radius: 5px; background: var(--hair); }
+.grid5 .cell.lit { background: var(--shell); }
+.grid5 .cell.lit.l5 { background: var(--text); }
+.grid5 .lbl { font-family: var(--round); font-size: 13px; color: var(--sec); margin-top: 6px; }
+
+/* Count coach */
+.syll { display: flex; gap: 10px; align-items: flex-end; }
+.syll div { flex: 1; text-align: center; }
+.syll b { display: block; font-family: var(--round); font-size: 34px; font-weight: 600; color: var(--ter); transition: color .05s; }
+.syll b.now { color: var(--shell); }
+.syll span { display: block; height: 6px; border-radius: 3px; margin-top: 8px; background: var(--hair); }
+
+/* Dictation */
+.dict-row { display: flex; gap: 6px; align-items: center; }
+.dcell { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 0; }
+.dcell i { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--ter); }
+.dcell.on i { background: var(--shell); border-color: var(--shell); }
+.dcell em { font-style: normal; font-family: var(--round); font-size: 14px; color: var(--sec); }
+.verdict { width: 36px; text-align: center; font-size: 22px; font-weight: 700; }
+
+/* Levels */
+.levels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.lvl { background: var(--stage); border-radius: 18px; padding: 16px; text-align: left; display: flex; flex-direction: column; gap: 8px; }
+.lvl .num { font-size: 34px; }
+.lvl.done .num { color: var(--on); }
+.lvl.cur { box-shadow: inset 0 0 0 2px var(--shell); }
+.lvl.lock { opacity: .5; }
+
+/* Teacher */
+.chat { display: flex; flex-direction: column; gap: 10px; }
+.bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; font-size: 15px; }
+.bubble.me { align-self: flex-end; background: var(--shell); color: #fff; border-bottom-right-radius: 6px; }
+.bubble.ai { align-self: flex-start; background: var(--stage); border-bottom-left-radius: 6px; }
+.chat-in { display: flex; gap: 10px; }
+.chat-in input { flex: 1; font: inherit; padding: 10px 14px; border-radius: 14px; border: 0; background: var(--stage); color: var(--text); }
+.yt { display: flex; gap: 14px; align-items: center; }
+.yt .thumb { width: 96px; height: 54px; border-radius: 8px; background: linear-gradient(135deg, #1b1b1f, #3a3a44); display: grid; place-items: center; flex: none; }
+.yt .thumb::after { content: ""; border-left: 14px solid #fff; border-top: 9px solid transparent; border-bottom: 9px solid transparent; margin-left: 4px; }
+.timeline { position: relative; padding-left: 26px; display: flex; flex-direction: column; gap: 18px; }
+.timeline::before { content: ""; position: absolute; left: 7px; top: 6px; bottom: 6px; width: 2px; background: var(--hair); }
+.timeline .t { position: relative; }
+.timeline .t::before { content: ""; position: absolute; left: -24px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: var(--stage); border: 2px solid var(--shell); }
+.timeline .t.done::before { background: var(--shell); }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; height: auto; }
+  .side { display: none; }
+  .side.open { display: block; position: fixed; inset: 0; z-index: 60; }
+  .mobilebar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; position: sticky; top: 0; background: var(--canvas); z-index: 10; border-bottom: 1px solid var(--hair); }
+  .page { padding: 18px 16px; }
+  .cols { grid-template-columns: 1fr; }
+  .levels { grid-template-columns: repeat(2, 1fr); }
+  .bigbpm { font-size: 96px; }
+  .header h2 { font-size: 28px; }
+  .timing-strip { width: 160px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .play.playing .ring { animation: none; opacity: .6; }
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side" id="side">
+    <h1>DrumCoach</h1>
+    <button class="nav" data-go="today"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Hôm nay</button>
+    <div class="group">Luyện tập</div>
+    <button class="nav" data-go="practice"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>Tập</button>
+    <button class="nav" data-go="metronome"><svg viewBox="0 0 24 24"><path d="M9 3h6l4 18H5z"/><path d="M12 15l5-8"/></svg>Máy nhịp</button>
+    <button class="nav" data-go="counting"><svg viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"/></svg>Đếm nhịp</button>
+    <div class="group">Học</div>
+    <button class="nav" data-go="lessons"><svg viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/></svg>Bài học</button>
+    <button class="nav" data-go="library"><svg viewBox="0 0 24 24"><path d="M4 4h4v16H4zM10 4h4v16h-4z"/><path d="M16 5l3.8-1 3 15.5-3.8 1z"/></svg>Thư viện</button>
+    <button class="nav" data-go="levels"><svg viewBox="0 0 24 24"><path d="M4 20V14M10 20V9M16 20V5M2 20h20"/></svg>Cấp độ</button>
+    <div class="group">Đồng hành</div>
+    <button class="nav" data-go="teacher"><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7"/><path d="M18 7c2 1 2 5 0 6M20.5 5c3.5 2 3.5 8 0 10"/></svg>Thầy AI</button>
+    <button class="nav" data-go="progress"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Tiến độ</button>
+    <div class="group"></div>
+    <button class="nav" data-go="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>Cài đặt</button>
+  </aside>
+
+  <main class="main" id="main">
+    <div class="mobilebar"><button class="icon-btn" id="menuBtn" aria-label="Mở menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><b id="mobileTitle">Hôm nay</b></div>
+
+    <!-- HÔM NAY -->
+    <section class="page" id="today">
+      <div class="header"><div><h2>Hôm nay</h2><div class="sec">Thứ Tư, 21 tháng 10</div></div></div>
+      <div class="row" style="align-items:flex-end;gap:40px">
+        <div class="readout"><div class="v" style="font-size:64px">25</div><div class="foot sec">phút tập hôm nay</div></div>
+        <div class="readout"><div class="v" style="font-size:40px">6</div><div class="foot sec">ngày liên tiếp</div></div>
+        <div class="readout"><div class="v" style="font-size:40px">2</div><div class="foot sec">cấp độ hiện tại</div></div>
+        <button class="readout" data-go="progress" style="text-align:left"><div class="v" id="todayRank" style="font-size:40px;color:var(--shell)">3</div><div class="foot sec" id="todayRankTitle">hạng: Tay đều</div></button>
+        <div class="spacer"></div>
+        <div class="row" id="sessionCtl">
+          <div id="sessionInfo" style="text-align:right;display:none"><div class="num" id="sessionClock" style="font-size:44px">5:00</div><div class="foot sec" id="sessionSeg">Khởi động</div></div>
+          <button class="btn" id="sessionSkip" style="display:none">Bỏ qua</button>
+          <b id="sessionLabel">Bắt đầu buổi tập</b>
+          <button class="play" id="sessionPlay" style="width:64px;height:64px" aria-label="Bắt đầu buổi tập"><span class="ring"></span><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></button>
+        </div>
+      </div>
+      <div class="callout sec">Theo kế hoạch tuần 3 của thầy, ngày 4</div>
+      <div><div class="section-title" data-seg="0"><span>Khởi động</span><span class="num sec" style="font-size:15px">5 phút</span></div>
+        <div class="list"><button class="item" data-go="practice" data-ex="Single Strokes"><div style="flex:1"><div>Single Strokes (móc đơn)</div><div class="foot sec">Thả lỏng cổ tay, dùi bật tự nhiên</div></div><span class="num" style="font-size:20px">60</span><span class="foot sec">BPM</span><span class="chev">›</span></button></div></div>
+      <div><div class="section-title" data-seg="1"><span>Bài chính</span><span class="num sec" style="font-size:15px">15 phút</span></div>
+        <div class="list">
+          <button class="item" data-go="practice" data-ex="Paradiddle"><div style="flex:1"><div>Paradiddle RLRR LRLL</div><div class="foot sec">Accent rõ ở nốt đầu mỗi nhóm</div></div><span class="num" style="font-size:20px">72</span><span class="foot sec">BPM</span><span class="chev">›</span></button>
+          <button class="item" data-go="practice" data-ex="Grade 2 Groove"><div style="flex:1"><div>Grade 2: Rock groove 8 nốt</div><div class="foot sec">Kick ở 1 và 3&amp;, giữ hi-hat đều</div></div><span class="num" style="font-size:20px">78</span><span class="foot sec">BPM</span><span class="chev">›</span></button>
+        </div></div>
+      <div><div class="section-title" data-seg="2"><span>Bài vui</span><span class="num sec" style="font-size:15px">5 phút</span></div>
+        <div class="list"><button class="item" data-go="practice" data-ex="Shuffle"><div style="flex:1"><div>Shuffle blues</div><div class="foot sec">Bật swing 67% trong máy nhịp</div></div><span class="num" style="font-size:20px">80</span><span class="foot sec">BPM</span><span class="chev">›</span></button></div></div>
+    </section>
+
+    <!-- TẬP -->
+    <section class="page" id="practice">
+      <div class="header">
+        <div><h2 id="exTitle">Single Strokes (móc đơn)</h2><div class="sec" id="exSub">4/4, 1 ô nhịp</div></div>
+        <div class="row" style="gap:6px;position:relative">
+          <button class="icon-btn" title="Nghe mẫu" id="listenBtn" aria-label="Nghe mẫu"><svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14"/></svg></button>
+          <button class="icon-btn" title="Soi tư thế" data-toast="Bật camera trước: app vẽ khung tư thế và nhắc góc khuỷu tay." aria-label="Soi tư thế"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+          <button class="icon-btn" title="Hiệu chỉnh độ trễ" data-go="settings" aria-label="Hiệu chỉnh độ trễ"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 010 8.4M7.8 16.2a6 6 0 010-8.4M19 5a10 10 0 010 14M5 19A10 10 0 015 5"/></svg></button>
+          <button class="icon-btn" title="Âm thanh máy nhịp" data-sheet="soundSheet" aria-label="Âm thanh máy nhịp"><svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button>
+          <button class="icon-btn" title="Xuất bài" id="exportBtn" aria-label="Xuất bài"><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg></button>
+          <div class="menu" id="exportMenu">
+            <button data-toast="Mở bài trong GrooveScribe (mikeslessons.com)">Mở trong GrooveScribe</button>
+            <button data-toast="Đã sao chép link GrooveScribe">Chia sẻ link GrooveScribe</button>
+            <button data-toast="Đang tạo PDF bản nhạc để in…">In bản nhạc (PDF)</button>
+          </div>
+        </div>
+      </div>
+      <div class="callout sec" id="practiceNote" style="display:none"></div>
+      <div class="stage">
+        <svg class="notation" id="notation" viewBox="0 0 1000 180" role="img" aria-label="Bản nhạc"></svg>
+        <div class="row" id="pager" style="display:none;justify-content:flex-end;gap:14px"><span class="num sec foot" id="pageLabel">Trang 1/2</span><button class="link" id="pagePrev" aria-label="Trang trước">‹</button><button class="link" id="pageNext" aria-label="Trang sau">›</button></div>
+        <div style="height:1px;background:var(--hair);margin:10px 0 12px"></div>
+        <svg class="lanes" id="lanes" viewBox="0 0 1000 112" preserveAspectRatio="none" role="img" aria-label="Làn tay phải và trái"></svg>
+      </div>
+      <div class="row" style="gap:28px">
+        <div class="tempo" id="pTempo"><button class="step" data-d="-1" aria-label="Giảm tempo">−</button><div class="val"><span class="num" data-bpm>70</span><span class="foot sec">BPM</span></div><button class="step" data-d="1" aria-label="Tăng tempo">+</button></div>
+        <button class="link callout" id="tapTempo">Gõ</button>
+        <div class="spacer"></div>
+        <button class="play" id="practicePlay" aria-label="Bắt đầu"><span class="ring"></span><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></button>
+        <div class="spacer"></div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+          <div class="readout" style="text-align:right"><div class="v" id="liveScore" style="font-size:44px">–</div><div class="foot sec">Điểm</div></div>
+          <div class="timing-strip" id="strip" aria-label="Độ lệch các nốt gần nhất"></div>
+        </div>
+      </div>
+      <div class="pads" id="pads"><button class="pad" data-hand="L">L</button><button class="pad r" data-hand="R">R</button></div>
+      <div class="row" style="gap:10px">
+        <button class="pill" data-cycle="dur" data-opts="30 giây|1 phút|2 phút|5 phút" data-i="1"><small>Thời lượng</small><span>1 phút</span></button>
+        <button class="pill" data-cycle="mode" data-opts="Pad (micro)|Trống điện|Gõ màn hình|Chỉ xem" data-i="0"><small>Nhận tiếng</small><span>Pad (micro)</span></button>
+        <button class="pill" data-cycle="diff" data-opts="Dễ|Vừa|Khó" data-i="1"><small>Độ khó</small><span>Vừa</span></button>
+        <button class="pill" data-cycle="loop" data-opts="Cả bài|Ô 1|Ô 1–2" data-i="0"><small>Lặp</small><span>Cả bài</span></button>
+        <button class="pill" id="flip"><small>Tay</small><span>Bắt đầu tay phải</span></button>
+        <div class="spacer"></div>
+        <button class="btn" id="autoBtn">Học tự động</button>
+        <div class="seg" id="dispSeg"><button class="on">Trang</button><button>Cuộn</button></div>
+      </div>
+      <div class="stage auto" id="autoCard">
+        <div class="row" style="justify-content:space-between"><b>Học tự động</b><span class="sec">Bước 2/5: Giữ nhịp có click thưa</span></div>
+        <div class="bar" style="margin:12px 0"><i style="width:40%"></i></div>
+        <div class="callout sec">Tempo 70/90 BPM. Trên 90% thì tăng 5 BPM; trượt 3 lần liền thì giảm 10. Đạt tempo mục tiêu trên 90% thì sang bước sau.</div>
+      </div>
+    </section>
+
+    <!-- KẾT QUẢ -->
+    <section class="page" id="results">
+      <div class="header"><h2>Kết quả</h2><div class="row"><button class="btn" data-go="practice">Chơi lại</button><button class="btn primary" data-go="today">Xong</button></div></div>
+      <div class="row" style="align-items:flex-end;gap:32px">
+        <div class="readout"><div class="v" id="rScore" style="font-size:84px;color:var(--off)">86%</div><div class="foot sec" id="rCaption">Single Strokes, 70 BPM</div></div>
+        <div class="spacer"></div>
+        <div class="readout"><div class="v" id="rGood" style="font-size:30px;color:var(--on)">24</div><div class="foot sec">đúng</div></div>
+        <div class="readout"><div class="v" id="rOff" style="font-size:30px;color:var(--off)">6</div><div class="foot sec">sớm/muộn</div></div>
+        <div class="readout"><div class="v" id="rMiss" style="font-size:30px;color:var(--miss)">2</div><div class="foot sec">trượt</div></div>
+        <div class="readout"><div class="v" style="font-size:30px;color:var(--sec)">1</div><div class="foot sec">thừa</div></div>
+      </div>
+      <div class="stage row" style="gap:20px">
+        <div class="readout"><div class="v" id="rPoints" style="font-size:40px;color:var(--on)">+12</div><div class="foot sec">điểm lần này</div></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+          <b id="rRank">Hạng 3: Tay đều</b>
+          <div class="bar"><i id="rRankBar" style="width:40%"></i></div>
+          <div class="foot sec" id="rRankNext">352 điểm, còn 148 điểm lên hạng 4</div>
+          <div class="foot sec" id="rPenalty" style="display:none">Dưới 40% bị trừ một ít điểm. Giảm tempo 8–10 BPM rồi chơi lại để lấy lại điểm.</div>
+        </div>
+        <button class="link callout" data-sheet="pointsSheet">Cách tính điểm</button>
+      </div>
+      <div class="stage row" style="align-items:flex-start;gap:14px">
+        <svg viewBox="0 0 24 24" width="30" height="30" style="stroke:var(--shell);fill:none;stroke-width:1.8;flex:none"><path d="M3 12c3-6 6 6 9 0s6 6 9 0"/></svg>
+        <div><b>Chậm dần khoảng 14 ms mỗi phút</b><div class="sec">Bạn bắt đầu đúng rồi trễ dần. Đếm thành tiếng và để tiếng click "chìm" vào cú đánh.</div></div>
+      </div>
+      <div>
+        <div class="section-title"><span>Từng nốt trong lần chơi</span></div>
+        <div class="stage"><svg id="runChart" viewBox="0 0 900 200" style="width:100%;height:auto" role="img" aria-label="Biểu đồ lệch từng nốt"></svg></div>
+      </div>
+      <div><div class="section-title"><span>Nhận xét</span></div>
+        <p>Bạn hay đánh muộn khoảng 12 ms. Chuẩn bị dùi sớm hơn một chút.</p>
+        <p>Vị trí yếu nhất ở "&amp;": muộn 21 ms.</p>
+        <p>Tay trái lệch nhiều hơn (+18 ms).</p></div>
+      <div class="stage">
+        <div class="row" style="justify-content:space-between"><b style="font-size:22px;color:var(--off)">Khá (Merit)</b><span class="num sec">Khoảng Grade 2</span></div>
+        <div class="foot sec" style="margin:4px 0 10px">Chấm theo chuẩn Rockschool trên máy</div>
+        <div style="color:var(--on)">✓ Giữ tempo ổn định suốt 1 phút</div>
+        <div style="color:var(--off)">! Nốt "&amp;" tay trái hay trễ</div>
+        <div>→ Tập lại ở 64 BPM, đếm to "1 &amp; 2 &amp;"</div>
+        <button class="btn" style="margin-top:12px" data-toast="Đã gửi lần chơi này cho thầy AI qua Notion">Nhờ thầy AI nhận xét chi tiết</button>
+      </div>
+    </section>
+
+    <!-- MÁY NHỊP -->
+    <section class="page" id="metronome">
+      <div class="header"><h2>Máy nhịp</h2><button class="btn" data-sheet="soundSheet">Âm thanh và mẫu click</button></div>
+      <div class="stage" style="display:flex;flex-direction:column;align-items:center;gap:26px;padding:40px 20px">
+        <div class="dots" id="mDots"><i></i><i></i><i></i><i></i></div>
+        <div style="text-align:center"><div class="bigbpm" data-bpm>70</div><div class="sec" style="font-size:20px">BPM</div></div>
+        <div class="row" style="gap:24px;justify-content:center">
+          <button class="round-step" data-bpmstep="-5" aria-label="Giảm 5">−5</button>
+          <button class="round-step" data-bpmstep="-1" aria-label="Giảm 1">−</button>
+          <button class="play" id="metroPlay" style="width:92px;height:92px" aria-label="Bắt đầu máy nhịp"><span class="ring"></span><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></button>
+          <button class="round-step" data-bpmstep="1" aria-label="Tăng 1">+</button>
+          <button class="round-step" data-bpmstep="5" aria-label="Tăng 5">+5</button>
+        </div>
+        <div class="callout sec" id="mSummary">4/4, móc đơn, giọng đếm "1 &amp;", nhịp thẳng</div>
+      </div>
+      <div class="cols">
+        <div class="list form">
+          <div class="r"><span>Nhịp</span><select id="mTs"><option>4/4</option><option>3/4</option><option>6/8</option><option>7/8</option></select></div>
+          <div class="r"><span>Giọng đếm</span><select id="mVoice"><option>Tắt</option><option>1 2 3 4</option><option selected>1 &amp;</option><option>1 e &amp; a</option><option>Chùm ba</option></select></div>
+          <div class="r"><span>Swing / shuffle</span><select id="mSwing"><option>Thẳng</option><option>Nhẹ (58%)</option><option>Triplet (67%)</option><option>Shuffle mạnh (72%)</option></select></div>
+        </div>
+        <div class="list form">
+          <div class="r"><span>Accent phách 1</span><button class="switch on" aria-label="Accent phách 1"></button></div>
+          <div class="r"><span>Gap (tắt click theo ô nhịp)</span><select><option>Tắt</option><option>Chơi 2, tắt 1</option><option>Chơi 1, tắt 1</option></select></div>
+          <div class="r"><span>Beat skip</span><select><option>Tất cả</option><option>Chỉ 2 và 4</option><option>Chỉ phách 1</option></select></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ĐẾM NHỊP -->
+    <section class="page" id="counting">
+      <div class="header"><div><h2>Đếm nhịp</h2><div class="sec">Đếm to theo click. App nghe giọng bạn và đo độ đều của từng âm.</div></div></div>
+      <div class="stage" style="display:flex;flex-direction:column;gap:24px">
+        <div class="seg" id="ccMode"><button>1 2 3 4</button><button class="on">1 &amp;</button><button>1 e &amp; a</button><button>Chùm ba</button></div>
+        <div class="syll" id="syll"></div>
+        <div class="row"><button class="play" id="ccPlay" aria-label="Bắt đầu đếm"><span class="ring"></span><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></button>
+          <div class="tempo" id="ccTempo"><button class="step" data-d="-2" aria-label="Giảm tempo">−</button><div class="val"><span class="num" id="ccBpm">60</span><span class="foot sec">BPM</span></div><button class="step" data-d="2" aria-label="Tăng tempo">+</button></div>
+          <div class="readout"><div class="v" id="ccScore" style="font-size:44px">–</div><div class="foot sec">độ đều</div></div>
+          <div class="spacer"></div>
+          <div class="callout sec" style="max-width:420px" id="ccTip">Mẹo: chữ "&amp;" hay bị vội. Kéo dài "một" cho tới đúng nửa phách rồi mới nói "và".</div></div>
+      </div>
+    </section>
+
+    <!-- BÀI HỌC -->
+    <section class="page" id="lessons">
+      <div class="header"><div><h2>Bài học</h2><div class="sec">Nền tảng trước khi tăng tốc</div></div></div>
+      <div class="cols">
+        <div class="list" id="lessonList"></div>
+        <div class="stage" id="lessonBody"></div>
+      </div>
+    </section>
+
+    <!-- THƯ VIỆN -->
+    <section class="page" id="library">
+      <div class="header"><h2>Thư viện</h2><div class="row" style="gap:8px">
+        <button class="btn" id="importMidi">Nhập MIDI</button><button class="btn" data-toast="Chọn trang PDF, app đọc nốt và tạo bài mới">Nhập PDF</button><button class="btn primary" data-toast="Mở trình soạn bài (DSL: HH / SN / BD)">Soạn bài</button></div></div>
+      <div><div class="section-title"><span>Bài của tôi</span></div><div class="list" id="mine">
+        <button class="item" data-go="practice" data-ex="Grade 2 Groove"><div style="flex:1"><div>Fill 4 phách tom</div><div class="foot sec">4/4, 60–90 BPM</div></div><span class="chev">›</span></button></div></div>
+      <div><div class="section-title"><span>Khởi động</span></div><div class="list">
+        <button class="item" data-go="practice" data-ex="Single Strokes"><div style="flex:1"><div>Single Strokes (móc đơn)</div><div class="foot sec">4/4, 50–120 BPM</div></div><span class="chev">›</span></button>
+        <button class="item" data-go="practice" data-ex="Paradiddle"><div style="flex:1"><div>Paradiddle</div><div class="foot sec">4/4, 50–110 BPM</div></div><span class="chev">›</span></button>
+        <button class="item" data-go="practice" data-ex="Grade 2 Groove" data-groove="1"><div style="flex:1"><div>Rock groove 8 nốt</div><div class="foot sec">4/4, 60–100 BPM</div></div><span class="chev">›</span></button>
+        <button class="item" data-go="practice" data-ex="Long Groove" data-groove="1"><div style="flex:1"><div>Groove 8 ô có fill</div><div class="foot sec">4/4, 8 ô nhịp, fill tom ở ô 4 và ô 8</div></div><span class="chev">›</span></button>
+      </div><div class="foot sec" style="padding:6px 18px 0">Nhấn giữ một groove để tạo các bài hoán vị kick hoặc snare.</div><div class="list" style="display:none">
+      </div></div>
+      <div class="cols">
+        <div><div class="section-title"><span>40 rudiment chuẩn PAS</span></div><div class="list"><button class="item" data-go="practice" data-ex="Paradiddle"><div style="flex:1">Xem 40 rudiment</div><span class="chev">›</span></button></div></div>
+        <div><div class="section-title"><span>Kiểu Stick Control</span></div><div class="list"><button class="item" data-go="practice" data-ex="Single Strokes"><div style="flex:1"><div>Sticking 8 nốt</div><div class="foot sec">Mỗi bài lặp 20 lần không dừng</div></div><span class="chev">›</span></button><button class="item" data-go="practice" data-ex="Single Strokes"><div style="flex:1">Đọc nhạc ngẫu nhiên</div><span class="chev">›</span></button></div></div>
+      </div>
+      <div><div class="section-title"><span>Lộ trình tới Grade 8</span></div><div class="list">
+        <button class="item" data-go="practice" data-ex="Long Groove"><div style="flex:1"><div>Groove 8 nốt và 16 nốt</div><div class="foot sec">Grade 1–3</div></div><span class="chev">›</span></button>
+        <button class="item" data-go="practice" data-ex="Shuffle"><div style="flex:1"><div>Shuffle và half-time shuffle</div><div class="foot sec">Grade 4–6</div></div><span class="chev">›</span></button>
+        <button class="item" data-go="practice" data-ex="Paradiddle"><div style="flex:1"><div>Linear fills, odd time 7/8</div><div class="foot sec">Grade 7–8</div></div><span class="chev">›</span></button>
+      </div></div>
+    </section>
+
+    <!-- CẤP ĐỘ -->
+    <section class="page" id="levels">
+      <div class="header"><div><h2>Cấp độ</h2><div class="sec">Đạt một bài khi trên 90%. Đạt mọi bài thì lên cấp.</div></div></div>
+      <div class="levels" id="levelGrid"></div>
+      <div class="cols">
+        <div><div class="section-title"><span>Bài kiểm tra Grade 3</span><span class="num sec" style="font-size:15px">0/5 đạt</span></div>
+          <div class="foot sec" style="margin:-4px 0 10px">Chép từ phần Technical Exercises trong sách Rockschool Grade 3 của bạn. Nhóm A chơi được trong bản demo này.</div><div class="list"><button class="item" data-go="practice" data-ex="G3-A" data-test="1"><div style="flex:1"><div>Nhóm A: Đánh đơn: móc đơn → chùm ba → móc kép</div><div class="foot sec">75 BPM, 30 giây</div></div><span class="tag">chưa thử</span><span class="chev">›</span></button><button class="item" data-go="practice" data-ex="G3-A" data-test="1"><div style="flex:1"><div>Nhóm B: Đánh kép quanh tom</div><div class="foot sec">75 BPM, 30 giây</div></div><span class="tag">chưa thử</span><span class="chev">›</span></button><button class="item" data-go="practice" data-ex="G3-A" data-test="1"><div style="flex:1"><div>Nhóm C: Paradiddle nhấn trên tom</div><div class="foot sec">75 BPM, 30 giây</div></div><span class="tag">chưa thử</span><span class="chev">›</span></button><button class="item" data-go="practice" data-ex="G3-A" data-test="1"><div style="flex:1"><div>Nhóm D: Flam và drag</div><div class="foot sec">75 BPM, 30 giây</div></div><span class="tag">chưa thử</span><span class="chev">›</span></button><button class="item" data-go="practice" data-ex="G3-A" data-test="1"><div style="flex:1"><div>Nhóm E: Chùm ba nhấn trên tom</div><div class="foot sec">75 BPM, 30 giây</div></div><span class="tag">chưa thử</span><span class="chev">›</span></button></div></div>
+        <div><div class="section-title"><span>Kỹ năng nghe</span></div><div class="list">
+          <button class="item" data-go="dictation"><div style="flex:1"><div>Nghe chép nhịp</div><div class="foot sec">Nghe 2 ô nhịp, chạm vào ô có tiếng trống</div></div><span class="chev">›</span></button>
+          <button class="item" data-toast="Ear test: nghe 2 ô nhịp rồi đánh lại trên pad"><div style="flex:1"><div>Ear test (nghe rồi đánh lại)</div><div class="foot sec">Như phần thi Rockschool</div></div><span class="chev">›</span></button>
+          <button class="item" data-toast="10 câu hỏi kiến thức nhạc lý theo Grade 3"><div style="flex:1"><div>Câu hỏi kiến thức (GMQ)</div><div class="foot sec">Nhạc lý, tên bộ trống</div></div><span class="chev">›</span></button>
+        </div></div>
+      </div>
+    </section>
+
+    <!-- NGHE CHÉP NHỊP -->
+    <section class="page" id="dictation">
+      <div class="header"><div><h2>Nghe chép nhịp</h2><div class="sec">Nghe 2 ô nhịp nốt móc đơn, chạm vào ô có tiếng trống</div></div><button class="link" data-go="levels">‹ Cấp độ</button></div>
+      <div class="row">
+        <button class="play" id="dictPlay" style="width:64px;height:64px" aria-label="Nghe nhịp"><span class="ring"></span><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></button>
+        <span class="num" style="font-size:28px">70</span><span class="sec">BPM</span>
+        <div class="spacer"></div>
+        <button class="btn" id="dictNew">Bài khác</button><button class="btn primary" id="dictCheck">Kiểm tra</button>
+      </div>
+      <div class="stage" id="dictGrid" style="display:flex;flex-direction:column;gap:18px"></div>
+      <button class="link" id="dictShow" style="display:none;align-self:flex-start">Hiện đáp án</button>
+    </section>
+
+    <!-- THẦY AI -->
+    <section class="page" id="teacher">
+      <div class="header"><div><h2>Thầy AI</h2><div class="sec">Claude Pro qua Notion: gửi lịch sử, thầy lên kế hoạch, app đồng bộ về</div></div>
+        <div class="row" style="gap:8px"><button class="btn" id="sendTeacher">Gửi cho thầy</button><button class="btn primary" id="syncTeacher">Đồng bộ</button></div></div>
+      <div class="stage row" style="gap:14px"><span style="width:10px;height:10px;border-radius:50%;background:var(--on)"></span><span id="teacherStatus">Đã kết nối Notion. Lần gửi gần nhất: Chủ nhật, 18/10</span></div>
+      <div class="cols">
+        <div class="stage" style="display:flex;flex-direction:column;gap:14px">
+          <div class="row" style="justify-content:space-between"><b style="font-size:20px">Tập bao lâu mỗi ngày?</b><div class="seg" id="budgetSeg"><button data-m="30">30 phút</button><button class="on" data-m="60">1 tiếng</button><button data-m="120">2 tiếng</button><button data-m="240">4 tiếng</button></div></div>
+          <div id="budgetBlocks" style="display:flex;flex-direction:column;gap:10px"></div>
+          <div class="row" style="gap:32px;align-items:flex-end">
+            <div class="readout"><div class="v" id="budgetNext" style="font-size:34px">3–4</div><div class="foot sec" id="budgetNextLabel">tháng lên Grade 3</div></div>
+            <div class="readout"><div class="v" id="budgetG8" style="font-size:34px">23–30</div><div class="foot sec">tháng tới Grade 8</div></div>
+            <div class="readout"><div class="v" id="budgetRest" style="font-size:34px">0</div><div class="foot sec">ngày nghỉ mỗi tuần</div></div>
+          </div>
+          <div id="budgetWarn" class="callout" style="display:flex;flex-direction:column;gap:6px"></div>
+          <div class="row"><button class="btn primary" id="budgetApply">Dùng mức này cho kế hoạch</button><span class="foot sec">Ước tính theo tốc độ học và điểm của hồ sơ đang chọn, không phải cam kết.</span></div>
+        </div>
+        <div class="stage" style="display:flex;flex-direction:column;gap:14px">
+          <div class="row" style="justify-content:space-between"><b style="font-size:20px">Dự đoán cho riêng bạn</b><div class="seg" id="fcSeg"><button class="on" data-w="7">7 ngày qua</button><button data-w="30">30 ngày qua</button></div></div>
+          <div class="row" style="gap:10px"><span class="foot sec">Hồ sơ mẫu để demo:</span><div class="seg" id="personaSeg"><button class="on" data-p="me">Bạn</button><button data-p="fast">Học nhanh, tập ít</button><button data-p="sloppy">Tập nhiều nhưng ẩu</button></div></div>
+          <svg id="fcBars" viewBox="0 0 600 120" style="width:100%;height:auto" role="img" aria-label="Phút tập mỗi ngày"></svg>
+          <div><div class="foot sec" style="margin-bottom:6px">Dự đoán dựa trên</div><div class="list" style="background:var(--canvas)" id="fcFactors"></div></div>
+          <div class="callout sec" id="fcSummary"></div>
+          <div class="list" style="background:var(--canvas)" id="fcRows"></div>
+          <div class="callout" id="fcCompare"></div>
+        </div>
+      </div>
+      <div class="cols">
+        <div style="display:flex;flex-direction:column;gap:22px">
+          <div class="stage">
+            <div class="row" style="justify-content:space-between"><b style="font-size:20px">Kế hoạch tuần 3</b><span class="tag good">Đang áp dụng</span></div>
+            <p class="sec callout" style="margin:8px 0 14px">Tay trái trễ ở "&amp;" khi trên 75 BPM. Tuần này tập chậm, đếm to, thêm bài tay trái dẫn.</p>
+            <div class="list" style="background:var(--canvas)">
+              <div class="item"><span class="num" style="width:56px">T2–T4</span><div style="flex:1">Móc đơn tay trái dẫn, 60→70 BPM</div></div>
+              <div class="item"><span class="num" style="width:56px">T5–T6</span><div style="flex:1">Paradiddle accent, 72 BPM</div></div>
+              <div class="item"><span class="num" style="width:56px">CN</span><div style="flex:1">Kiểm tra Grade 3, gửi kết quả cho thầy</div></div>
+            </div>
+          </div>
+          <div><div class="section-title"><span>Tài liệu thầy gợi ý</span></div><div class="list">
+            <button class="item yt" data-toast="Mở YouTube: Moeller method cơ bản"><span class="thumb"></span><div style="flex:1"><div>Moeller method cho người mới</div><div class="foot sec">YouTube, 12 phút</div></div></button>
+            <button class="item yt" data-toast="Mở YouTube: Đếm 1 e & a"><span class="thumb"></span><div style="flex:1"><div>Đếm 1 e &amp; a cho đều</div><div class="foot sec">YouTube, 8 phút</div></div></button>
+          </div></div>
+        </div>
+        <div class="stage" style="display:flex;flex-direction:column;gap:14px">
+          <b>Hỏi thầy</b>
+          <div class="chat" id="chat">
+            <div class="bubble me">Sao em cứ bị vội ở chữ "và"?</div>
+            <div class="bubble ai">Lịch sử 2 tuần cho thấy "&amp;" của em sớm khoảng 15 ms. Thử đếm "một-ò-và" để kéo dài phách, và tập Count Coach 5 phút trước mỗi buổi.</div>
+          </div>
+          <div class="chat-in"><input id="chatIn" placeholder="Hỏi về kỹ thuật, bài tập, kế hoạch…" aria-label="Câu hỏi"><button class="btn primary" id="chatSend">Gửi</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TIẾN ĐỘ -->
+    <section class="page" id="progress">
+      <div class="header"><h2>Tiến độ</h2><div class="seg" id="progSeg"><button class="on" data-p="0">Biểu đồ</button><button data-p="1">Hành trình</button><button data-p="2">Lịch sử</button></div></div>
+      <div id="prog0" style="display:flex;flex-direction:column;gap:22px">
+        <div class="row" style="gap:40px"><div class="readout"><div class="v" style="font-size:44px">+14</div><div class="foot sec">BPM trong 4 tuần</div></div><div class="readout"><div class="v" style="font-size:44px">11,5</div><div class="foot sec">giờ tập</div></div><div class="readout"><div class="v" style="font-size:44px;color:var(--on)">±18</div><div class="foot sec">ms dao động, giảm từ ±31</div></div></div>
+        <div class="stage"><b>Tempo đạt trên 90%, Paradiddle</b><svg id="bpmChart" viewBox="0 0 900 220" style="width:100%;height:auto;margin-top:10px" role="img" aria-label="Biểu đồ tempo"></svg></div>
+      </div>
+      <div id="prog1" style="display:none" class="stage">
+        <div class="timeline">
+          <div class="t done"><b>Tháng 8: bắt đầu</b><div class="sec callout">Không biết mình ở cấp nào, đếm "&amp;" bị giật. Tempo thoải mái 50–60.</div></div>
+          <div class="t done"><b>Tháng 9: đạt Grade 1 và 2</b><div class="sec callout">Móc đơn đều ở 80 BPM. Count Coach đạt 88% độ đều.</div></div>
+          <div class="t"><b>Tháng 10: đang lên Grade 3</b><div class="sec callout">2/5 bài kiểm tra đạt. Việc chính: tay trái ở "&amp;".</div></div>
+          <div class="t"><b>Tháng 11: mục tiêu</b><div class="sec callout">Grade 3 trọn vẹn, groove 16 nốt ở 90 BPM.</div></div>
+        </div>
+        <button class="btn" style="margin-top:20px" data-toast="Đã gửi 3 tháng lịch sử cho thầy AI để tổng kết hành trình">Nhờ thầy tổng kết 3 tháng</button>
+      </div>
+      <div id="prog2" style="display:none" class="list">
+        <div class="item"><div style="flex:1"><div>Paradiddle 16 nốt</div><div class="foot sec">Hôm nay, 72 BPM, pad</div></div><span class="num" style="color:var(--on)">94%</span></div>
+        <div class="item"><div style="flex:1"><div>Groove 16 nốt hi-hat</div><div class="foot sec">Hôm qua, 85 BPM, trống điện</div></div><span class="num" style="color:var(--off)">78%</span></div>
+        <div class="item"><div style="flex:1"><div>Single Strokes</div><div class="foot sec">19/10, 70 BPM, pad</div></div><span class="num" style="color:var(--off)">86%</span></div>
+        <div class="item"><div style="flex:1"><div>Shuffle blues</div><div class="foot sec">18/10, 64 BPM, gõ màn hình</div></div><span class="num" style="color:var(--miss)">54%</span></div>
+      </div>
+    </section>
+
+    <!-- HOÁN VỊ -->
+    <section class="page" id="perm">
+      <div class="header"><div><h2 id="permTitle">Hoán vị kick</h2><div class="sec" id="permSub">Từ Rock groove 8 nốt. Mỗi bài thêm một nốt ở vị trí khác nhau.</div></div><button class="link" data-go="library">‹ Thư viện</button></div>
+      <div class="list" id="permList"></div>
+    </section>
+
+    <!-- MIDI -->
+    <section class="page" id="midi">
+      <div class="header"><div><h2>MIDI learn</h2><div class="sec">Gán từng nốt MIDI của TD-4K cho đúng trống. Nốt chưa gán bị bỏ qua, không tính điểm.</div></div><button class="link" data-go="settings">‹ Cài đặt</button></div>
+      <div class="cols">
+        <div><div class="section-title"><span>Bảng gán nốt</span></div><div class="list" id="midiMap"></div></div>
+        <div style="display:flex;flex-direction:column;gap:22px">
+          <div class="stage" style="display:flex;flex-direction:column;gap:14px">
+            <div class="row" style="justify-content:space-between"><b>Đang nghe</b><button class="btn" id="midiConnect">Kết nối trống điện</button></div>
+            <div class="foot sec" id="midiStatus">Chưa kết nối. Chạm các pad bên dưới để thử.</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="vkit"></div>
+            <div><div class="foot sec" style="margin-bottom:6px">Pedal hi-hat (CC4): <span class="num" id="pedalVal">0</span></div><div class="bar"><i id="pedalBar" style="width:0%"></i></div></div>
+          </div>
+          <div class="list" id="midiLog"><div class="item sec">Chưa có nốt nào.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CÀI ĐẶT -->
+    <section class="page" id="settings">
+      <div class="header"><h2>Cài đặt</h2></div>
+      <div><div class="form-head">Thiết bị</div><div class="list form">
+        <div class="r"><span>Hiệu chỉnh độ trễ pad / trống điện</span><button class="link" id="calib">Bắt đầu</button></div>
+        <div class="r"><span>MIDI learn (Roland TD-4K)</span><button class="link" data-go="midi">Mở</button></div>
+        <div class="r"><span>Hi-hat mở/đóng theo pedal (CC4)</span><button class="switch" aria-label="Hi-hat theo pedal"></button></div>
+      </div><div class="form-foot">Bật nếu kit gửi cùng một nốt cho hi-hat mở và đóng: app đọc vị trí pedal để biết bạn đánh mở hay đóng.</div></div>
+      <div><div class="form-head">Thầy AI</div><div class="list form">
+        <div class="r"><span>Notion</span><span class="sec">Đã kết nối</span></div>
+        <div class="r"><span>Claude API key (tùy chọn)</span><span class="sec">Chưa có</span></div>
+      </div><div class="form-foot">Không bắt buộc. Không có key, app dùng gói Claude Pro qua Notion.</div></div>
+      <div><div class="form-head">Chung</div><div class="list form">
+        <div class="r"><span>Ngôn ngữ</span><select><option>Theo máy</option><option>Tiếng Việt</option><option>English</option></select></div>
+        <div class="r"><span>Giờ nhắc hằng ngày</span><select><option>18:00</option><option selected>19:00</option><option>20:00</option></select></div>
+        <div class="r"><span>Giao diện</span><div class="seg" id="themeSeg"><button class="on" data-t="">Theo máy</button><button data-t="light">Sáng</button><button data-t="dark">Tối</button></div></div>
+        <div class="r"><span>Sao lưu lịch sử</span><button class="link" data-toast="Đã lưu bản sao lưu vào Tệp > DrumCoach">Xuất file</button></div>
+      </div><div class="form-foot">Cài bằng Apple ID miễn phí: app hết hạn sau 7 ngày. Cài lại bằng Xcode, lịch sử vẫn giữ nguyên.</div></div>
+    </section>
+  </main>
+</div>
+
+<!-- Sheet âm thanh -->
+<div class="sheet-bg" id="soundSheet" role="dialog" aria-label="Âm thanh máy nhịp">
+  <div class="sheet">
+    <div class="sheet-head"><b>Máy nhịp và âm thanh</b><button class="link" data-close>Xong</button></div>
+    <div class="sheet-body">
+      <div class="seg" id="presetSeg"><button>Đen</button><button class="on">Móc đơn</button><button>Móc kép</button><button>Chùm ba</button><button>Nghịch phách</button></div>
+      <div class="stage">
+        <div class="grid5" id="grid5"></div>
+        <div class="foot sec" style="margin-top:12px">Chạm ô để chọn mức 1–5, mỗi mức một âm riêng. Chạm mức đang chọn để tắt ô.</div>
+      </div>
+      <div class="list form">
+        <div class="r"><span>Swing / shuffle</span><select><option>Thẳng</option><option>Nhẹ (58%)</option><option>Triplet (67%)</option><option>Shuffle mạnh (72%)</option></select></div>
+        <div class="r"><span>Giọng đếm</span><select><option>1 &amp;</option><option>1 e &amp; a</option><option>1 2 3 4</option></select></div>
+        <div class="r"><span>Âm lượng click</span><input type="range" value="80" aria-label="Âm lượng click"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="sheet-bg" id="permSheet" role="dialog" aria-label="Tạo hoán vị">
+  <div class="sheet" style="width:min(420px,100%)">
+    <div class="sheet-head"><b id="permSheetTitle">Rock groove 8 nốt</b><button class="link" data-close>Huỷ</button></div>
+    <div class="sheet-body" style="gap:10px">
+      <button class="btn" style="padding:14px" data-perm="kick">Hoán vị kick</button>
+      <button class="btn" style="padding:14px" data-perm="snare">Hoán vị snare (nốt ma)</button>
+    </div>
+  </div>
+</div>
+<div class="sheet-bg" id="pointsSheet" role="dialog" aria-label="Cách tính điểm">
+  <div class="sheet" style="width:min(560px,100%)">
+    <div class="sheet-head"><b>Cách tính điểm</b><button class="link" data-close>Xong</button></div>
+    <div class="sheet-body">
+      <div class="list form">
+        <div class="r"><span>Từ 90% trở lên</span><b class="num" style="color:var(--on)">+10 đến +20</b></div>
+        <div class="r"><span>75% đến dưới 90% (Merit)</span><b class="num" style="color:var(--on)">+3 đến +8</b></div>
+        <div class="r"><span>60% đến dưới 75% (Pass)</span><b class="num" style="color:var(--off)">+1 đến +3</b></div>
+        <div class="r"><span>40% đến dưới 60%</span><b class="num">0</b></div>
+        <div class="r"><span>Dưới 40%</span><b class="num" style="color:var(--miss)">−1 đến −5</b></div>
+        <div class="r"><span>Chơi hết bài, đạt từ 60% (+1 mỗi 30 giây)</span><b class="num" style="color:var(--on)">+2 đến +10</b></div>
+        <div class="r"><span>Dừng trong 10 giây, hoặc app không nghe được</span><b class="num">không tính</b></div>
+        <div class="r"><span>Đạt bài kiểm tra cấp độ</span><b class="num" style="color:var(--on)">+50</b></div>
+      </div>
+      <div class="list form">
+        <div class="r"><span>Độ khó Khó (±20 ms)</span><span class="num">điểm cộng ×1,5</span></div>
+        <div class="r"><span>Độ khó Vừa (±30 ms)</span><span class="num">×1</span></div>
+        <div class="r"><span>Độ khó Dễ (±45 ms)</span><span class="num">×0,75</span></div>
+      </div>
+      <div class="foot sec">Điểm trừ không nhân theo độ khó. Tổng điểm không bao giờ xuống dưới 0. Level 0–8 đi cùng Grade Rockschool: cần cả điểm luyện tập tích luỹ và qua bài kiểm tra Grade đó.</div>
+      <div class="list form" id="rankTable"></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const colors = { good: '--on', early: '--off', late: '--off', missed: '--miss' };
+  const TITLES = { today: 'Hôm nay', practice: 'Tập', results: 'Kết quả', metronome: 'Máy nhịp', counting: 'Đếm nhịp', lessons: 'Bài học', library: 'Thư viện', levels: 'Cấp độ', dictation: 'Nghe chép nhịp', perm: 'Hoán vị', midi: 'MIDI learn', teacher: 'Thầy AI', progress: 'Tiến độ', settings: 'Cài đặt' };
+  const NAV_OF = { results: 'practice', dictation: 'levels', perm: 'library', midi: 'settings' };
+  let bpm = 70;
+
+  // ---------- Audio ----------
+  let ac;
+  const audio = () => (ac ||= new (window.AudioContext || window.webkitAudioContext)());
+  function click(t, level = 3) {
+    const a = audio(), o = a.createOscillator(), g = a.createGain();
+    o.frequency.value = [0, 600, 800, 1000, 1300, 1700][level];
+    o.type = level >= 4 ? 'square' : 'sine';
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(level >= 4 ? .35 : .22, t + .002); g.gain.exponentialRampToValueAtTime(.0001, t + .06);
+    o.connect(g).connect(a.destination); o.start(t); o.stop(t + .08);
+  }
+  function snare(t) {
+    const a = audio(), n = a.sampleRate * .15, b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
+    const s = a.createBufferSource(), g = a.createGain(); s.buffer = b; g.gain.value = .5; s.connect(g).connect(a.destination); s.start(t);
+  }
+
+  // ---------- Navigation ----------
+  function go(id) {
+    // "#practice/Long Groove" opens an exercise directly.
+    const [page, ex] = decodeURIComponent(id).split('/');
+    if (ex && EX[ex]) loadExercise(ex, false);
+    id = page;
+    if (!document.getElementById(id)) return;
+    stopAll();
+    $$('.page').forEach(p => p.classList.toggle('on', p.id === id));
+    $$('.nav').forEach(n => n.classList.toggle('on', n.dataset.go === (NAV_OF[id] || id)));
+    $('#mobileTitle').textContent = TITLES[id];
+    $('#side').classList.remove('open');
+    $('#main').scrollTop = 0; window.scrollTo(0, 0);
+    if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
+    if (id === 'results') drawRunChart();
+    if (id === 'progress') drawBpmChart();
+  }
+  document.addEventListener('click', e => {
+    const g = e.target.closest('[data-go]');
+    if (g) {
+      if (g.dataset.ex) loadExercise(g.dataset.ex, !!g.dataset.test);
+      go(g.dataset.go); return;
+    }
+    const t = e.target.closest('[data-toast]'); if (t) { toast(t.dataset.toast); $('#exportMenu').classList.remove('open'); }
+    const s = e.target.closest('[data-sheet]'); if (s) $('#' + s.dataset.sheet).classList.add('open');
+    if (e.target.closest('[data-close]') || e.target.classList.contains('sheet-bg')) $$('.sheet-bg').forEach(x => x.classList.remove('open'));
+    if (!e.target.closest('#exportBtn') && !e.target.closest('#exportMenu')) $('#exportMenu').classList.remove('open');
+    const sw = e.target.closest('.switch'); if (sw) sw.classList.toggle('on');
+  });
+  $('#menuBtn').onclick = () => $('#side').classList.add('open');
+  $('#exportBtn').onclick = () => $('#exportMenu').classList.toggle('open');
+  let toastT;
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
+  function segs(root, fn) { $$('button', root).forEach((b, i) => b.addEventListener('click', () => { $$('button', root).forEach(x => x.classList.remove('on')); b.classList.add('on'); fn && fn(b, i); })); }
+
+  // ---------- Tempo ----------
+  function setBpm(v) { bpm = Math.max(30, Math.min(300, v)); $$('[data-bpm]').forEach(e => e.textContent = bpm); document.documentElement.style.setProperty('--beat', (60 / bpm) + 's'); drawLanes(0); }
+  $$('#pTempo .step').forEach(b => b.onclick = () => setBpm(bpm + +b.dataset.d));
+  $$('[data-bpmstep]').forEach(b => b.onclick = () => { setBpm(bpm + +b.dataset.bpmstep); if (metroOn) { stopMetro(); startMetro(); } });
+  let taps = [];
+  $('#tapTempo').onclick = () => { const n = performance.now(); taps = taps.filter(t => n - t < 3000).concat(n); if (taps.length >= 3) { const iv = (taps.at(-1) - taps[0]) / (taps.length - 1); setBpm(Math.round(60000 / iv)); } };
+
+  // ---------- Exercises ----------
+  // Positions are in beats from the start of the exercise (4 beats per bar).
+  const hh8 = bars => [...Array(bars * 8)].map((_, i) => ({ p: i / 2, h: 'R', v: 'HH' }));
+  function longGroove(title) {
+    const n = [];
+    for (let b = 0; b < 8; b++) {
+      const o = b * 4, fill = b === 3 || b === 7;
+      for (let k = 0; k < (fill ? 4 : 8); k++) n.push({ p: o + k / 2, h: 'R', v: b % 4 === 0 && k === 0 ? 'CR' : 'HH' });
+      n.push({ p: o + 1, h: 'L', v: 'SN' }, { p: o, h: 'F', v: 'BD' }, { p: o + 2.5, h: 'F', v: 'BD' });
+      if (b % 2 === 1 && !fill) n.push({ p: o + 2, h: 'F', v: 'BD' });
+      if (!fill) n.push({ p: o + 3, h: 'L', v: 'SN' });
+      else ['SN', 'SN', 'T1', 'T1', 'T2', 'T2', 'FT', 'FT'].forEach((v, k) => n.push({ p: o + 2 + k / 4, h: k % 2 ? 'L' : 'R', v }));
+    }
+    return { title, bars: 8, notes: n.sort((a, b) => a.p - b.p) };
+  }
+  const EX = {
+    'Single Strokes': { title: 'Single Strokes (móc đơn)', bars: 1, notes: [...Array(8)].map((_, i) => ({ p: i / 2, h: i % 2 ? 'L' : 'R', v: 'SN' })) },
+    'Paradiddle': { title: 'Paradiddle RLRR LRLL', bars: 1, notes: 'RLRRLRLL'.split('').map((h, i) => ({ p: i / 2, h, v: 'SN', acc: i % 4 === 0 })) },
+    'Grade 2 Groove': { title: 'Rock groove 8 nốt', bars: 1, notes: hh8(1).concat([{ p: 1, h: 'L', v: 'SN' }, { p: 3, h: 'L', v: 'SN' }, { p: 0, h: 'F', v: 'BD' }, { p: 2.5, h: 'F', v: 'BD' }]) },
+    'Shuffle': { title: 'Shuffle blues', bars: 1, notes: [0, 2 / 3, 1, 5 / 3, 2, 8 / 3, 3, 11 / 3].map((p, i) => ({ p, h: i % 2 ? 'L' : 'R', v: 'SN' })) },
+    'Long Groove': longGroove('Groove 8 ô có fill'),
+    'G3-A': { title: 'Grade 3, nhóm A: đánh đơn', bars: 3, notes: [...Array(8)].map((_, i) => ({ p: i / 2, h: i % 2 ? 'L' : 'R', v: 'SN' })).concat([...Array(12)].map((_, i) => ({ p: 4 + i / 3, h: i % 2 ? 'L' : 'R', v: 'SN' })), [...Array(16)].map((_, i) => ({ p: 8 + i / 4, h: i % 2 ? 'L' : 'R', v: 'SN' }))) },
+  };
+  const POS8 = ['1', '1&', '2', '2&', '3', '3&', '4', '4&'];
+  function permutations(kind) {
+    return POS8.map((label, k) => {
+      if (kind === 'kick') {
+        if (k === 0) return null;
+        const key = 'perm-k-' + k;
+        EX[key] = { title: `Hoán vị kick: thêm kick ở ${label}`, bars: 1, notes: hh8(1).concat([{ p: 1, h: 'L', v: 'SN' }, { p: 3, h: 'L', v: 'SN' }, { p: 0, h: 'F', v: 'BD' }, { p: k / 2, h: 'F', v: 'BD' }]) };
+        return key;
+      }
+      if (k === 2 || k === 6) return null;
+      const key = 'perm-s-' + k;
+      EX[key] = { title: `Hoán vị snare: nốt ma ở ${label}`, bars: 1, notes: hh8(1).concat([{ p: 1, h: 'L', v: 'SN' }, { p: 3, h: 'L', v: 'SN' }, { p: 0, h: 'F', v: 'BD' }, { p: 2.5, h: 'F', v: 'BD' }, { p: k / 2, h: 'L', v: 'SN', ghost: true }]) };
+      return key;
+    }).filter(Boolean);
+  }
+  let cur = EX['Single Strokes'], results = {}, flipped = false, isTest = false, display = 'page', manualPage = 0;
+  function loadExercise(key, test) {
+    cur = EX[key] || cur; isTest = test; results = {}; manualPage = 0;
+    $('#exTitle').textContent = cur.title;
+    $('#exSub').textContent = `4/4, ${cur.bars} ô nhịp` + (test ? ', bài kiểm tra cấp độ' : '');
+    const n = $('#practiceNote');
+    n.style.display = test ? 'block' : 'none';
+    n.textContent = 'Tempo, thời lượng và độ khó cố định. Cần trên 90% để đạt.';
+    drawNotation(null); drawLanes(0); $('#liveScore').textContent = '–'; $('#strip').innerHTML = '';
+  }
+  const lenBeats = () => cur.bars * 4;
+
+  // ---------- Notation ----------
+  const STEP = { CR: 30, HH: 40, RD: 50, T1: 60, T2: 70, SN: 80, FT: 100, BD: 120 };
+  const LINE_H = 180, PER_PAGE = 2;
+  const perLine = () => Math.max(1, Math.min(cur.bars, $('#notation').clientWidth < 700 ? 1 : 2));
+  const lineCount = () => Math.ceil(cur.bars / perLine());
+  const pageCount = () => display === 'page' ? Math.ceil(lineCount() / PER_PAGE) : 1;
+  function noteHead(x, y, n, fill, sec) {
+    let s = '';
+    if (n.v === 'HH' || n.v === 'CR' || n.v === 'RD') s += `<path d="M${x - 7} ${y - 7}l14 14M${x + 7} ${y - 7}l-14 14" stroke="${fill}" stroke-width="2.5"/>`;
+    else s += `<ellipse cx="${x}" cy="${y}" rx="9" ry="7" fill="${fill}" transform="rotate(-20 ${x} ${y})"/>`;
+    if (n.ghost) s += `<text x="${x - 19}" y="${y + 6}" font-size="18" fill="${fill}">(</text><text x="${x + 12}" y="${y + 6}" font-size="18" fill="${fill}">)</text>`;
+    return s;
+  }
+  // Draws notes at `place(n, absPos) -> {x, top} | null` for every pass in `reps`.
+  function drawNotes(place, reps) {
+    const txt = css('--text'), sec = css('--sec');
+    let s = '';
+    for (const rep of reps) {
+      const groups = {}, labelsAt = {};
+      cur.notes.forEach((n, i) => {
+        const at = place(rep * lenBeats() + n.p); if (!at) return;
+        const { x, top } = at, y = top + STEP[n.v];
+        const r = rep >= 0 ? (results[rep * 1000 + i] ?? (rep === 0 ? null : null)) : null;
+        const fill = r ? css(colors[r.g]) : txt;
+        if (r && (r.g === 'early' || r.g === 'late')) s += `<circle cx="${x + (r.g === 'early' ? -18 : 18)}" cy="${y}" r="5" fill="${css('--off')}"/>`;
+        s += noteHead(x, y, n, fill, sec);
+        if (n.acc) s += `<text x="${x - 2}" y="${top + 2}" font-size="16" fill="${txt}">&gt;</text>`;
+        if (n.v !== 'BD') {
+          s += `<line x1="${x + 8}" x2="${x + 8}" y1="${y}" y2="${top + 8}" stroke="${txt}" stroke-width="2"/>`;
+          const g = rep + ':' + Math.floor(n.p);
+          (groups[g] ||= { xs: [], ps: [] }).xs.push(x + 8); groups[g].ps.push(n.p);
+        }
+        if (n.h !== 'F') {
+          const hand = flipped ? (n.h === 'R' ? 'L' : 'R') : n.h;
+          const lk = top + ':' + Math.round(x), k = labelsAt[lk] = (labelsAt[lk] ?? -1) + 1;   // stack R over L when hands play together
+          s += `<text x="${x}" y="${top + 152 + k * 17}" text-anchor="middle" font-size="16" font-weight="700" font-family="ui-rounded,system-ui" fill="${hand === 'R' ? css('--ink') : sec}">${hand}</text>`;
+        }
+      });
+      Object.values(groups).forEach(g => {
+        const xs = [...new Set(g.xs)].sort((a, b) => a - b); if (xs.length < 2) return;
+        const top = place(rep * lenBeats() + g.ps[0]).top;
+        s += `<rect x="${xs[0] - 1}" y="${top + 6}" width="${xs.at(-1) - xs[0] + 2}" height="5" fill="${txt}"/>`;
+        const ps = [...new Set(g.ps)].sort((a, b) => a - b);
+        if (ps.some((p, k) => k && Math.abs(p - ps[k - 1] - .25) < .01)) s += `<rect x="${xs[0] - 1}" y="${top + 14}" width="${xs.at(-1) - xs[0] + 2}" height="5" fill="${txt}"/>`;
+        else if (ps.some((p, k) => k && Math.abs(p - ps[k - 1] - 1 / 3) < .01)) s += `<text x="${(xs[0] + xs.at(-1)) / 2}" y="${top - 2}" font-size="12" fill="${sec}" text-anchor="middle">3</text>`;
+      });
+    }
+    return s;
+  }
+  function staff(x1, x2, top, barXs) {
+    const sec = css('--sec');
+    let s = '';
+    for (let i = 0; i < 5; i++) s += `<line x1="${x1}" x2="${x2}" y1="${top + 40 + i * 20}" y2="${top + 40 + i * 20}" stroke="${sec}" stroke-opacity=".35"/>`;
+    barXs.forEach(x => s += `<line x1="${x}" x2="${x}" y1="${top + 40}" y2="${top + 120}" stroke="${sec}"/>`);
+    return s;
+  }
+  function drawNotation(beat) {
+    const svg = $('#notation'), shell = css('--shell'), playing = beat != null && beat >= 0;
+    const within = playing ? beat % lenBeats() : null;
+    let s = '';
+    if (display === 'page') {
+      const pl = perLine(), barW = 940 / pl, lines = lineCount();
+      const page = playing ? Math.floor(Math.floor(within / 4) / pl / PER_PAGE) : Math.min(manualPage, pageCount() - 1);
+      const first = page * PER_PAGE, shown = Math.min(PER_PAGE, lines - first);
+      svg.setAttribute('viewBox', `0 0 1000 ${LINE_H * Math.min(PER_PAGE, lines)}`);
+      const pos = abs => {
+        const bar = Math.floor(abs / 4), line = Math.floor(bar / pl) - first;
+        if (line < 0 || line >= shown) return null;
+        return { x: 40 + (bar % pl) * barW + 34 + (abs - bar * 4) / 4 * (barW - 52), top: line * LINE_H };
+      };
+      for (let l = 0; l < shown; l++) {
+        const barsHere = Math.min(pl, cur.bars - (first + l) * pl);
+        s += staff(40, 40 + barsHere * barW, l * LINE_H, [...Array(barsHere + 1)].map((_, k) => 40 + k * barW));
+        const label = first + l === 0 ? '4/4' : String((first + l) * pl + 1);
+        s += `<text x="16" y="${l * LINE_H + 84}" font-size="13" font-weight="600" fill="${first + l === 0 ? shell : css('--sec')}">${label}</text>`;
+      }
+      s += drawNotes(pos, [playing ? Math.floor(beat / lenBeats()) : 0]);
+      if (playing) { const at = pos(within); if (at) s += `<rect x="${at.x - 2}" y="${at.top + 28}" width="4" height="104" rx="2" fill="${css('--ink')}"/>`; }
+      const pc = pageCount();
+      $('#pager').style.display = pc > 1 ? 'flex' : 'none';
+      $('#pageLabel').textContent = `Trang ${page + 1}/${pc}`;
+      $('#pagePrev').disabled = playing || page === 0; $('#pageNext').disabled = playing || page === pc - 1;
+    } else {
+      // Scroll: one long line sliding under a fixed playhead at 30% of the width.
+      svg.setAttribute('viewBox', `0 0 1000 ${LINE_H}`);
+      const barW = 470, now = playing ? beat : 0, headX = 300;
+      const pos = abs => { const x = headX + (abs - now) * barW / 4; return x > 20 && x < 990 ? { x, top: 0 } : null; };
+      const firstBar = Math.floor((now - 3) / 4), barXs = [];
+      for (let b = firstBar; b < firstBar + 4; b++) { const x = headX + (b * 4 - now) * barW / 4 - 34; if (x > 0 && x < 1000) barXs.push(x); }
+      s += staff(0, 1000, 0, barXs);
+      const rep = Math.floor(now / lenBeats());
+      s += drawNotes(abs => pos(abs), [rep - 1, rep, rep + 1].filter(r => r >= 0));
+      s += `<rect x="${headX - 2}" y="28" width="4" height="104" rx="2" fill="${css('--ink')}"/>`;
+      $('#pager').style.display = 'none';
+    }
+    svg.innerHTML = s;
+  }
+  function drawLanes(beat) {
+    const svg = $('#lanes'), W = 1000, mid = W / 2, px = W / 4, axis = 56, sec = css('--sec'), len = lenBeats();
+    let s = `<line x1="40" x2="${W - 8}" y1="${axis}" y2="${axis}" stroke="${sec}" stroke-opacity=".3"/>`;
+    for (let b = Math.floor(beat - 3); b < beat + 3; b++) for (let k = 0; k < 2; k++) {
+      const x = mid + (b + k / 2 - beat) * px; if (x < 44 || x > W - 8) continue;
+      s += `<text x="${x}" y="${axis + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="${sec}">${k ? '&' : ((b % 4 + 4) % 4 + 1)}</text>`;
+    }
+    const rep0 = Math.floor(beat / len);
+    for (let rep = rep0 - 1; rep <= rep0 + 1; rep++) cur.notes.forEach((n, i) => {
+      if (n.h === 'F') return;
+      const x = mid + (rep * len + n.p - beat) * px; if (x < 44 || x > W - 8) return;
+      const hand = flipped ? (n.h === 'R' ? 'L' : 'R') : n.h, r = rep >= 0 ? results[rep * 1000 + i] : null;
+      s += `<rect x="${x - 3}" y="${hand === 'R' ? axis - 44 : axis + 16}" width="6" height="28" rx="3" fill="${r ? css(colors[r.g]) : sec}" fill-opacity="${r ? 1 : .25}"/>`;
+    });
+    s += `<line x1="${mid}" x2="${mid}" y1="6" y2="106" stroke="${css('--ink')}" stroke-width="2"/>`;
+    s += `<text x="20" y="${axis - 24}" font-size="15" font-weight="600" fill="${css('--ink')}">R</text><text x="20" y="${axis + 36}" font-size="15" font-weight="600" fill="${sec}">L</text>`;
+    svg.innerHTML = s;
+  }
+  $('#pagePrev').onclick = () => { manualPage = Math.max(0, manualPage - 1); drawNotation(null); };
+  $('#pageNext').onclick = () => { manualPage = Math.min(pageCount() - 1, manualPage + 1); drawNotation(null); };
+  window.addEventListener('resize', () => { if (!run) drawNotation(null); });
+
+  // ---------- Practice run (simulated scoring) ----------
+  let run = null;
+  function grade() { const r = Math.random(); if (r < .72) return { g: 'good', ms: (Math.random() - .4) * 24 }; if (r < .84) return { g: 'late', ms: 32 + Math.random() * 30 }; if (r < .94) return { g: 'early', ms: -32 - Math.random() * 30 }; return { g: 'missed', ms: null }; }
+  function startPractice() {
+    audio().resume(); results = {}; const spb = 60 / bpm, a = audio(), t0 = a.currentTime + .1;
+    const len = lenBeats(), reps = Math.max(1, Math.round(4 / cur.bars)), total = reps * len;
+    for (let b = 0; b < 4 + total; b++) { click(t0 + b * spb, b % 4 === 0 ? 5 : 4); click(t0 + (b + .5) * spb, 2); }
+    run = { t0, spb, reps, scored: new Set(), samples: [], raf: 0 };
+    $('#practicePlay').classList.add('playing'); $('#practicePlay').setAttribute('aria-label', 'Dừng');
+    const mode = $('[data-cycle=mode] span').textContent;
+    $('#pads').classList.toggle('on', mode === 'Gõ màn hình');
+    const tick = () => {
+      const beat = (a.currentTime - t0) / spb - 4; // 1 bar count-in
+      if (beat >= 0 && mode !== 'Chỉ xem' && mode !== 'Gõ màn hình') {
+        const rep = Math.floor(beat / len);
+        cur.notes.forEach((n, i) => {
+          const key = rep * 1000 + i;
+          if (rep < reps && n.p <= beat - rep * len && !run.scored.has(key)) {
+            run.scored.add(key); const r = grade(); results[key] = r;
+            run.samples.push({ t: (rep * len + n.p) * spb, ...r }); pushStrip(r); updateScore();
+          }
+        });
+      }
+      drawLanes(beat); drawNotation(beat >= 0 ? beat : null);
+      if (beat >= total) { finishPractice(); return; }
+      run.raf = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+  function tapHit(hand) {
+    if (!run) return; const a = audio(), beat = (a.currentTime - run.t0) / run.spb - 4; if (beat < 0) return;
+    snare(a.currentTime);
+    const len = lenBeats(), rep0 = Math.floor(beat / len); let best = null, key = -1;
+    for (const rep of [rep0 - 1, rep0, rep0 + 1]) cur.notes.forEach((n, i) => {
+      if (rep < 0 || rep >= run.reps || n.h === 'F') return;
+      const d = rep * len + n.p - beat;
+      if (best === null || Math.abs(d) < Math.abs(best)) { best = d; key = rep * 1000 + i; }
+    });
+    if (best === null) return;
+    const ms = -best * run.spb * 1000;
+    if (run.scored.has(key) || Math.abs(ms) > 120) return;
+    const r = Math.abs(ms) <= 30 ? { g: 'good', ms } : { g: ms < 0 ? 'early' : 'late', ms };
+    run.scored.add(key); results[key] = r; run.samples.push({ t: beat * run.spb, ...r }); pushStrip(r); updateScore();
+  }
+  $$('.pad').forEach(p => p.addEventListener('pointerdown', () => tapHit(p.dataset.hand)));
+  function pushStrip(r) {
+    const s = $('#strip'), i = document.createElement('i');
+    i.style.height = r.ms == null ? '22px' : Math.max(6, Math.min(24, Math.abs(r.ms) / 3 + 6)) + 'px';
+    i.style.background = css(colors[r.g]); s.append(i); while (s.children.length > 16) s.firstChild.remove();
+  }
+  function tally() { const v = run ? run.samples : []; const good = v.filter(x => x.g === 'good').length, off = v.filter(x => x.g === 'early' || x.g === 'late').length, miss = v.filter(x => x.g === 'missed').length; return { good, off, miss, score: v.length ? Math.round((good + off * .5) / v.length * 100) : 0 }; }
+  function scoreColor(s) { return css(s > 90 ? '--on' : s >= 60 ? '--off' : '--miss'); }
+  function updateScore() { const t = tally(), el = $('#liveScore'); el.textContent = t.score + '%'; el.style.color = scoreColor(t.score); }
+  let lastRun = null;
+  function finishPractice() {
+    if (!run) return; cancelAnimationFrame(run.raf); const t = tally(); lastRun = { ...t, samples: run.samples }; run = null;
+    $('#practicePlay').classList.remove('playing'); $('#practicePlay').setAttribute('aria-label', 'Bắt đầu');
+    if (!lastRun.samples.length) { drawLanes(0); return; }
+    $('#rScore').textContent = t.score + '%'; $('#rScore').style.color = scoreColor(t.score);
+    $('#rCaption').textContent = `${cur.title}, ${bpm} BPM` + (isTest ? (t.score > 90 ? ', đạt' : ', chưa đạt (cần trên 90%)') : '');
+    $('#rGood').textContent = t.good; $('#rOff').textContent = t.off; $('#rMiss').textContent = t.miss;
+    awardPoints(t.score);
+    go('results');
+  }
+  function stopPractice() { if (run) { cancelAnimationFrame(run.raf); if (ac) { ac.close(); ac = null; } run = null; $('#practicePlay').classList.remove('playing'); } }
+  $('#practicePlay').onclick = () => run ? (lastRun = null, finishPractice()) : startPractice();
+  $('#listenBtn').onclick = () => { audio().resume(); const t0 = audio().currentTime + .05, spb = 60 / bpm; cur.notes.forEach(n => n.v !== 'HH' ? snare(t0 + n.p * spb) : click(t0 + n.p * spb, 1)); toast('Đang phát mẫu một ô nhịp'); };
+  $$('[data-cycle]').forEach(b => b.onclick = () => {
+    const o = b.dataset.opts.split('|'); b.dataset.i = (+b.dataset.i + 1) % o.length; b.querySelector('span').textContent = o[b.dataset.i];
+    if (b.dataset.cycle === 'mode') { $('#pads').classList.toggle('on', o[b.dataset.i] === 'Gõ màn hình'); if (o[b.dataset.i] === 'Gõ màn hình') toast('Bấm Play rồi chạm L / R theo nhịp'); }
+  });
+  $('#flip').onclick = () => { flipped = !flipped; $('#flip span').textContent = flipped ? 'Bắt đầu tay trái' : 'Bắt đầu tay phải'; $('#flip').classList.toggle('on', flipped); drawNotation(null); drawLanes(0); };
+  $('#autoBtn').onclick = () => { const on = $('#autoCard').classList.toggle('on'); $('#autoBtn').textContent = on ? 'Thoát học tự động' : 'Học tự động'; };
+  segs($('#dispSeg'), (_, i) => { display = i ? 'scroll' : 'page'; drawNotation(null); });
+
+  function drawRunChart() {
+    const svg = $('#runChart'), v = (lastRun && lastRun.samples.length) ? lastRun.samples : demoSamples(), W = 900, H = 200, lim = 80;
+    const maxT = Math.max(...v.map(x => x.t), 1), sec = css('--sec');
+    let s = `<line x1="40" x2="${W}" y1="${H / 2}" y2="${H / 2}" stroke="${sec}" stroke-opacity=".3"/>`;
+    s += `<text x="0" y="16" font-size="12" fill="${sec}">muộn</text><text x="0" y="${H - 4}" font-size="12" fill="${sec}">sớm</text>`;
+    v.forEach(x => { const cx = 50 + x.t / maxT * (W - 60), y = x.ms == null ? H - 8 : H / 2 - Math.max(-lim, Math.min(lim, x.ms)) / lim * (H / 2 - 10), c = css(colors[x.g]);
+      s += x.ms == null ? `<path d="M${cx - 5} ${y - 5}l10 10M${cx + 5} ${y - 5}l-10 10" stroke="${c}" stroke-width="2.5"/>` : `<circle cx="${cx}" cy="${y}" r="5" fill="${c}"/>`; });
+    svg.innerHTML = s;
+  }
+  function demoSamples() { return [...Array(32)].map((_, i) => { const r = grade(); if (r.ms != null) r.ms += i * .8; return { t: i * .43, ...r }; }); }
+
+  // ---------- Today session ----------
+  let sess = null;
+  const SEG = [['Khởi động', 300], ['Bài chính', 900], ['Bài vui', 300]];
+  $('#sessionPlay').onclick = () => {
+    if (sess) { clearInterval(sess.iv); sess = null; sessUI(); return; }
+    sess = { i: 0, left: SEG[0][1] }; sess.iv = setInterval(() => { sess.left -= 15; if (sess.left <= 0) nextSeg(); sessUI(); }, 250); sessUI();
+  };
+  $('#sessionSkip').onclick = () => { nextSeg(); sessUI(); };
+  function nextSeg() { sess.i++; if (sess.i >= SEG.length) { clearInterval(sess.iv); sess = null; toast('Xong buổi tập hôm nay. Ghi lại cảm nhận vào nhật ký nhé.'); return; } sess.left = SEG[sess.i][1]; }
+  function sessUI() {
+    const on = !!sess; $('#sessionPlay').classList.toggle('playing', on); $('#sessionInfo').style.display = on ? 'block' : 'none'; $('#sessionSkip').style.display = on ? 'inline-block' : 'none'; $('#sessionLabel').style.display = on ? 'none' : 'inline';
+    $$('#today [data-seg]').forEach(h => h.style.color = on && +h.dataset.seg === sess.i ? css('--shell') : '');
+    if (on) { $('#sessionClock').textContent = `${Math.floor(sess.left / 60)}:${String(sess.left % 60).padStart(2, '0')}`; $('#sessionSeg').textContent = SEG[sess.i][0]; }
+  }
+
+  // ---------- Metronome ----------
+  let metroOn = false, metroIv, nextT, beatN;
+  const sched = [];
+  function startMetro() {
+    audio().resume(); metroOn = true; nextT = audio().currentTime + .05; beatN = 0; $('#metroPlay').classList.add('playing');
+    const swing = [0.5, 0.58, 0.667, 0.72][$('#mSwing').selectedIndex];
+    metroIv = setInterval(() => {
+      const spb = 60 / bpm;
+      while (nextT < audio().currentTime + .12) {
+        const b = beatN % 4; click(nextT, b === 0 ? 5 : 4); click(nextT + swing * spb, 2);
+        const at = nextT, idx = b; setTimeout(() => flash(idx), Math.max(0, (at - audio().currentTime) * 1000));
+        nextT += spb; beatN++;
+      }
+    }, 25);
+  }
+  function flash(i) { $$('#mDots i').forEach((d, k) => { d.classList.toggle('hit', k === i); d.classList.toggle('one', k === 0); }); }
+  function stopMetro() { metroOn = false; clearInterval(metroIv); $('#metroPlay').classList.remove('playing'); $$('#mDots i').forEach(d => d.classList.remove('hit')); }
+  $('#metroPlay').onclick = () => metroOn ? stopMetro() : startMetro();
+  const summary = () => $('#mSummary').textContent = `${$('#mTs').value}, giọng đếm "${$('#mVoice').value}", ${$('#mSwing').value === 'Thẳng' ? 'nhịp thẳng' : 'swing ' + $('#mSwing').value.toLowerCase()}`;
+  ['#mTs', '#mVoice', '#mSwing'].forEach(s => $(s).onchange = () => { summary(); if (s === '#mTs') { const n = +$('#mTs').value.split('/')[0]; $('#mDots').innerHTML = '<i></i>'.repeat(n); } if (metroOn) { stopMetro(); startMetro(); } });
+
+  // 5-level grid
+  let pattern = [];
+  function setPreset(i) {
+    const slots = [1, 2, 4, 3, 2][i];
+    pattern = [...Array(4)].flatMap((_, b) => [...Array(slots)].map((_, k) => i === 4 ? (k === 1 ? 3 : 0) : k === 0 ? 4 : 2));
+    drawGrid(slots);
+  }
+  function drawGrid(slots) {
+    const g = $('#grid5'), lab = { 1: [''], 2: ['', '&'], 3: ['', 'ta', 'ti'], 4: ['', 'e', '&', 'a'] }[slots];
+    g.style.gridTemplateColumns = `repeat(${pattern.length}, 1fr)`;
+    g.innerHTML = pattern.map((lv, i) => `<div class="col">${[1, 2, 3, 4, 5].map(l => `<button class="cell ${l <= lv ? 'lit' : ''} ${lv === 5 ? 'l5' : ''}" data-i="${i}" data-l="${l}" aria-label="Ô ${i + 1}, mức ${l}"></button>`).join('')}<span class="lbl">${i % slots === 0 ? i / slots + 1 : lab[i % slots]}</span></div>`).join('');
+    $$('.cell', g).forEach(c => c.onclick = () => { const i = +c.dataset.i, l = +c.dataset.l; pattern[i] = pattern[i] === l ? 0 : l; audio().resume(); if (pattern[i]) click(audio().currentTime + .01, pattern[i]); drawGrid(slots); });
+  }
+  segs($('#presetSeg'), (_, i) => setPreset(i)); setPreset(1);
+
+  // ---------- Count coach ----------
+  const CC = { '1 2 3 4': ['1', '2', '3', '4'], '1 &': ['1', '&', '2', '&', '3', '&', '4', '&'], '1 e & a': ['1', 'e', '&', 'a', '2', 'e', '&', 'a'], 'Chùm ba': ['1', 'ta', 'ti', '2', 'ta', 'ti'] };
+  // Syllables per beat for each counting mode.
+  const PER_BEAT = { '1 2 3 4': 1, '1 &': 2, '1 e & a': 4, 'Chùm ba': 3 };
+  let ccSyl = CC['1 &'], ccPer = 2, ccBpm = 60, ccOn = null;
+  function drawSyll(now = -1, bars) { $('#syll').innerHTML = ccSyl.map((s, i) => `<div><b class="${i === now ? 'now' : ''}">${s}</b><span style="background:${bars && bars[i] ? css(bars[i]) : ''}"></span></div>`).join(''); }
+  function stopCount() { if (ccOn) { clearInterval(ccOn); ccOn = null; } $('#ccPlay').classList.remove('playing'); }
+  function restartCount() { if (ccOn) { stopCount(); startCount(); } }
+  segs($('#ccMode'), b => { ccSyl = CC[b.textContent]; ccPer = PER_BEAT[b.textContent]; drawSyll(); restartCount(); });
+  $$('#ccTempo .step').forEach(b => b.onclick = () => {
+    ccBpm = Math.max(40, Math.min(120, ccBpm + +b.dataset.d)); $('#ccBpm').textContent = ccBpm; restartCount();
+  });
+  $('#ccPlay').onclick = () => ccOn ? stopCount() : startCount();
+  function startCount() {
+    audio().resume(); $('#ccPlay').classList.add('playing'); let i = 0; const bars = [];
+    $('#ccPlay').style.setProperty('--beat', (60 / ccBpm) + 's');
+    const step = 60 / ccBpm / ccPer * 1000;
+    ccOn = setInterval(() => { const k = i % ccSyl.length; click(audio().currentTime + .01, k === 0 ? 5 : ccSyl[k].match(/\d/) ? 4 : 2); bars[k] = ccSyl[k] === '&' && Math.random() < .35 ? '--off' : '--on'; drawSyll(k, bars); i++; if (i % ccSyl.length === 0) { const ok = bars.filter(b => b === '--on').length / ccSyl.length; $('#ccScore').textContent = Math.round(70 + ok * 28) + '%'; } }, step);
+  }
+  drawSyll();
+
+  // ---------- Lessons ----------
+  const LESSONS = [
+    ['Cầm dùi', ['Điểm tựa ở 1/3 dùi, giữa ngón cái và đốt hai ngón trỏ.', 'Ba ngón còn lại ôm nhẹ, không siết.', 'Dùi 5A: thử thả rơi lên pad, dùi phải bật lại 2–3 lần.'], 'Single Strokes'],
+    ['Tư thế ngồi', ['Đùi song song mặt sàn, ghế cao bằng đầu gối.', 'Pad hoặc snare cao ngang thắt lưng.', 'Vai thả lỏng, khuỷu tay sát người.'], 'Single Strokes'],
+    ['Đếm nhịp thành tiếng', ['Đếm to "1 & 2 &", mỗi âm dài bằng nhau.', 'Chữ "&" đúng nửa phách, không vội.', 'Tập Count Coach 5 phút mỗi ngày.'], 'Single Strokes'],
+    ['Accent và nốt ma', ['Accent: nhấc dùi cao 30 cm.', 'Nốt ma: dùi cách mặt trống 3 cm.', 'Tay chuyển độ cao trước khi đánh, không sau.'], 'Paradiddle'],
+    ['Hai chân và hi-hat', ['Gót chân trên pedal kick, đạp bằng cả chân.', 'Chân trái giữ hi-hat đóng chắc.', 'Bắt đầu ở 60 BPM, không tăng khi chưa đều.'], 'Grade 2 Groove'],
+  ];
+  $('#lessonList').innerHTML = LESSONS.map((l, i) => `<button class="item" data-lesson="${i}"><span class="num sec" style="width:20px">${i + 1}</span><div style="flex:1">${l[0]}</div><span class="chev">›</span></button>`).join('');
+  function showLesson(i) { const l = LESSONS[i]; $('#lessonBody').innerHTML = `<b style="font-size:22px">${l[0]}</b><ul style="margin:14px 0 18px 20px;display:flex;flex-direction:column;gap:8px">${l[1].map(p => `<li>${p}</li>`).join('')}</ul><button class="btn primary" data-go="practice" data-ex="${l[2]}">Tập ngay</button>`; $$('#lessonList .item').forEach((b, k) => b.style.background = k === i ? 'var(--shell-soft)' : ''); }
+  $$('[data-lesson]').forEach(b => b.onclick = () => showLesson(+b.dataset.lesson)); showLesson(0);
+
+  // ---------- Library MIDI import ----------
+  $('#importMidi').onclick = () => {
+    EX['midi-song'] = longGroove('Bài từ file MIDI');
+    const row = document.createElement('button'); row.className = 'item'; row.dataset.go = 'practice'; row.dataset.ex = 'midi-song';
+    row.innerHTML = '<div style="flex:1"><div>Bài từ file MIDI</div><div class="foot sec">4/4, 8 ô nhịp, 117 BPM, bỏ qua 3 nốt không phải trống</div></div><span class="chev">›</span>';
+    $('#mine').prepend(row); toast('Đã nhập: 8 ô nhịp, 117 BPM');
+  };
+
+  // ---------- Levels ----------
+  $('#levelGrid').innerHTML = [1, 2, 3, 4, 5, 6, 7, 8].map(g => {
+    const st = g <= 2 ? 'done' : g === 3 ? 'cur' : 'lock', pct = g <= 2 ? 100 : 0;
+    return `<button class="lvl ${st}" ${st === 'lock' ? 'data-toast="Đạt Grade ' + (g - 1) + ' để mở"' : ''}><span class="foot sec">Grade</span><span class="num">${g}</span><div class="bar"><i style="width:${pct}%;background:${css(g <= 2 ? '--on' : '--shell')}"></i></div><span class="foot sec">${g <= 2 ? 'Đã đạt' : g === 3 ? '0/5 bài đạt' : g >= 5 ? 'Cần sách Grade ' + g : 'Chưa mở'}</span></button>`;
+  }).join('');
+
+  // ---------- Dictation ----------
+  let dAns = new Set(), dKey = [];
+  function newDict() { dKey = []; for (let i = 0; i < 16; i++) if (i % 8 === 0 || Math.random() < .45) dKey.push(i); dAns = new Set(); $('#dictShow').style.display = 'none'; drawDict(); }
+  function drawDict(verdict) {
+    $('#dictGrid').innerHTML = [0, 1].map(b => `<div class="dict-row">${[...Array(8)].map((_, c) => { const i = b * 8 + c; return `<button class="dcell ${dAns.has(i) ? 'on' : ''}" data-c="${i}" aria-label="Ô ${c % 2 ? '&' : c / 2 + 1}"><i></i><em>${c % 2 ? '&' : c / 2 + 1}</em></button>`; }).join('')}<span class="verdict" style="color:${verdict ? css(verdict[b] ? '--on' : '--miss') : ''}">${verdict ? (verdict[b] ? '✓' : '✕') : ''}</span></div>`).join('');
+    $$('.dcell').forEach(c => c.onclick = () => { const i = +c.dataset.c; dAns.has(i) ? dAns.delete(i) : dAns.add(i); drawDict(); });
+  }
+  $('#dictPlay').onclick = () => { audio().resume(); const t0 = audio().currentTime + .1, spb = 60 / 70; for (let b = 0; b < 4; b++) click(t0 + b * spb, b ? 4 : 5); dKey.forEach(i => snare(t0 + 4 * spb + i * spb / 2)); };
+  $('#dictNew').onclick = newDict;
+  $('#dictCheck').onclick = () => { const v = [0, 1].map(b => { const r = i => i >= b * 8 && i < b * 8 + 8; return JSON.stringify([...dAns].filter(r).sort((a, c) => a - c)) === JSON.stringify(dKey.filter(r)); }); drawDict(v); $('#dictShow').style.display = v.every(Boolean) ? 'none' : 'block'; if (v.every(Boolean)) toast('Đúng cả hai ô nhịp'); };
+  $('#dictShow').onclick = () => { dAns = new Set(dKey); drawDict(); $('#dictShow').style.display = 'none'; };
+  newDict();
+
+  // ---------- Teacher ----------
+  $('#sendTeacher').onclick = () => { $('#teacherStatus').textContent = 'Đã gửi 14 buổi tập lên Notion. Mở Claude và nói "xem bài mới" để thầy lên kế hoạch.'; toast('Đã gửi lên Notion'); };
+  $('#syncTeacher').onclick = () => { $('#teacherStatus').textContent = 'Đã đồng bộ: có kế hoạch tuần 3 và 2 tài liệu mới.'; toast('Đã đồng bộ kế hoạch mới từ thầy'); };
+  $('#chatSend').onclick = () => { const v = $('#chatIn').value.trim(); if (!v) return; $('#chat').insertAdjacentHTML('beforeend', `<div class="bubble me"></div><div class="bubble ai">Thầy sẽ trả lời qua Notion ở lần đồng bộ tới. Trong lúc chờ, tập Paradiddle 64 BPM nhé.</div>`); $('#chat .bubble.me:last-of-type').textContent = v; $('#chatIn').value = ''; };
+  $('#chatIn').addEventListener('keydown', e => e.key === 'Enter' && $('#chatSend').click());
+
+  // ---------- Progress ----------
+  segs($('#progSeg'), (_, i) => [0, 1, 2].forEach(k => $('#prog' + k).style.display = k === i ? (k === 2 ? 'block' : 'flex') : 'none'));
+  $('#prog1').style.flexDirection = 'column';
+  function drawBpmChart() {
+    const d = [58, 60, 60, 63, 62, 65, 66, 66, 68, 70, 69, 72], W = 900, H = 220, sec = css('--sec'), sh = css('--shell');
+    const x = i => 50 + i * (W - 70) / (d.length - 1), y = v => H - 30 - (v - 50) / 30 * (H - 50);
+    let s = [50, 60, 70, 80].map(v => `<line x1="40" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="${sec}" stroke-opacity=".15"/><text x="0" y="${y(v) + 4}" font-size="12" fill="${sec}">${v}</text>`).join('');
+    s += `<polyline points="${d.map((v, i) => x(i) + ',' + y(v)).join(' ')}" fill="none" stroke="${sh}" stroke-width="3" stroke-linejoin="round"/>`;
+    s += d.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="${sh}"/>`).join('');
+    s += `<text x="${x(d.length - 1)}" y="${y(72) - 12}" text-anchor="end" font-size="14" font-weight="600" fill="${sh}">72 BPM</text>`;
+    s += ['T1', 'T2', 'T3', 'T4'].map((t, k) => `<text x="${x(k * 3 + 1)}" y="${H - 6}" font-size="12" fill="${sec}" text-anchor="middle">Tuần ${k + 1}</text>`).join('');
+    $('#bpmChart').innerHTML = s;
+  }
+
+  // ---------- Points (same rule as PracticePoints in the app) ----------
+  const RANKS = [[0, 'Mới cầm dùi'], [10000, 'Grade 1 · Giữ được nhịp'], [20000, 'Grade 2 · Tay đều'], [30000, 'Grade 3 · Vững tempo'], [40000, 'Grade 4 · Groove ổn'], [50000, 'Grade 5 · Tay lụa'], [65000, 'Grade 6 · Biểu diễn'], [80000, 'Grade 7 · Nghệ sĩ'], [95000, 'Grade 8 · Bậc thầy']];
+  function points(score, windowMs, levelTest, completed = true) {
+    const bonus = completed && score >= 60 ? 2 : 0;
+    if (score < 40) return -Math.ceil((40 - score) / 8) + bonus;
+    if (score < 60) return bonus;
+    const base = score >= 90 ? 10 + Math.round(score - 90) : score >= 75 ? 3 + Math.round((score - 75) / 3) : 1 + Math.round((score - 60) / 7.5);
+    const m = windowMs <= 20 ? 1.5 : windowMs <= 30 ? 1 : .75;
+    return Math.round(base * m) + bonus + (levelTest && score > 90 ? 50 : 0);
+  }
+  let totalPoints = 352;
+  function rankOf(t) { let i = 0; RANKS.forEach((r, k) => { if (t >= r[0]) i = k; }); return { level: i + 1, title: RANKS[i][1], floor: RANKS[i][0], next: RANKS[i + 1]?.[0] }; }
+  function showRank() {
+    const r = rankOf(totalPoints);
+    $('#todayRank').textContent = r.level; $('#todayRankTitle').textContent = 'hạng: ' + r.title;
+    $('#rRank').textContent = `Hạng ${r.level}: ${r.title}`;
+    $('#rRankBar').style.width = r.next ? ((totalPoints - r.floor) / (r.next - r.floor) * 100) + '%' : '100%';
+    $('#rRankNext').textContent = r.next ? `${totalPoints} điểm, còn ${r.next - totalPoints} điểm lên hạng ${r.level + 1}` : `${totalPoints} điểm, hạng cao nhất`;
+  }
+  function awardPoints(score) {
+    const w = { 'Dễ': 45, 'Vừa': 30, 'Khó': 20 }[$('[data-cycle=diff] span').textContent];
+    const p = points(score, w, isTest);
+    totalPoints = Math.max(0, totalPoints + p);
+    const el = $('#rPoints'); el.textContent = p >= 0 ? '+' + p : String(p).replace('-', '−');
+    el.style.color = css(p > 0 ? '--on' : p < 0 ? '--miss' : '--sec');
+    $('#rPenalty').style.display = p < 0 ? 'block' : 'none';
+    showRank();
+  }
+  $('#rankTable').innerHTML = RANKS.map((r, i) => `<div class="r"><span>Hạng ${i + 1}: ${r[1]}</span><span class="num sec">từ ${r[0]} điểm</span></div>`).join('');
+  showRank();
+
+  // ---------- Permutations (long-press a groove) ----------
+  let pressT = null, pressed = false, permFrom = null;
+  $$('[data-groove]').forEach(row => {
+    const open = () => { pressed = true; permFrom = row; $('#permSheetTitle').textContent = row.querySelector('div div').textContent; $('#permSheet').classList.add('open'); };
+    row.addEventListener('pointerdown', () => { pressed = false; pressT = setTimeout(open, 500); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(e => row.addEventListener(e, () => clearTimeout(pressT)));
+    row.addEventListener('contextmenu', e => { e.preventDefault(); clearTimeout(pressT); open(); });
+    row.addEventListener('click', e => { if (pressed) { e.stopImmediatePropagation(); pressed = false; } }, true);
+  });
+  $$('[data-perm]').forEach(b => b.onclick = () => {
+    const kind = b.dataset.perm, keys = permutations(kind);
+    $('#permTitle').textContent = kind === 'kick' ? 'Hoán vị kick' : 'Hoán vị snare';
+    $('#permSub').textContent = `Từ ${$('#permSheetTitle').textContent}. ` + (kind === 'kick' ? 'Mỗi bài thêm một nốt kick ở vị trí khác nhau.' : 'Mỗi bài thêm một nốt ma snare ở vị trí khác nhau.');
+    $('#permList').innerHTML = keys.map(k => `<button class="item" data-go="practice" data-ex="${k}"><div style="flex:1">${EX[k].title}</div><span class="foot sec">4/4, 60–100 BPM</span><span class="chev">›</span></button>`).join('');
+    $('#permSheet').classList.remove('open'); go('perm');
+  });
+
+  // ---------- MIDI learn + monitor ----------
+  const KIT = [['Kick', 36], ['Snare', 38], ['Snare vành', 40], ['Hi-hat đóng', 42], ['Hi-hat mở', 46], ['Hi-hat pedal', 44], ['Tom 1', 48], ['Tom 2', 45], ['Tom sàn', 43], ['Crash', 49], ['Ride', 51]];
+  const map = Object.fromEntries(KIT.map(([v, n]) => [n, v]));
+  let learning = null;
+  function drawMap() {
+    $('#midiMap').innerHTML = KIT.map(([v]) => { const n = Object.keys(map).find(k => map[k] === v); return `<div class="item"><div style="flex:1">${v}</div><span class="num sec">${n ? 'nốt ' + n : 'chưa gán'}</span><button class="btn" data-learn="${v}">${learning === v ? 'Đánh trống…' : 'Học'}</button></div>`; }).join('');
+    $$('[data-learn]').forEach(b => b.onclick = () => { learning = b.dataset.learn; drawMap(); toast(`Đánh trống ${learning} trên TD-4K`); });
+  }
+  function midiNote(n, vel) {
+    if (learning) { Object.keys(map).forEach(k => map[k] === learning && delete map[k]); map[n] = learning; toast(`Đã gán nốt ${n} cho ${learning}`); learning = null; drawMap(); }
+    const v = map[n], log = $('#midiLog');
+    if (log.querySelector('.sec.item')) log.innerHTML = '';
+    log.insertAdjacentHTML('afterbegin', `<div class="item"><span class="num" style="width:70px">Nốt ${n}</span><div style="flex:1">${v ? '→ ' + v : '→ chưa gán, bỏ qua'}</div><span class="foot sec">lực ${vel}</span></div>`);
+    log.firstElementChild.style.color = v ? '' : css('--sec');
+    while (log.children.length > 8) log.lastChild.remove();
+    if (v) { audio().resume(); v.startsWith('Hi-hat') || v === 'Crash' || v === 'Ride' ? click(audio().currentTime + .01, 1) : snare(audio().currentTime + .01); }
+  }
+  function pedal(val) { $('#pedalVal').textContent = val; $('#pedalBar').style.width = (val / 127 * 100) + '%'; }
+  $('#vkit').innerHTML = KIT.map(([v, n]) => `<button class="pill" data-note="${n}" style="text-align:center;background:var(--canvas)"><small>nốt ${n}</small>${v}</button>`).join('') + `<button class="pill" data-note="22" style="text-align:center;background:var(--canvas)"><small>nốt 22</small>Pad lạ</button>`;
+  $$('[data-note]').forEach(b => b.addEventListener('pointerdown', () => midiNote(+b.dataset.note, 90 + Math.floor(Math.random() * 30))));
+  $('#midiConnect').onclick = async () => {
+    if (!navigator.requestMIDIAccess) { $('#midiStatus').textContent = 'Trình duyệt này không hỗ trợ MIDI (Safari). Dùng Chrome, hoặc chạm các pad bên dưới.'; return; }
+    try {
+      const acc = await navigator.requestMIDIAccess();
+      const hook = () => { let k = 0; acc.inputs.forEach(i => { k++; i.onmidimessage = e => { const [st, d1, d2] = e.data; if ((st & 0xF0) === 0x90 && d2 > 0) midiNote(d1, d2); if ((st & 0xF0) === 0xB0 && d1 === 4) pedal(d2); }; }); $('#midiStatus').textContent = k ? `Đã kết nối ${k} thiết bị MIDI. Đánh trống để xem nốt.` : 'Chưa thấy thiết bị MIDI. Cắm cáp USB của TD-4K rồi bấm lại.'; };
+      acc.onstatechange = hook; hook();
+    } catch { $('#midiStatus').textContent = 'Không được phép dùng MIDI. Chạm các pad bên dưới để thử.'; }
+  };
+  drawMap();
+
+  // ---------- Daily budget + forecast (same rules as DailyBudget / ProgressForecast in the app) ----------
+  const B = (t, m, d) => ({ t, m, d });
+  const warm = m => B('Khởi động', m, 'Rudiment chậm trên pad, thả lỏng vai và cổ tay'), tech = m => B('Kỹ thuật', m, 'Stick Control và rudiment theo máy nhịp'),
+    main = m => B('Bài chính', m, 'Bài kiểm tra cấp độ hoặc bài thầy giao, lặp ô nhịp khó'), read = m => B('Đọc nhạc và nghe chép', m, 'Đọc nhạc ngẫu nhiên, Nghe chép nhịp, Count Coach'),
+    grv = m => B('Groove và fill', m, 'Groove theo cấp độ, hoán vị kick/snare'), song = m => B('Chơi theo bài hát', m, 'Bài nhập từ MIDI hoặc backing track'), rev = m => B('Ôn chỗ yếu', m, 'Học tự động trên bài điểm thấp nhất tuần');
+  const brk = 'Nghỉ giữa các buổi: đứng dậy, uống nước, giãn cổ tay và cẳng tay.';
+  const BUDGET = {
+    30: { s: [[warm(5), tech(10), main(10), grv(5)]], br: 0, mpg: [5, 6], rest: 0, w: ['Ít thời gian thì tập đều mỗi ngày quan trọng hơn tập dài cuối tuần.'] },
+    60: { s: [[warm(10), tech(15), main(20), read(10), grv(5)]], br: 0, mpg: [3, 4], rest: 0, w: [] },
+    120: { s: [[warm(10), tech(20), main(30)], [read(15), grv(20), song(15)]], br: 10, mpg: [2, 3], rest: 1, w: [brk] },
+    240: { s: [[warm(10), tech(35)], [main(45)], [read(25), grv(20)], [song(30), rev(15)]], br: 20, mpg: [1.5, 2.5], rest: 1,
+      w: [brk, 'Đau cổ tay hoặc cẳng tay thì dừng ngay. Đau quá 2 ngày nên đi khám.', 'Nghỉ hẳn ít nhất 1 ngày mỗi tuần để gân và cơ hồi phục.', 'Tập 4 tiếng không nhanh gấp đôi 2 tiếng: sau khoảng 2 tiếng, độ tập trung giảm và dễ tập sai.'] },
+  };
+  const CUR_GRADE = 2;
+  const units = (from, to) => { let u = 0; for (let g = from + 1; g <= to; g++) u += g >= 6 ? 1.5 : 1; return u; };
+  const range = (u, mpg) => `${Math.ceil(u * mpg[0])}–${Math.ceil(u * mpg[1])}`;
+  let budget = 60;
+  function drawBudget() {
+    const b = BUDGET[budget], colorsB = ['--shell', '--on', '--off', '--sec'];
+    let h = '';
+    b.s.forEach((sess, k) => {
+      const tot = sess.reduce((a, x) => a + x.m, 0);
+      h += `<div><div class="foot sec" style="margin-bottom:4px">${b.s.length > 1 ? `Buổi ${k + 1}, ` : ''}${tot} phút</div><div style="display:flex;gap:3px;height:30px;border-radius:8px;overflow:hidden">` +
+        sess.map((x, i) => `<div title="${x.t}: ${x.d}" style="flex:${x.m};background:${css(colorsB[i % 4])};opacity:${.35 + .65 * (1 - i / sess.length)};display:grid;place-items:center;color:#fff;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden">${x.m}′</div>`).join('') + '</div>' +
+        `<div class="foot" style="margin-top:6px;display:flex;flex-direction:column;gap:2px">${sess.map(x => `<span><b>${x.t}</b> ${x.m} phút <span class="sec">${x.d}</span></span>`).join('')}</div></div>`;
+      if (k < b.s.length - 1) h += `<div class="foot sec">Nghỉ ${b.br} phút</div>`;
+    });
+    $('#budgetBlocks').innerHTML = h;
+    // Personal: this learner's pace, score and tests passed, at the chosen minutes a day.
+    const P = PERSONAS[persona], sc = P.score[1];
+    const monthsTo = target => { let lo = 0, hi = 240; for (let k = 0; k < 40; k++) { const mid = (lo + hi) / 2; positionAfter(mid, budget, P, sc) >= target - 1e-6 ? hi = mid : lo = mid; } return hi; };
+    const span = m => m < 1 ? 'dưới 1' : `${Math.max(1, Math.floor(m * .85))}–${Math.ceil(m * 1.15)}`;
+    $('#budgetNext').textContent = span(monthsTo(CUR_GRADE + 1));
+    $('#budgetNextLabel').textContent = `tháng lên Grade ${CUR_GRADE + 1}`;
+    $('#budgetG8').textContent = span(monthsTo(8));
+    $('#budgetRest').textContent = b.rest;
+    $('#budgetWarn').innerHTML = b.w.map(t => `<span style="color:${css(budget === 240 && t !== brk ? '--off' : '--sec')}">${t}</span>`).join('');
+    drawForecast();
+  }
+  segs($('#budgetSeg'), b => { budget = +b.dataset.m; drawBudget(); });
+  $('#budgetApply').onclick = () => toast(`Đã đặt ${budget >= 60 ? budget / 60 + ' tiếng' : budget + ' phút'} mỗi ngày. Kế hoạch tuần tới của thầy sẽ theo mức này.`);
+
+  // Demo learners: minutes practised per day (oldest first), tests passed toward the next grade, how long past grades took,
+  // average score, and Paradiddle tempo at 90%+ with its weekly gain.
+  const LOG30 = [40, 0, 35, 50, 0, 30, 45, 25, 0, 60, 40, 30, 0, 0, 45, 35, 50, 30, 0, 40, 55, 30, 35, 0, 45, 30, 0, 60, 40, 35];
+  const PERSONAS = {
+    me: { log: LOG30, passed: 2, past: [[1, 3, 35], [2, 4, 40]], score: [81, 84], bpm: 72, perWeek: 1.5 },
+    fast: { log: LOG30.map(m => Math.round(m * .6)), passed: 4, past: [[1, 1.5, 20], [2, 2.5, 20]], score: [93, 92], bpm: 84, perWeek: 2 },
+    sloppy: { log: LOG30.map(m => m ? m * 2 + 30 : 0), passed: 0, past: [[1, 4, 90], [2, 5, 90]], score: [57, 59], bpm: 70, perWeek: .8 },
+  };
+  let fcWin = 7, persona = 'me';
+  // Same rules as ProgressForecast in the app.
+  function typicalMpg(m) {
+    const pts = [[15, 10], [30, 5.5], [60, 3.5], [120, 2.5], [240, 2]];
+    if (m <= 15) return 10 * 15 / Math.max(m, 5);
+    for (let i = 1; i < pts.length; i++) if (m <= pts[i][0]) { const [a, ma] = pts[i - 1], [b2, mb] = pts[i]; return ma + (mb - ma) * (m - a) / (b2 - a); }
+    return 2;
+  }
+  const wgt = g => g >= 6 ? 1.5 : 1;
+  function paceOf(past) { if (!past.length) return 1; const act = past.reduce((a, p) => a + p[1], 0), exp = past.reduce((a, p) => a + typicalMpg(p[2]) * wgt(p[0]), 0); return Math.min(2, Math.max(.5, act / exp)); }
+  const qualityOf = sc => sc >= 90 ? .9 : sc >= 75 ? 1 : sc >= 60 ? 1.2 : 1.5;
+  function positionAfter(months, m, P, score) {
+    let g = CUR_GRADE + P.passed / 5, left = months; const per = typicalMpg(m) * paceOf(P.past) * qualityOf(score);
+    while (left > 1e-9 && g < 8) { const next = Math.floor(g) + 1, cost = per * wgt(next), need = (next - g) * cost; if (left >= need) { g = next; left -= need; } else { g += left / cost; left = 0; } }
+    return Math.min(g, 8);
+  }
+  function bpmAfter(months, m, baseM, P) { const pw = P.perWeek * Math.sqrt(m / Math.max(baseM, 5)), w = months * 52 / 12; return Math.round(P.bpm + Math.min(pw * (1 - Math.pow(.97, w)) / .03, 60)); }
+  const gText = g => g >= 8 ? 'Grade 8' : `Grade ${Math.floor(g)}${g % 1 > .05 ? ` (đang ${Math.round(g % 1 * 100)}% tới Grade ${Math.floor(g) + 1})` : ''}`;
+  const pct = x => Math.round(Math.abs(1 - x) * 100);
+  function drawForecast() {
+    const P = PERSONAS[persona], days = P.log.slice(-fcWin), avg = days.reduce((a, b) => a + b, 0) / days.length, on = days.filter(Boolean).length;
+    const score = fcWin === 7 ? P.score[0] : P.score[1], pace = paceOf(P.past), q = qualityOf(score);
+    const W = 600, bw = W / days.length, max = Math.max(60, ...days), sec = css('--sec');
+    $('#fcBars').innerHTML = days.map((m, i) => `<rect x="${i * bw + bw * .15}" y="${100 - m / max * 90}" width="${bw * .7}" height="${Math.max(2, m / max * 90)}" rx="3" fill="${css(m ? '--shell' : '--hair')}"/>`).join('') +
+      `<line x1="0" x2="${W}" y1="${100 - avg / max * 90}" y2="${100 - avg / max * 90}" stroke="${css('--off')}" stroke-dasharray="4 4"/>` +
+      `<text x="0" y="116" font-size="11" fill="${sec}">${fcWin} ngày trước</text><text x="${W}" y="116" font-size="11" fill="${sec}" text-anchor="end">hôm nay</text>`;
+    const effect = (x, faster, slower) => x < .98 ? `<span style="color:${css('--on')}">${faster.replace('%', pct(x) + '%')}</span>` : x > 1.02 ? `<span style="color:${css('--miss')}">${slower.replace('%', pct(x) + '%')}</span>` : '<span class="sec">như mức trung bình</span>';
+    const rows = [
+      ['Thời gian', `${Math.round(avg)} phút/ngày, tập ${on}/${fcWin} ngày`, `<span class="sec">thường mất ${typicalMpg(avg).toFixed(1).replace('.', ',')} tháng mỗi Grade</span>`],
+      ['Đã hoàn thành', `${P.passed}/5 bài kiểm tra Grade ${CUR_GRADE + 1}`, `<span class="sec">bắt đầu từ ${(CUR_GRADE + P.passed / 5).toFixed(1).replace('.', ',')}</span>`],
+      ['Tốc độ học', P.past.map(p => `Grade ${p[0]} mất ${String(p[1]).replace('.', ',')} tháng`).join(', '), effect(pace, 'nhanh hơn % so với người tập cùng thời gian', 'chậm hơn % so với người tập cùng thời gian')],
+      ['Chất lượng', `điểm trung bình ${score}%`, effect(q, 'tập sạch, nhanh hơn %', score < 60 ? 'dưới 60% nhiều, chậm hơn %' : 'còn ẩu, chậm hơn %')],
+      ['Tempo', `Paradiddle ${P.bpm} BPM, tăng ${String(P.perWeek).replace('.', ',')} BPM mỗi tuần`, '<span class="sec">tăng chậm dần theo thời gian</span>'],
+    ];
+    $('#fcFactors').innerHTML = rows.map(r => `<div class="item" style="align-items:flex-start"><span style="width:110px;flex:none" class="sec">${r[0]}</span><div style="flex:1"><div>${r[1]}</div><div class="foot">${r[2]}</div></div></div>`).join('');
+    $('#fcSummary').textContent = 'Nếu giữ nhịp tập và chất lượng như hiện tại:';
+    $('#fcRows').innerHTML = [[1, '1 tháng tới'], [3, '3 tháng tới'], [6, 'Nửa năm tới'], [12, '1 năm tới']].map(([mo, label]) =>
+      `<div class="item"><span style="width:110px">${label}</span><div style="flex:1"><div>${gText(positionAfter(mo, avg, P, score))}</div><div class="foot sec">Paradiddle khoảng ${bpmAfter(mo, avg, avg, P)} BPM, thêm ${Math.round(avg * 30 * mo / 60)} giờ tập</div></div></div>`).join('');
+    const g6 = positionAfter(6, avg, P, score), g6b = positionAfter(6, budget, P, score), g6c = positionAfter(6, avg, P, Math.max(score, 90));
+    const name = budget >= 60 ? budget / 60 + ' tiếng' : budget + ' phút';
+    let tip = budget > avg + 5 ? `Nếu tập <b>${name}</b> mỗi ngày như mức đã chọn: sau nửa năm khoảng <b>${gText(g6b)}</b>, thay vì ${gText(g6)}.` : '';
+    if (score < 90) tip += `${tip ? '<br>' : ''}Nếu giữ thời gian như cũ nhưng tập chậm lại cho sạch (trên 90%): sau nửa năm khoảng <b>${gText(g6c)}</b>.`;
+    $('#fcCompare').innerHTML = tip || '<span class="sec">Bạn đang tập đều và sạch. Chọn mức thời gian cao hơn ở bên trái để so sánh.</span>';
+  }
+  segs($('#personaSeg'), b => { persona = b.dataset.p; drawBudget(); });
+  drawBudget();
+  segs($('#fcSeg'), b => { fcWin = +b.dataset.w; drawForecast(); });
+
+  // ---------- Settings ----------
+  $('#calib').onclick = () => toast('Gõ pad theo 8 tiếng click. Độ trễ đo được: 38 ms, đã lưu.');
+  segs($('#themeSeg'), b => { b.dataset.t ? document.documentElement.setAttribute('data-theme', b.dataset.t) : document.documentElement.removeAttribute('data-theme'); drawNotation(null); drawLanes(0); drawBpmChart(); });
+
+  function stopAll() { stopPractice(); stopMetro(); stopCount(); }
+
+  setBpm(70); loadExercise('Single Strokes'); drawBpmChart();
+  go((location.hash || '#today').slice(1));
+  if (location.hash.includes('/')) history.replaceState(null, '', '#' + location.hash.slice(1).split('/')[0]);
+  window.addEventListener('hashchange', () => go(location.hash.slice(1)));
+})();
+</script>
+</body>
+</html>

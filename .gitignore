@@ -1,0 +1,8 @@
+PrivateLibrary/*
+!PrivateLibrary/README.md
+.DS_Store
+*.xcodeproj/
+.build/
+DerivedData/
+xcuserdata/
+.swiftpm/
