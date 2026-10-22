@@ -1,4 +1,4 @@
-Subreddit gợi ý: r/drums (hoặc r/edrums nếu muốn nhấn vào phần MIDI). Đọc luật sub về self-promotion trước khi đăng; app không bán, không có link tải, nên thường được chấp nhận như một bài "show and tell / xin góp ý".
+Subreddit gợi ý: r/drums (hoặc r/edrums nếu muốn nhấn vào phần MIDI). Đọc luật sub về self-promotion trước khi đăng; app không bán, mã nguồn mở trên GitHub, nên thường được chấp nhận như một bài "show and tell / xin góp ý".
 
 ---
 
@@ -8,7 +8,7 @@ Subreddit gợi ý: r/drums (hoặc r/edrums nếu muốn nhấn vào phần MID
 
 I'm an adult learner working through Stick Control, aiming at Rockschool grades. My comfortable range is 50–90 BPM and I practise mostly on a 12" pad, sometimes on a Roland TD-4K. No teacher, so for a long time I had no idea whether I was actually on the click or just felt like I was.
 
-So I built a practice app for my iPad. It's a personal project, not on the App Store, nothing to sell. Here's what it does:
+So I built a practice app for my iPad. It's a personal project, not on the App Store, nothing to sell, and the code is public. Here's what it does:
 
 - **Listens while you play.** Pad through the iPad mic (8-tap setup for room noise, softest stroke, latency), or e-kit over USB/Bluetooth MIDI.
 - **Colours every note.** Green = within ±30 ms, amber = early/late (the mark sits before the note if you rushed, after if you dragged), red = missed. A % at the end.
@@ -22,6 +22,8 @@ It ships none of the Stick Control or Rockschool book content (copyright). It ge
 Browser demo of the practice screen (you can tap along with the click): https://nam1209.github.io/drum-coach/
 
 Clickable prototype of the whole app, every screen: https://nam1209.github.io/drum-coach/prototype-en.html
+
+Source code (Swift/SwiftUI, if you have a Mac and an iPad you can build it yourself): https://github.com/Nam1209/drum-coach
 
 Questions for those of you who've had lessons:
 
