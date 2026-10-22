@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}</style>
+<title>DrumCoach for iPad</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one long column; the hero is a working practice screen, the rest reads like a practice log. */
+:root {
+  --bg: #F1F1F4; --stage: #FFFFFF; --fg: #1D1B1C; --sec: #5F5B5D; --hair: rgba(29,27,28,.10);
+  --accent: #DA5236; --accent-soft: rgba(218,82,54,.12); --ink: #585858;
+  --on: #1F9D55; --off: #D99100; --miss: #B3192F;
+  --display: "Archivo", "Arial Narrow", Helvetica, sans-serif;
+  --body: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E0E10; --stage: #1C1C1E; --fg: #F4F2F3; --sec: #A9A4A6; --hair: rgba(255,255,255,.11);
+    --accent: #F06A4C; --accent-soft: rgba(240,106,76,.18); --ink: #D1D1D6;
+    --on: #30C46E; --off: #F2B233; --miss: #F0505F; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E0E10; --stage: #1C1C1E; --fg: #F4F2F3; --sec: #A9A4A6; --hair: rgba(255,255,255,.11);
+  --accent: #F06A4C; --accent-soft: rgba(240,106,76,.18); --ink: #D1D1D6;
+  --on: #30C46E; --off: #F2B233; --miss: #F0505F; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 17px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(38px, 7vw, 76px); font-weight: 850; font-stretch: 112%; line-height: .98; letter-spacing: -.02em; }
+h2 { font-size: clamp(28px, 4vw, 40px); font-weight: 800; font-stretch: 108%; line-height: 1.05; letter-spacing: -.01em; }
+h3 { font-size: 19px; font-weight: 700; font-stretch: 100%; }
+p { margin: 0; max-width: 62ch; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.sec { color: var(--sec); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 10px; }
+a { color: var(--accent); }
+
+/* Hero */
+header.hero { padding-block: 56px 28px; display: grid; gap: 20px; }
+header.hero .lede { font-size: 19px; color: var(--sec); }
+.word-on { color: var(--on); } .word-off { color: var(--off); } .word-miss { color: var(--miss); }
+
+/* Practice screen demo */
+.screen { background: var(--stage); border-radius: 26px; padding: 22px; display: grid; gap: 18px; box-shadow: 0 1px 0 var(--hair), 0 24px 60px -32px rgba(0,0,0,.35); }
+.screen-top { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; }
+.ex-name { display: grid; gap: 2px; min-width: 0; }
+.ex-name b { font-family: var(--display); font-size: 24px; font-weight: 800; font-stretch: 105%; }
+.ex-name span { font-size: 14px; color: var(--sec); }
+.spacer { flex: 1; }
+.tempo { display: flex; align-items: center; gap: 10px; }
+.step { width: 40px; height: 40px; border-radius: 50%; background: var(--hair); font-size: 22px; font-weight: 600; line-height: 1; }
+.bpm { text-align: center; min-width: 74px; }
+.bpm b { display: block; font: 700 34px/1 var(--display); font-stretch: 100%; font-variant-numeric: tabular-nums; }
+.bpm small { font: 500 11px/1 var(--mono); letter-spacing: .1em; color: var(--sec); }
+.seg { display: inline-flex; background: var(--hair); border-radius: 10px; padding: 3px; }
+.seg button { padding: 6px 14px; border-radius: 8px; font-size: 14px; font-weight: 500; }
+.seg button[aria-pressed="true"] { background: var(--stage); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+
+.strip { position: relative; height: 176px; border-radius: 16px; background: var(--bg); overflow: hidden; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.lane-label { position: absolute; left: 10px; font: 600 13px/1 var(--mono); color: var(--sec); }
+.lane-line { position: absolute; left: 34px; right: 10px; height: 1px; background: var(--hair); }
+.bar-line { position: absolute; top: 18px; bottom: 34px; width: 1px; background: var(--hair); }
+.bar-line.strong { background: var(--sec); opacity: .4; }
+.count { position: absolute; bottom: 10px; transform: translateX(-50%); font: 500 13px/1 var(--mono); color: var(--sec); transition: color .1s; }
+.count.beat { color: var(--fg); font-weight: 600; }
+.count.now { color: var(--accent); }
+.note { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 9px; background: var(--ink); color: var(--stage); display: grid; place-items: center; font: 600 13px/1 var(--mono); transition: background-color .12s, transform .12s; }
+.note.on { background: var(--on); }
+.note.off { background: var(--off); }
+.note.miss { background: transparent; color: var(--miss); box-shadow: inset 0 0 0 2.5px var(--miss); }
+.note.flash { transform: scale(1.18); }
+.note .tick { position: absolute; top: 3px; bottom: 3px; width: 4px; border-radius: 2px; background: var(--off); }
+.note .tick.early { left: -8px; } .note .tick.late { right: -8px; }
+.playhead { position: absolute; top: 10px; bottom: 28px; width: 3px; margin-left: -1.5px; border-radius: 2px; background: var(--accent); }
+.countin { position: absolute; inset: 0; display: grid; place-items: center; font: 850 88px/1 var(--display); color: var(--accent); background: color-mix(in srgb, var(--bg) 82%, transparent); }
+
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.play { height: 52px; padding: 0 22px 0 18px; border-radius: 26px; background: var(--accent); color: #fff; font-weight: 600; display: inline-flex; align-items: center; gap: 10px; }
+.play svg { width: 18px; height: 18px; fill: currentColor; }
+.play.running { background: var(--fg); color: var(--stage); }
+.pad { height: 52px; padding: 0 22px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.pad:active, .pad.hit { background: var(--accent); color: #fff; }
+.hint { font-size: 14px; color: var(--sec); }
+.toggle { font-size: 14px; color: var(--sec); display: inline-flex; gap: 6px; align-items: center; }
+
+.result { display: grid; grid-template-columns: auto 1fr; gap: 6px 22px; align-items: center; border-top: 1px solid var(--hair); padding-top: 16px; }
+.pct { font: 850 56px/1 var(--display); font-stretch: 100%; font-variant-numeric: tabular-nums; }
+.tally { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 15px; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: 0; }
+.result .last { grid-column: 1 / -1; font-size: 14px; color: var(--sec); }
+.live { font: 500 14px/1.4 var(--mono); color: var(--sec); min-height: 1.4em; }
+
+/* Sections */
+section { padding-block: 64px 8px; display: grid; gap: 28px; }
+.intro { display: grid; gap: 12px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; }
+.card { background: var(--stage); border-radius: 18px; padding: 22px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.card p { font-size: 15.5px; color: var(--sec); }
+.card .tag { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--sec); }
+
+ol.flow { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: s; }
+ol.flow li { counter-increment: s; display: grid; grid-template-columns: 56px 1fr; gap: 4px 16px; padding-block: 18px; border-top: 1px solid var(--hair); }
+ol.flow li::before { content: counter(s); grid-row: span 2; font: 800 30px/1 var(--display); color: var(--accent); }
+ol.flow li p { color: var(--sec); font-size: 16px; }
+
+.syll { display: flex; flex-wrap: wrap; gap: 6px; }
+.syll span { font: 600 15px/1 var(--mono); padding: 9px 11px; border-radius: 9px; background: var(--on); color: #fff; }
+.syll span.off { background: var(--off); } .syll span.miss { background: transparent; color: var(--miss); box-shadow: inset 0 0 0 2px var(--miss); }
+
+/* Points band scale */
+.bands { display: grid; grid-template-columns: 40fr 20fr 15fr 15fr 10fr; border-radius: 12px; overflow: hidden; font-size: 13px; }
+.bands div { padding: 12px 10px; display: grid; gap: 2px; min-width: 0; }
+.bands b { font: 600 13px/1.2 var(--mono); }
+.bands span { color: var(--sec); line-height: 1.3; }
+.b0 { background: color-mix(in srgb, var(--miss) 16%, var(--stage)); }
+.b1 { background: var(--stage); }
+.b2 { background: color-mix(in srgb, var(--off) 16%, var(--stage)); }
+.b3 { background: color-mix(in srgb, var(--on) 14%, var(--stage)); }
+.b4 { background: color-mix(in srgb, var(--on) 30%, var(--stage)); }
+@media (max-width: 620px) {
+  .bands { grid-template-columns: 1fr; }
+}
+
+/* Teacher loop */
+.loop { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.loop .node { background: var(--stage); border-radius: 16px; padding: 18px; display: grid; gap: 6px; align-content: start; position: relative; }
+.loop .node .who { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.loop .node p { font-size: 15px; color: var(--sec); }
+.loop .node:not(:last-child)::after { content: "→"; position: absolute; right: -11px; top: 18px; color: var(--sec); font-weight: 600; }
+.loop-back { font: 500 13px/1.4 var(--mono); color: var(--sec); }
+@media (max-width: 820px) {
+  .loop { grid-template-columns: 1fr; }
+  .loop .node:not(:last-child)::after { content: "↓"; right: 18px; top: auto; bottom: -15px; }
+}
+
+footer { padding-block: 64px 48px; display: grid; gap: 10px; border-top: 1px solid var(--hair); margin-top: 64px; font-size: 15px; color: var(--sec); }
+
+@media (max-width: 560px) {
+  .screen { padding: 16px; border-radius: 20px; }
+  .note { width: 24px; height: 24px; margin: -12px 0 0 -12px; font-size: 11px; border-radius: 7px; }
+  .count { font-size: 11px; }
+  .pct { font-size: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .note, .count { transition: none; }
+  .note.flash { transform: none; }
+}
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="eyebrow">iPad practice app · personal project</span>
+    <h1>Hear every stroke. See which ones were late.</h1>
+    <p class="lede">DrumCoach listens to a practice pad through the iPad mic, or to an e-kit over MIDI, while you play along to a click. Each note turns <b class="word-on">green</b> when it's on time, <b class="word-off">amber</b> when it's early or late, and <b class="word-miss">red</b> when it's missed. I built it for myself while working through Stick Control toward Rockschool Grade 8.</p>
+  </header>
+
+  <div class="screen" id="screen" aria-label="Practice screen demo">
+    <div class="screen-top">
+      <div class="ex-name">
+        <b>Single paradiddle</b>
+        <span>Eighth notes · 4 bars · good window ±30 ms</span>
+      </div>
+      <div class="spacer"></div>
+      <div class="tempo">
+        <button class="step" id="slower" aria-label="Slower">−</button>
+        <div class="bpm"><b id="bpm">70</b><small>BPM</small></div>
+        <button class="step" id="faster" aria-label="Faster">+</button>
+      </div>
+      <div class="seg" role="group" aria-label="Who plays">
+        <button id="modeWatch" aria-pressed="true">Watch a run</button>
+        <button id="modeTap" aria-pressed="false">Tap along</button>
+      </div>
+    </div>
+
+    <div class="strip" id="strip"></div>
+
+    <div class="controls">
+      <button class="play" id="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="playIcon" d="M7 4.5v15l13-7.5z"/></svg><span id="playLabel">Start run</span></button>
+      <button class="pad" id="pad" hidden>Hit</button>
+      <label class="toggle"><input type="checkbox" id="sound" checked> Click sound</label>
+      <span class="hint" id="hint">A simulated drummer plays four bars. Switch to “Tap along” to play it yourself.</span>
+    </div>
+    <div class="live" id="live" aria-live="polite"></div>
+
+    <div class="result" id="result">
+      <div class="pct" id="pct">84%</div>
+      <div class="tally" id="tally"></div>
+      <div class="last" id="last">Example run at 70 BPM. Green counts 1, amber 0.5, red 0, and every extra stroke takes off 0.5.</div>
+    </div>
+  </div>
+
+  <section>
+    <div class="intro">
+      <span class="eyebrow">A practice session</span>
+      <h2>From “what do I practise today” to a number you can track</h2>
+    </div>
+    <ol class="flow">
+      <li><h3>Today picks the work</h3><p>A short list for the day, sized to the time you have: Stick Control style stickings, rudiments, a level test. Choose pad, kit or both, and kit-only exercises turn into their hand part on the pad.</p></li>
+      <li><h3>A spoken count-in</h3><p>“One, two, three, four” on the click, then the notation starts moving. The playhead runs through the bar, R/L sits under each note, and the two-lane strip shows right hand on top, left below.</p></li>
+      <li><h3>Every note gets a colour</h3><p>The app matches each stroke to the nearest note and shows how many milliseconds off it was. Amber marks sit before the note when you rushed and after it when you dragged.</p></li>
+      <li><h3>A score and a diagnosis</h3><p>You get a percentage for the run, plus where it went wrong: which hand, which part of “1 e &amp; a”, and whether you drift. A constant offset usually means latency to calibrate; an offset that grows through the run means rushing or dragging.</p></li>
+      <li><h3>Kept forever</h3><p>Every run is saved from the first session on, with no time limit, so “last time: 50 BPM, 79%” and the long-term charts are always there.</p></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="intro">
+      <span class="eyebrow">Input</span>
+      <h2>It listens to what you actually play</h2>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <span class="tag">Practice pad · mic</span>
+        <h3>Eight taps to set it up</h3>
+        <p>The setup measures the room's noise floor, your softest stroke and the brightness of a stick hit, so talking and fridge hum don't count as notes. Latency is stored per output device, and the app warns you about Bluetooth headphones, which add too much delay.</p>
+      </div>
+      <div class="card">
+        <span class="tag">E-kit · MIDI</span>
+        <h3>USB or Bluetooth MIDI</h3>
+        <p>Plug in a USB-MIDI cable or pair a Bluetooth MIDI adapter from Settings. Roland note numbers work out of the box, including hi-hat edge and rim zones, and MIDI learn covers any other kit. I use it with a Roland TD-4K.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Metronome</span>
+        <h3>A click that sounds like a click</h3>
+        <p>The default sound is a recording of a real mechanical metronome (CC0), with four takes rotated so repeats don't sound identical. Tempo ramps go 50 → 90 BPM in steps of 2, moving up only after four bars at 90%.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="intro">
+      <span class="eyebrow">Counting coach</span>
+      <h2>Count out loud, and get scored on it</h2>
+      <p class="sec">My counting fell apart on the “&amp;”. The app speaks a smooth “1 e &amp; a” or “1 trip-let” at any tempo, then you count while it listens and marks each syllable early, late or missed. If talking isn't an option, tap a table or the screen instead.</p>
+    </div>
+    <div class="card">
+      <span class="tag">Example result · 16th notes at 60 BPM</span>
+      <div class="syll" aria-label="Counting result example">
+        <span>1</span><span>e</span><span class="off">&amp;</span><span>a</span>
+        <span>2</span><span>e</span><span class="off">&amp;</span><span>a</span>
+        <span>3</span><span class="miss">e</span><span class="off">&amp;</span><span>a</span>
+        <span>4</span><span>e</span><span>&amp;</span><span>a</span>
+      </div>
+      <p>Tip shown after a run like this: the “&amp;” keeps landing late, so slow down and say it on the click with the hi-hat.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="intro">
+      <span class="eyebrow">Levels</span>
+      <h2>Levels follow Rockschool grades</h2>
+      <p class="sec">Level N means two things: you passed the app's Grade N tests at over 90% (Rockschool's Distinction line), at the book's tempos (♩=70 for Grades 1–2, ♩=75 for Grades 3–4), and you've put in the practice points behind it. Roughly 10,000 points per grade for 1–5 and 15,000 for 6–8, which works out to about half a year of 30-minute days per grade.</p>
+    </div>
+    <div class="bands" aria-label="Points per run by score">
+      <div class="b0"><b>under 40%</b><span>lose 1–5</span></div>
+      <div class="b1"><b>40–60%</b><span>0, learning zone</span></div>
+      <div class="b2"><b>60–75% Pass</b><span>1–3 points</span></div>
+      <div class="b3"><b>75–90% Merit</b><span>3–8 points</span></div>
+      <div class="b4"><b>90%+ Dist.</b><span>10–20</span></div>
+    </div>
+    <p class="sec">Playing an exercise to the end at 60% or better adds a finishing bonus of 2 to 10 points, depending on its length. Runs shorter than 10 seconds don't count either way, and a passed level test adds 50.</p>
+  </section>
+
+  <section>
+    <div class="intro">
+      <span class="eyebrow">AI teacher</span>
+      <h2>A weekly lesson plan through Notion and Claude</h2>
+      <p class="sec">I don't have a real teacher, so this is the part I lean on most. The app doesn't call an AI model itself. It writes your practice history to a Notion page, and a Claude chat with access to that page acts as the teacher.</p>
+    </div>
+    <div class="loop">
+      <div class="node"><span class="who">DrumCoach</span><h3>Weekly report</h3><p>One page per day in Notion: scores, per-hand drift, counting results, level and points.</p></div>
+      <div class="node"><span class="who">Notion</span><h3>Shared page</h3><p>Holds the reports, a teacher guide with the grading rules, and an inbox for plans.</p></div>
+      <div class="node"><span class="who">Claude</span><h3>Reads and plans</h3><p>Reads the long-term history, says what to fix, and writes next week's plan, new exercises and video or book suggestions.</p></div>
+      <div class="node"><span class="who">DrumCoach</span><h3>Sync</h3><p>Pulls the plan into Today. Rewritten plans are picked up, and the last one applied is the active one.</p></div>
+    </div>
+    <p class="loop-back">↺ then you practise the week and the next report goes out</p>
+  </section>
+
+  <section>
+    <div class="intro">
+      <span class="eyebrow">Content</span>
+      <h2>Your books stay yours</h2>
+      <p class="sec">Stick Control and the Rockschool books are under copyright, so the app ships none of their content. Exercises come from four places:</p>
+    </div>
+    <div class="grid">
+      <div class="card"><h3>Generated stickings</h3><p>R/L permutations in the Stick Control style, built by the app. Combinations of R and L, not pages from the book.</p></div>
+      <div class="card"><h3>A built-in curriculum</h3><p>The app's own skill path toward Grade 8, plus the 40 PAS rudiments.</p></div>
+      <div class="card"><h3>Your own books</h3><p>Type an exercise in a short text format, or have Claude read a page of your PDF. Imports stay on the iPad.</p></div>
+      <div class="card"><h3>Ear tests and dictation</h3><p>Rockschool-style: hear a fill or groove twice, play it back, get scored.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>DrumCoach</b> is a native iPad app (Swift 6, SwiftUI, AVAudioEngine, CoreMIDI, SwiftData). The timing and scoring core is a separate Swift package with 366 tests.</p>
+    <p>It isn't on the App Store. It's built for one iPad, one 12" pad and one TD-4K. The demo above runs in your browser, so its timing is rougher than the app's.</p>
+    <p><a href="prototype-en.html">Open the clickable prototype of the whole app →</a> (<a href="prototype.html">Tiếng Việt</a>)</p>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const STICKING = "RLRRLRLL".split("");          // single paradiddle, eighth notes
+  const NOTES_PER_BAR = 8, BARS_SHOWN = 2, BARS_RUN = 4;
+  const GOOD = 0.030, WINDOW = 0.120;              // seconds
+  const COUNTS = ["1","&","2","&","3","&","4","&"];
+  const $ = id => document.getElementById(id);
+  const strip = $("strip");
+  let bpm = 70, mode = "watch", ctx = null, run = null, raf = 0;
+
+  // Build the strip: two bars, two lanes.
+  const LEFT = 10, RIGHT = 97;                     // % range used for notes
+  const total = NOTES_PER_BAR * BARS_SHOWN;
+  const xAt = i => LEFT + (RIGHT - LEFT) * (i + 0.5) / total;
+  const noteEls = [], countEls = [];
+  strip.innerHTML = `
+    <span class="lane-label" style="top:52px">R</span><span class="lane-label" style="top:104px">L</span>
+    <div class="lane-line" style="top:58px"></div><div class="lane-line" style="top:110px"></div>`;
+  for (let b = 0; b <= BARS_SHOWN; b++) {
+    const d = document.createElement("div");
+    d.className = "bar-line" + (b === 0 || b === BARS_SHOWN ? "" : " strong");
+    d.style.left = (LEFT + (RIGHT - LEFT) * b / BARS_SHOWN) + "%";
+    strip.appendChild(d);
+  }
+  for (let i = 0; i < total; i++) {
+    const hand = STICKING[i % NOTES_PER_BAR];
+    const n = document.createElement("div");
+    n.className = "note"; n.textContent = hand;
+    n.style.left = xAt(i) + "%"; n.style.top = hand === "R" ? "58px" : "110px";
+    strip.appendChild(n); noteEls.push(n);
+    const c = document.createElement("span");
+    c.className = "count" + (i % 2 === 0 ? " beat" : ""); c.textContent = COUNTS[i % NOTES_PER_BAR];
+    c.style.left = xAt(i) + "%";
+    strip.appendChild(c); countEls.push(c);
+  }
+  const head = document.createElement("div");
+  head.className = "playhead"; head.style.left = LEFT + "%"; head.hidden = true;
+  strip.appendChild(head);
+  const countin = document.createElement("div");
+  countin.className = "countin"; countin.hidden = true;
+  strip.appendChild(countin);
+
+  function paint(i, state, offsetMs) {
+    const n = noteEls[i];
+    n.className = "note" + (state ? " " + state : "");
+    n.querySelector(".tick")?.remove();
+    if (state === "off") {
+      const t = document.createElement("span");
+      t.className = "tick " + (offsetMs < 0 ? "early" : "late");
+      n.appendChild(t);
+    }
+    n.title = state === "miss" ? "missed" : state ? `${Math.abs(Math.round(offsetMs))} ms ${offsetMs < 0 ? "early" : "late"}` : "";
+  }
+  function clearNotes() { noteEls.forEach((_, i) => paint(i, null)); }
+
+  // Same rule as the app: green 1, amber 0.5, red 0, extra −0.5, clamped 0…100.
+  function score(r) { return Math.max(0, Math.min(100, (r.on + 0.5 * r.off - 0.5 * r.extra) / r.notes * 100)); }
+  function points(pct, seconds) {
+    if (seconds < 10) return 0;
+    const s = pct;
+    let p = s < 40 ? -Math.ceil((40 - s) / 8) : s < 60 ? 0
+      : s >= 90 ? 10 + Math.round(s - 90) : s >= 75 ? 3 + Math.round((s - 75) / 3) : 1 + Math.round((s - 60) / 7.5);
+    if (s >= 60) p += Math.min(10, Math.max(2, Math.round(seconds / 30)));
+    return p;
+  }
+  function showResult(r, label) {
+    const pct = Math.round(score(r));
+    $("pct").textContent = pct + "%";
+    $("tally").innerHTML =
+      `<span><i class="dot" style="background:var(--on)"></i>${r.on} on time</span>` +
+      `<span><i class="dot" style="background:var(--off)"></i>${r.off} early or late</span>` +
+      `<span><i class="dot" style="box-shadow:inset 0 0 0 2px var(--miss)"></i>${r.miss} missed</span>` +
+      (r.extra ? `<span>${r.extra} extra</span>` : "");
+    $("last").textContent = label;
+  }
+
+  // Resting state: an example finished run, so the screen shows what a result looks like.
+  const sample = [3,-12,18,-41,9,27,-6,14, 22,-8,null,11,-52,5,16,-19];
+  const rest = { on: 0, off: 0, miss: 0, extra: 0, notes: 16 };
+  sample.forEach((ms, i) => {
+    if (ms === null) { paint(i, "miss"); rest.miss++; }
+    else if (Math.abs(ms) <= 30) { paint(i, "on", ms); rest.on++; }
+    else { paint(i, "off", ms); rest.off++; }
+  });
+  showResult(rest, "Example run at 70 BPM. Green counts 1, amber 0.5, red 0, and every extra stroke takes off 0.5.");
+
+  // Audio: a short filtered noise burst, brighter on beat 1.
+  let noise = null;
+  function ensureAudio() {
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      noise = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+      const d = noise.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.006));
+    }
+    if (ctx.state === "suspended") ctx.resume();
+  }
+  function click(t, accent) {
+    if (!$("sound").checked) return;
+    const src = ctx.createBufferSource(); src.buffer = noise;
+    const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = accent ? 2600 : 1500; f.Q.value = 4;
+    const g = ctx.createGain(); g.gain.value = accent ? 1.4 : 0.9;
+    src.connect(f).connect(g).connect(ctx.destination); src.start(t);
+  }
+  function stick(t) {
+    if (!$("sound").checked) return;
+    const src = ctx.createBufferSource(); src.buffer = noise;
+    const f = ctx.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 3500;
+    const g = ctx.createGain(); g.gain.value = 0.35;
+    src.connect(f).connect(g).connect(ctx.destination); src.start(t);
+  }
+  const latency = () => (ctx.outputLatency || 0) + (ctx.baseLatency || 0);
+
+  function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+  function start() {
+    ensureAudio();
+    const sub = 60 / bpm / 2;                       // eighth-note length
+    const t0 = ctx.currentTime + 0.15 + 4 * (60 / bpm);
+    const count = NOTES_PER_BAR * BARS_RUN;
+    run = { t0, sub, count, notes: count, on: 0, off: 0, miss: 0, extra: 0, judged: new Array(count).fill(false), clicksAt: 0, sim: [], page: -1 };
+    for (let k = 0; k < 4; k++) click(ctx.currentTime + 0.15 + k * 60 / bpm, k === 0);
+    run.clicksAt = 0;
+    if (mode === "watch") {
+      for (let i = 0; i < count; i++) {
+        if (Math.random() < 0.04) { run.sim.push(null); continue; }
+        const off = 0.008 + gauss() * 0.024 + (STICKING[i % 8] === "L" ? 0.006 : 0);
+        run.sim.push(t0 + i * sub + off);
+        stick(t0 + i * sub + off);
+      }
+    }
+    clearNotes(); head.hidden = false; countin.hidden = false;
+    $("play").classList.add("running"); $("playLabel").textContent = "Stop";
+    $("playIcon").setAttribute("d", "M6 5h4v14H6zM14 5h4v14h-4z");
+    $("live").textContent = "";
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(tick);
+  }
+
+  function stop(finished) {
+    cancelAnimationFrame(raf);
+    head.hidden = true; countin.hidden = true;
+    countEls.forEach(c => c.classList.remove("now"));
+    $("play").classList.remove("running"); $("playLabel").textContent = "Start run";
+    $("playIcon").setAttribute("d", "M7 4.5v15l13-7.5z");
+    if (run && finished) {
+      const seconds = run.count * run.sub;
+      const pct = score(run);
+      const p = points(pct, seconds);
+      showResult(run, `${bpm} BPM, ${Math.round(pct)}% · ${p >= 0 ? "+" : ""}${p} practice points by the app's rules` +
+        (mode === "tap" ? ". Hands aren't checked in the browser." : "."));
+    }
+    run = null;
+  }
+
+  function judge(i, offset) {
+    if (run.judged[i]) return;
+    run.judged[i] = true;
+    const shown = i % total;
+    const ms = offset * 1000;
+    if (offset === null) { run.miss++; paint(shown, "miss"); return; }
+    if (Math.abs(offset) <= GOOD) { run.on++; paint(shown, "on", ms); }
+    else { run.off++; paint(shown, "off", ms); }
+    noteEls[shown].classList.add("flash");
+    setTimeout(() => noteEls[shown].classList.remove("flash"), 110);
+    $("live").textContent = Math.abs(offset) <= 0.002 ? "dead on" : `${Math.abs(Math.round(ms))} ms ${offset < 0 ? "early" : "late"}`;
+  }
+
+  function hit() {
+    if (!run || mode !== "tap") return;
+    const t = ctx.currentTime - latency();
+    const i = Math.round((t - run.t0) / run.sub);
+    if (i < 0 || i >= run.count || run.judged[i] || Math.abs(t - (run.t0 + i * run.sub)) > WINDOW) {
+      if (t >= run.t0 - WINDOW) { run.extra++; $("live").textContent = "extra stroke"; }
+      return;
+    }
+    judge(i, t - (run.t0 + i * run.sub));
+  }
+
+  function tick() {
+    if (!run) return;
+    const now = ctx.currentTime;
+    const heard = now - latency();
+    // Schedule clicks a little ahead.
+    while (run.clicksAt < run.count / 2 && run.t0 + run.clicksAt * 2 * run.sub < now + 0.2) {
+      click(run.t0 + run.clicksAt * 2 * run.sub, run.clicksAt % 4 === 0);
+      run.clicksAt++;
+    }
+    if (heard < run.t0) {
+      const beat = Math.floor((heard - (run.t0 - 4 * 2 * run.sub)) / (2 * run.sub));
+      countin.textContent = beat >= 0 ? String(beat + 1) : "";
+      head.style.left = LEFT + "%";
+    } else {
+      countin.hidden = true;
+      const pos = (heard - run.t0) / run.sub;     // in eighth notes, from the first note
+      const page = Math.floor(pos / total);
+      if (page !== run.page && page * total < run.count) { run.page = page; clearNotes(); }
+      const inPage = pos - page * total;
+      head.style.left = (LEFT + (RIGHT - LEFT) * (inPage + 0.5) / total) + "%";
+      countEls.forEach((c, k) => c.classList.toggle("now", k === Math.floor(inPage)));
+      // Simulated strokes land as their sound plays.
+      if (mode === "watch") {
+        run.sim.forEach((ts, i) => { if (ts !== null && !run.judged[i] && heard >= ts) judge(i, ts - (run.t0 + i * run.sub)); });
+      }
+      // Anything well past its window is a miss.
+      for (let i = 0; i < run.count; i++) {
+        if (!run.judged[i] && heard > run.t0 + i * run.sub + WINDOW) judge(i, null);
+      }
+      if (heard > run.t0 + (run.count - 1) * run.sub + WINDOW + 0.05) { stop(true); return; }
+    }
+    raf = requestAnimationFrame(tick);
+  }
+
+  $("play").addEventListener("click", () => run ? stop(false) : start());
+  $("slower").addEventListener("click", () => { if (run) return; bpm = Math.max(40, bpm - 5); $("bpm").textContent = bpm; });
+  $("faster").addEventListener("click", () => { if (run) return; bpm = Math.min(140, bpm + 5); $("bpm").textContent = bpm; });
+  function setMode(m) {
+    if (run) stop(false);
+    mode = m;
+    $("modeWatch").setAttribute("aria-pressed", m === "watch");
+    $("modeTap").setAttribute("aria-pressed", m === "tap");
+    $("pad").hidden = m !== "tap";
+    $("hint").textContent = m === "tap"
+      ? "Press Start, wait for the count-in, then hit on every eighth note: tap Hit, the strip, or any key."
+      : "A simulated drummer plays four bars. Switch to “Tap along” to play it yourself.";
+  }
+  $("modeWatch").addEventListener("click", () => setMode("watch"));
+  $("modeTap").addEventListener("click", () => setMode("tap"));
+  $("pad").addEventListener("pointerdown", e => { e.preventDefault(); hit(); });
+  strip.addEventListener("pointerdown", () => hit());
+  document.addEventListener("keydown", e => {
+    if (!run || mode !== "tap" || e.repeat || e.metaKey || e.ctrlKey) return;
+    if (e.target.closest("button, input") && (e.key === " " || e.key === "Enter")) e.preventDefault();
+    hit();
+    $("pad").classList.add("hit"); setTimeout(() => $("pad").classList.remove("hit"), 80);
+  });
+})();
+</script>
+
+</html>

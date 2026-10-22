@@ -1,0 +1,1261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DrumCoach Prototype EN</title>
+<style>
+:root {
+  --shell: #DA5236; --shell-soft: rgba(218,82,54,.12); --ink: #585858;
+  --on: #1F9D55; --off: #D99100; --miss: #B3192F;
+  --canvas: #F2F2F7; --stage: #FFFFFF; --text: #000000; --sec: rgba(60,60,67,.62); --ter: rgba(60,60,67,.3);
+  --hair: rgba(0,0,0,.08); --side: #F7F7FA; --inv: #FFFFFF;
+  --round: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --canvas: #000000; --stage: #1C1C1E; --text: #FFFFFF; --sec: rgba(235,235,245,.6); --ter: rgba(235,235,245,.3);
+    --hair: rgba(255,255,255,.1); --side: #121214; --inv: #000000; --shell: #F06A4C; --shell-soft: rgba(240,106,76,.18); --ink: #D1D1D6; --on: #30C46E; --off: #F2B233; --miss: #F0505F;
+  }
+}
+:root[data-theme="dark"] {
+  --canvas: #000000; --stage: #1C1C1E; --text: #FFFFFF; --sec: rgba(235,235,245,.6); --ter: rgba(235,235,245,.3);
+  --hair: rgba(255,255,255,.1); --side: #121214; --inv: #000000; --shell: #F06A4C; --shell-soft: rgba(240,106,76,.18); --ink: #D1D1D6; --on: #30C46E; --off: #F2B233; --miss: #F0505F;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { background: var(--canvas); color: var(--text); font: 17px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+#pager button { font-size: 22px; padding: 0 6px; } #pager button:disabled { opacity: .3; cursor: default; }
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--shell); outline-offset: 2px; border-radius: 10px; }
+.num { font-family: var(--round); font-variant-numeric: tabular-nums; font-weight: 600; }
+.sec { color: var(--sec); } .foot { font-size: 13px; } .callout { font-size: 15px; }
+
+/* Shell layout */
+.app { display: grid; grid-template-columns: 280px 1fr; height: 100vh; }
+.side { background: var(--side); border-right: 1px solid var(--hair); padding: 18px 12px; overflow-y: auto; }
+.side h1 { font-size: 28px; font-weight: 700; padding: 6px 12px 14px; }
+.side .group { font-size: 13px; color: var(--sec); padding: 16px 12px 6px; font-weight: 600; }
+.nav { display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 12px; border-radius: 10px; text-align: left; }
+.nav svg { width: 22px; height: 22px; stroke: var(--shell); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.nav.on { background: var(--shell); color: #fff; } .nav.on svg { stroke: #fff; }
+.main { overflow-y: auto; }
+.page { display: none; padding: 28px; max-width: 1180px; flex-direction: column; gap: 22px; }
+.page.on { display: flex; }
+.mobilebar { display: none; }
+
+/* Components */
+.header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.header h2 { font-size: 34px; font-weight: 700; letter-spacing: -.01em; }
+.stage { background: var(--stage); border-radius: 22px; padding: 20px; }
+.readout .v { font-family: var(--round); font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.spacer { flex: 1; }
+.icon-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--stage); display: inline-grid; place-items: center; }
+.icon-btn svg { width: 20px; height: 20px; stroke: var(--shell); fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.btn { padding: 8px 16px; border-radius: 12px; background: var(--shell-soft); color: var(--shell); font-weight: 600; font-size: 15px; }
+.btn.primary { background: var(--shell); color: #fff; }
+.btn:disabled { opacity: .4; cursor: default; }
+.link { color: var(--shell); font-weight: 500; }
+.play { width: 76px; height: 76px; border-radius: 50%; background: var(--shell); position: relative; display: grid; place-items: center; flex: none; }
+.play svg { width: 28px; height: 28px; fill: #fff; margin-left: 4px; }
+.play.playing { background: var(--text); }
+.play.playing svg { fill: var(--inv); margin-left: 0; }
+.play .ring { position: absolute; inset: 0; border-radius: 50%; border: 4px solid var(--shell); opacity: 0; pointer-events: none; }
+.play.playing .ring { animation: pulse var(--beat, .857s) ease-out infinite; }
+@keyframes pulse { from { transform: scale(1.18); opacity: .9; } to { transform: scale(1); opacity: 0; } }
+.tempo { display: flex; align-items: center; gap: 14px; }
+.tempo .step { width: 46px; height: 46px; border-radius: 50%; background: var(--hair); font-size: 24px; font-weight: 600; }
+.tempo .val { text-align: center; min-width: 112px; }
+.round-step { width: 56px; height: 56px; border-radius: 50%; background: var(--hair); display: grid; place-items: center; font-family: var(--round); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.round-step:active { background: var(--shell-soft); }
+.tempo .val .num { font-size: 56px; font-weight: 700; line-height: 1; display: block; }
+.pill { background: var(--stage); border-radius: 12px; padding: 7px 12px; text-align: left; position: relative; }
+.pill small { display: block; font-size: 12px; color: var(--sec); }
+.pill.on { box-shadow: inset 0 0 0 2px var(--shell); }
+.seg { display: inline-flex; background: var(--hair); border-radius: 9px; padding: 2px; }
+.seg button { padding: 5px 14px; border-radius: 7px; font-size: 14px; font-weight: 500; }
+.seg button.on { background: var(--stage); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.list { background: var(--stage); border-radius: 16px; overflow: hidden; }
+.list .item { display: flex; align-items: center; gap: 16px; padding: 14px 18px; width: 100%; text-align: left; border-bottom: 1px solid var(--hair); }
+.list .item:last-child { border-bottom: 0; }
+.list .item .chev { color: var(--ter); font-weight: 700; }
+.section-title { display: flex; justify-content: space-between; align-items: baseline; font-size: 20px; font-weight: 600; margin-bottom: 10px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.menu { position: absolute; top: 46px; right: 0; background: var(--stage); border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,.18); min-width: 260px; z-index: 20; display: none; overflow: hidden; }
+.menu.open { display: block; }
+.menu button { display: block; width: 100%; text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--hair); font-size: 15px; }
+.menu button:last-child { border-bottom: 0; }
+.toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: var(--inv); padding: 12px 20px; border-radius: 14px; font-size: 15px; opacity: 0; transition: .25s; pointer-events: none; z-index: 50; max-width: calc(100% - 32px); }
+.toast.show { opacity: 1; transform: translateX(-50%); }
+.sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; z-index: 40; align-items: center; justify-content: center; padding: 16px; }
+.sheet-bg.open { display: flex; }
+.sheet { background: var(--canvas); border-radius: 22px; width: min(760px, 100%); max-height: 92vh; overflow-y: auto; }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; position: sticky; top: 0; background: var(--canvas); border-bottom: 1px solid var(--hair); z-index: 2; }
+.sheet-body { padding: 22px; display: flex; flex-direction: column; gap: 20px; }
+.form .r { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--hair); gap: 12px; }
+.form .r:last-child { border-bottom: 0; }
+.form-foot { font-size: 13px; color: var(--sec); padding: 6px 18px 0; }
+.form-head { font-size: 13px; color: var(--sec); padding: 0 18px 6px; }
+.switch { width: 51px; height: 31px; border-radius: 16px; background: var(--hair); position: relative; flex: none; transition: .2s; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.2); transition: .2s; }
+.switch.on { background: var(--on); } .switch.on::after { left: 22px; }
+select { font: inherit; color: var(--shell); background: none; border: 0; text-align: right; }
+.bar { height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--shell); border-radius: 3px; }
+.tag { font-size: 12px; padding: 2px 8px; border-radius: 6px; background: var(--hair); color: var(--sec); }
+.tag.good { background: rgba(34,163,90,.14); color: var(--on); }
+
+/* Practice */
+.notation { width: 100%; height: auto; display: block; }
+.lanes { width: 100%; height: 112px; display: block; }
+.timing-strip { display: flex; gap: 3px; align-items: center; height: 26px; width: 220px; justify-content: flex-end; }
+.timing-strip i { width: 9px; border-radius: 3px; }
+.pads { display: none; gap: 16px; }
+.pads.on { display: flex; }
+.pad { flex: 1; min-height: 150px; border-radius: 24px; background: var(--stage); font-family: var(--round); font-size: 40px; font-weight: 600; color: var(--sec); transition: transform .06s; }
+.pad.r { color: var(--ink); }
+.pad:active { transform: scale(.98); background: var(--shell-soft); }
+.auto { display: none; } .auto.on { display: block; }
+
+/* Metronome */
+.bigbpm { font-family: var(--round); font-size: 150px; font-weight: 700; line-height: .95; font-variant-numeric: tabular-nums; }
+.dots { display: flex; gap: 14px; }
+.dots i { width: 22px; height: 22px; border-radius: 50%; background: var(--hair); transition: background .05s; }
+.dots i.hit { background: var(--shell); }
+.dots i.hit.one { background: var(--text); }
+.grid5 { display: grid; gap: 8px; }
+.grid5 .col { display: flex; flex-direction: column-reverse; gap: 4px; align-items: center; }
+.grid5 .cell { width: 100%; height: 22px; border-radius: 5px; background: var(--hair); }
+.grid5 .cell.lit { background: var(--shell); }
+.grid5 .cell.lit.l5 { background: var(--text); }
+.grid5 .lbl { font-family: var(--round); font-size: 13px; color: var(--sec); margin-top: 6px; }
+
+/* Count coach */
+.syll { display: flex; gap: 10px; align-items: flex-end; }
+.syll div { flex: 1; text-align: center; }
+.syll b { display: block; font-family: var(--round); font-size: 34px; font-weight: 600; color: var(--ter); transition: color .05s; }
+.syll b.now { color: var(--shell); }
+.syll span { display: block; height: 6px; border-radius: 3px; margin-top: 8px; background: var(--hair); }
+
+/* Dictation */
+.dict-row { display: flex; gap: 6px; align-items: center; }
+.dcell { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 0; }
+.dcell i { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--ter); }
+.dcell.on i { background: var(--shell); border-color: var(--shell); }
+.dcell em { font-style: normal; font-family: var(--round); font-size: 14px; color: var(--sec); }
+.verdict { width: 36px; text-align: center; font-size: 22px; font-weight: 700; }
+
+/* Levels */
+.levels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.lvl { background: var(--stage); border-radius: 18px; padding: 16px; text-align: left; display: flex; flex-direction: column; gap: 8px; }
+.lvl .num { font-size: 34px; }
+.lvl.done .num { color: var(--on); }
+.lvl.cur { box-shadow: inset 0 0 0 2px var(--shell); }
+.lvl.lock { opacity: .5; }
+
+/* Teacher */
+.chat { display: flex; flex-direction: column; gap: 10px; }
+.bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; font-size: 15px; }
+.bubble.me { align-self: flex-end; background: var(--shell); color: #fff; border-bottom-right-radius: 6px; }
+.bubble.ai { align-self: flex-start; background: var(--stage); border-bottom-left-radius: 6px; }
+.chat-in { display: flex; gap: 10px; }
+.chat-in input { flex: 1; font: inherit; padding: 10px 14px; border-radius: 14px; border: 0; background: var(--stage); color: var(--text); }
+.yt { display: flex; gap: 14px; align-items: center; }
+.yt .thumb { width: 96px; height: 54px; border-radius: 8px; background: linear-gradient(135deg, #1b1b1f, #3a3a44); display: grid; place-items: center; flex: none; }
+.yt .thumb::after { content: ""; border-left: 14px solid #fff; border-top: 9px solid transparent; border-bottom: 9px solid transparent; margin-left: 4px; }
+.timeline { position: relative; padding-left: 26px; display: flex; flex-direction: column; gap: 18px; }
+.timeline::before { content: ""; position: absolute; left: 7px; top: 6px; bottom: 6px; width: 2px; background: var(--hair); }
+.timeline .t { position: relative; }
+.timeline .t::before { content: ""; position: absolute; left: -24px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: var(--stage); border: 2px solid var(--shell); }
+.timeline .t.done::before { background: var(--shell); }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; height: auto; }
+  .side { display: none; }
+  .side.open { display: block; position: fixed; inset: 0; z-index: 60; }
+  .mobilebar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; position: sticky; top: 0; background: var(--canvas); z-index: 10; border-bottom: 1px solid var(--hair); }
+  .page { padding: 18px 16px; }
+  .cols { grid-template-columns: 1fr; }
+  .levels { grid-template-columns: repeat(2, 1fr); }
+  .bigbpm { font-size: 96px; }
+  .header h2 { font-size: 28px; }
+  .timing-strip { width: 160px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .play.playing .ring { animation: none; opacity: .6; }
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side" id="side">
+    <h1>DrumCoach</h1>
+    <button class="nav" data-go="today"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Today</button>
+    <div class="group">Training</div>
+    <button class="nav" data-go="practice"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>Practice</button>
+    <button class="nav" data-go="metronome"><svg viewBox="0 0 24 24"><path d="M9 3h6l4 18H5z"/><path d="M12 15l5-8"/></svg>Metronome</button>
+    <button class="nav" data-go="counting"><svg viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"/></svg>Counting</button>
+    <div class="group">Learn</div>
+    <button class="nav" data-go="lessons"><svg viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/></svg>Lessons</button>
+    <button class="nav" data-go="library"><svg viewBox="0 0 24 24"><path d="M4 4h4v16H4zM10 4h4v16h-4z"/><path d="M16 5l3.8-1 3 15.5-3.8 1z"/></svg>Library</button>
+    <button class="nav" data-go="levels"><svg viewBox="0 0 24 24"><path d="M4 20V14M10 20V9M16 20V5M2 20h20"/></svg>Levels</button>
+    <div class="group">Coaching</div>
+    <button class="nav" data-go="teacher"><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7"/><path d="M18 7c2 1 2 5 0 6M20.5 5c3.5 2 3.5 8 0 10"/></svg>AI teacher</button>
+    <button class="nav" data-go="progress"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Progress</button>
+    <div class="group"></div>
+    <button class="nav" data-go="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>Settings</button>
+  </aside>
+
+  <main class="main" id="main">
+    <div class="mobilebar"><button class="icon-btn" id="menuBtn" aria-label="Open menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><b id="mobileTitle">Today</b></div>
+
+    <!-- TODAY -->
+    <section class="page" id="today">
+      <div class="header"><div><h2>Today</h2><div class="sec">Wednesday, October 21</div></div></div>
+      <div class="row" style="align-items:flex-end;gap:40px">
+        <div class="readout"><div class="v" style="font-size:64px">25</div><div class="foot sec">minutes practised today</div></div>
+        <div class="readout"><div class="v" style="font-size:40px">6</div><div class="foot sec">day streak</div></div>
+        <div class="readout"><div class="v" style="font-size:40px">2</div><div class="foot sec">current level</div></div>
+        <button class="readout" data-go="progress" style="text-align:left"><div class="v" id="todayRank" style="font-size:40px;color:var(--shell)">3</div><div class="foot sec" id="todayRankTitle">rank: Even hands</div></button>
+        <div class="spacer"></div>
+        <div class="row" id="sessionCtl">
+          <div id="sessionInfo" style="text-align:right;display:none"><div class="num" id="sessionClock" style="font-size:44px">5:00</div><div class="foot sec" id="sessionSeg">Warm-up</div></div>
+          <button class="btn" id="sessionSkip" style="display:none">Skip</button>
+          <b id="sessionLabel">Start session</b>
+          <button class="play" id="sessionPlay" style="width:64px;height:64px" aria-label="Start session"><span class="ring"></span><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></button>
+        </div>
+      </div>
+      <div class="callout sec">From the teacher's week 3 plan, day 4</div>
+      <div><div class="section-title" data-seg="0"><span>Warm-up</span><span class="num sec" style="font-size:15px">5 min</span></div>
+        <div class="list"><button class="item" data-go="practice" data-ex="Single Strokes"><div style="flex:1"><div>Single Strokes (8th notes)</div><div class="foot sec">Loose wrists, let the stick rebound</div></div><span class="num" style="font-size:20px">60</span><span class="foot sec">BPM</span><span class="chev">›</span></button></div></div>
+      <div><div class="section-title" data-seg="1"><span>Main work</span><span class="num sec" style="font-size:15px">15 min</span></div>
+        <div class="list">
+          <button class="item" data-go="practice" data-ex="Paradiddle"><div style="flex:1"><div>Paradiddle RLRR LRLL</div><div class="foot sec">Clear accent on the first note of each group</div></div><span class="num" style="font-size:20px">72</span><span class="foot sec">BPM</span><span class="chev">›</span></button>
+          <button class="item" data-go="practice" data-ex="Grade 2 Groove"><div style="flex:1"><div>Grade 2: 8th-note rock groove</div><div class="foot sec">Kick on 1 and 3&amp;, keep the hi-hat even</div></div><span class="num" style="font-size:20px">78</span><span class="foot sec">BPM</span><span class="chev">›</span></button>
+        </div></div>
+      <div><div class="section-title" data-seg="2"><span>Fun piece</span><span class="num sec" style="font-size:15px">5 min</span></div>
+        <div class="list"><button class="item" data-go="practice" data-ex="Shuffle"><div style="flex:1"><div>Shuffle blues</div><div class="foot sec">Turn on 67% swing in the metronome</div></div><span class="num" style="font-size:20px">80</span><span class="foot sec">BPM</span><span class="chev">›</span></button></div></div>
+    </section>
+
+    <!-- PRACTICE -->
+    <section class="page" id="practice">
+      <div class="header">
+        <div><h2 id="exTitle">Single Strokes (8th notes)</h2><div class="sec" id="exSub">4/4, 1 bar</div></div>
+        <div class="row" style="gap:6px;position:relative">
+          <button class="icon-btn" title="Listen" id="listenBtn" aria-label="Listen"><svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14"/></svg></button>
+          <button class="icon-btn" title="Posture check" data-toast="Front camera on: the app draws a posture outline and reminds you of the elbow angle." aria-label="Posture check"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+          <button class="icon-btn" title="Latency calibration" data-go="settings" aria-label="Latency calibration"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 010 8.4M7.8 16.2a6 6 0 010-8.4M19 5a10 10 0 010 14M5 19A10 10 0 015 5"/></svg></button>
+          <button class="icon-btn" title="Metronome sound" data-sheet="soundSheet" aria-label="Metronome sound"><svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button>
+          <button class="icon-btn" title="Export" id="exportBtn" aria-label="Export"><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg></button>
+          <div class="menu" id="exportMenu">
+            <button data-toast="Opening in GrooveScribe (mikeslessons.com)">Open in GrooveScribe</button>
+            <button data-toast="GrooveScribe link copied">Share GrooveScribe link</button>
+            <button data-toast="Making a printable PDF of the score…">Print score (PDF)</button>
+          </div>
+        </div>
+      </div>
+      <div class="callout sec" id="practiceNote" style="display:none"></div>
+      <div class="stage">
+        <svg class="notation" id="notation" viewBox="0 0 1000 180" role="img" aria-label="Score"></svg>
+        <div class="row" id="pager" style="display:none;justify-content:flex-end;gap:14px"><span class="num sec foot" id="pageLabel">Page 1/2</span><button class="link" id="pagePrev" aria-label="Previous page">‹</button><button class="link" id="pageNext" aria-label="Next page">›</button></div>
+        <div style="height:1px;background:var(--hair);margin:10px 0 12px"></div>
+        <svg class="lanes" id="lanes" viewBox="0 0 1000 112" preserveAspectRatio="none" role="img" aria-label="Right and left hand lanes"></svg>
+      </div>
+      <div class="row" style="gap:28px">
+        <div class="tempo" id="pTempo"><button class="step" data-d="-1" aria-label="Slower">−</button><div class="val"><span class="num" data-bpm>70</span><span class="foot sec">BPM</span></div><button class="step" data-d="1" aria-label="Faster">+</button></div>
+        <button class="link callout" id="tapTempo">Tap</button>
+        <div class="spacer"></div>
+        <button class="play" id="practicePlay" aria-label="Start"><span class="ring"></span><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></button>
+        <div class="spacer"></div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+          <div class="readout" style="text-align:right"><div class="v" id="liveScore" style="font-size:44px">–</div><div class="foot sec">Score</div></div>
+          <div class="timing-strip" id="strip" aria-label="Offset of the latest notes"></div>
+        </div>
+      </div>
+      <div class="pads" id="pads"><button class="pad" data-hand="L">L</button><button class="pad r" data-hand="R">R</button></div>
+      <div class="row" style="gap:10px">
+        <button class="pill" data-cycle="dur" data-opts="30 sec|1 min|2 min|5 min" data-i="1"><small>Length</small><span>1 min</span></button>
+        <button class="pill" data-cycle="mode" data-opts="Pad (mic)|E-kit|Tap screen|Watch only" data-i="0"><small>Input</small><span>Pad (mic)</span></button>
+        <button class="pill" data-cycle="diff" data-opts="Easy|Medium|Hard" data-i="1"><small>Difficulty</small><span>Medium</span></button>
+        <button class="pill" data-cycle="loop" data-opts="Whole piece|Bar 1|Bars 1–2" data-i="0"><small>Loop</small><span>Whole piece</span></button>
+        <button class="pill" id="flip"><small>Hands</small><span>Right hand lead</span></button>
+        <div class="spacer"></div>
+        <button class="btn" id="autoBtn">Auto-learn</button>
+        <div class="seg" id="dispSeg"><button class="on">Page</button><button>Scroll</button></div>
+      </div>
+      <div class="stage auto" id="autoCard">
+        <div class="row" style="justify-content:space-between"><b>Auto-learn</b><span class="sec">Step 2/5: hold time with a sparse click</span></div>
+        <div class="bar" style="margin:12px 0"><i style="width:40%"></i></div>
+        <div class="callout sec">Tempo 70/90 BPM. Over 90% adds 5 BPM; three fails in a row takes off 10. Reach the target tempo at over 90% to move to the next step.</div>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <section class="page" id="results">
+      <div class="header"><h2>Results</h2><div class="row"><button class="btn" data-go="practice">Play again</button><button class="btn primary" data-go="today">Done</button></div></div>
+      <div class="row" style="align-items:flex-end;gap:32px">
+        <div class="readout"><div class="v" id="rScore" style="font-size:84px;color:var(--off)">86%</div><div class="foot sec" id="rCaption">Single Strokes, 70 BPM</div></div>
+        <div class="spacer"></div>
+        <div class="readout"><div class="v" id="rGood" style="font-size:30px;color:var(--on)">24</div><div class="foot sec">on time</div></div>
+        <div class="readout"><div class="v" id="rOff" style="font-size:30px;color:var(--off)">6</div><div class="foot sec">early/late</div></div>
+        <div class="readout"><div class="v" id="rMiss" style="font-size:30px;color:var(--miss)">2</div><div class="foot sec">missed</div></div>
+        <div class="readout"><div class="v" style="font-size:30px;color:var(--sec)">1</div><div class="foot sec">extra</div></div>
+      </div>
+      <div class="stage row" style="gap:20px">
+        <div class="readout"><div class="v" id="rPoints" style="font-size:40px;color:var(--on)">+12</div><div class="foot sec">points this run</div></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+          <b id="rRank">Rank 3: Even hands</b>
+          <div class="bar"><i id="rRankBar" style="width:40%"></i></div>
+          <div class="foot sec" id="rRankNext">352 points, 148 to rank 4</div>
+          <div class="foot sec" id="rPenalty" style="display:none">Under 40% costs a few points. Drop the tempo 8–10 BPM and play again to win them back.</div>
+        </div>
+        <button class="link callout" data-sheet="pointsSheet">How points work</button>
+      </div>
+      <div class="stage row" style="align-items:flex-start;gap:14px">
+        <svg viewBox="0 0 24 24" width="30" height="30" style="stroke:var(--shell);fill:none;stroke-width:1.8;flex:none"><path d="M3 12c3-6 6 6 9 0s6 6 9 0"/></svg>
+        <div><b>Dragging about 14 ms per minute</b><div class="sec">You start on time and slowly fall behind. Count out loud and try to bury the click under your stroke.</div></div>
+      </div>
+      <div>
+        <div class="section-title"><span>Every note in this run</span></div>
+        <div class="stage"><svg id="runChart" viewBox="0 0 900 200" style="width:100%;height:auto" role="img" aria-label="Per-note offset chart"></svg></div>
+      </div>
+      <div><div class="section-title"><span>Feedback</span></div>
+        <p>You tend to be about 12 ms late. Get the stick ready a little earlier.</p>
+        <p>Weakest spot is the "&amp;": 21 ms late.</p>
+        <p>Left hand is further off (+18 ms).</p></div>
+      <div class="stage">
+        <div class="row" style="justify-content:space-between"><b style="font-size:22px;color:var(--off)">Merit</b><span class="num sec">About Grade 2</span></div>
+        <div class="foot sec" style="margin:4px 0 10px">Graded on the device against Rockschool bands</div>
+        <div style="color:var(--on)">✓ Steady tempo for the full minute</div>
+        <div style="color:var(--off)">! Left-hand "&amp;" is often late</div>
+        <div>→ Practise again at 64 BPM, counting "1 &amp; 2 &amp;" out loud</div>
+        <button class="btn" style="margin-top:12px" data-toast="Sent this run to the AI teacher through Notion">Ask the AI teacher for detailed feedback</button>
+      </div>
+    </section>
+
+    <!-- METRONOME -->
+    <section class="page" id="metronome">
+      <div class="header"><h2>Metronome</h2><button class="btn" data-sheet="soundSheet">Sounds and click pattern</button></div>
+      <div class="stage" style="display:flex;flex-direction:column;align-items:center;gap:26px;padding:40px 20px">
+        <div class="dots" id="mDots"><i></i><i></i><i></i><i></i></div>
+        <div style="text-align:center"><div class="bigbpm" data-bpm>70</div><div class="sec" style="font-size:20px">BPM</div></div>
+        <div class="row" style="gap:24px;justify-content:center">
+          <button class="round-step" data-bpmstep="-5" aria-label="Minus 5">−5</button>
+          <button class="round-step" data-bpmstep="-1" aria-label="Minus 1">−</button>
+          <button class="play" id="metroPlay" style="width:92px;height:92px" aria-label="Start metronome"><span class="ring"></span><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></button>
+          <button class="round-step" data-bpmstep="1" aria-label="Plus 1">+</button>
+          <button class="round-step" data-bpmstep="5" aria-label="Plus 5">+5</button>
+        </div>
+        <div class="callout sec" id="mSummary">4/4, eighth notes, voice count "1 &amp;", straight</div>
+      </div>
+      <div class="cols">
+        <div class="list form">
+          <div class="r"><span>Time signature</span><select id="mTs"><option>4/4</option><option>3/4</option><option>6/8</option><option>7/8</option></select></div>
+          <div class="r"><span>Voice count</span><select id="mVoice"><option>Off</option><option>1 2 3 4</option><option selected>1 &amp;</option><option>1 e &amp; a</option><option>Triplets</option></select></div>
+          <div class="r"><span>Swing / shuffle</span><select id="mSwing"><option>Straight</option><option>Light (58%)</option><option>Triplet (67%)</option><option>Hard shuffle (72%)</option></select></div>
+        </div>
+        <div class="list form">
+          <div class="r"><span>Accent beat 1</span><button class="switch on" aria-label="Accent beat 1"></button></div>
+          <div class="r"><span>Gap click (mute whole bars)</span><select><option>Off</option><option>Play 2, mute 1</option><option>Play 1, mute 1</option></select></div>
+          <div class="r"><span>Beat skip</span><select><option>All beats</option><option>Only 2 and 4</option><option>Only beat 1</option></select></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COUNTING -->
+    <section class="page" id="counting">
+      <div class="header"><div><h2>Counting</h2><div class="sec">Count out loud with the click. The app listens to your voice and measures how even each syllable is.</div></div></div>
+      <div class="stage" style="display:flex;flex-direction:column;gap:24px">
+        <div class="seg" id="ccMode"><button>1 2 3 4</button><button class="on">1 &amp;</button><button>1 e &amp; a</button><button>Triplets</button></div>
+        <div class="syll" id="syll"></div>
+        <div class="row"><button class="play" id="ccPlay" aria-label="Start counting"><span class="ring"></span><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></button>
+          <div class="tempo" id="ccTempo"><button class="step" data-d="-2" aria-label="Slower">−</button><div class="val"><span class="num" id="ccBpm">60</span><span class="foot sec">BPM</span></div><button class="step" data-d="2" aria-label="Faster">+</button></div>
+          <div class="readout"><div class="v" id="ccScore" style="font-size:44px">–</div><div class="foot sec">evenness</div></div>
+          <div class="spacer"></div>
+          <div class="callout sec" style="max-width:420px" id="ccTip">Tip: the "&amp;" tends to rush. Hold "one" for a full half beat before you say "and".</div></div>
+      </div>
+    </section>
+
+    <!-- LESSONS -->
+    <section class="page" id="lessons">
+      <div class="header"><div><h2>Lessons</h2><div class="sec">Foundations before speed</div></div></div>
+      <div class="cols">
+        <div class="list" id="lessonList"></div>
+        <div class="stage" id="lessonBody"></div>
+      </div>
+    </section>
+
+    <!-- LIBRARY -->
+    <section class="page" id="library">
+      <div class="header"><h2>Library</h2><div class="row" style="gap:8px">
+        <button class="btn" id="importMidi">Import MIDI</button><button class="btn" data-toast="Pick a PDF page; the app reads the notes and makes a new exercise">Import PDF</button><button class="btn primary" data-toast="Opening the exercise editor (text format: HH / SN / BD)">New exercise</button></div></div>
+      <div><div class="section-title"><span>My exercises</span></div><div class="list" id="mine">
+        <button class="item" data-go="practice" data-ex="Grade 2 Groove"><div style="flex:1"><div>4-beat tom fill</div><div class="foot sec">4/4, 60–90 BPM</div></div><span class="chev">›</span></button></div></div>
+      <div><div class="section-title"><span>Warm-up</span></div><div class="list">
+        <button class="item" data-go="practice" data-ex="Single Strokes"><div style="flex:1"><div>Single Strokes (8th notes)</div><div class="foot sec">4/4, 50–120 BPM</div></div><span class="chev">›</span></button>
+        <button class="item" data-go="practice" data-ex="Paradiddle"><div style="flex:1"><div>Paradiddle</div><div class="foot sec">4/4, 50–110 BPM</div></div><span class="chev">›</span></button>
+        <button class="item" data-go="practice" data-ex="Grade 2 Groove" data-groove="1"><div style="flex:1"><div>8th-note rock groove</div><div class="foot sec">4/4, 60–100 BPM</div></div><span class="chev">›</span></button>
+        <button class="item" data-go="practice" data-ex="Long Groove" data-groove="1"><div style="flex:1"><div>8-bar groove with fills</div><div class="foot sec">4/4, 8 bars, tom fills in bars 4 and 8</div></div><span class="chev">›</span></button>
+      </div><div class="foot sec" style="padding:6px 18px 0">Long-press a groove to make kick or snare permutations.</div><div class="list" style="display:none">
+      </div></div>
+      <div class="cols">
+        <div><div class="section-title"><span>The 40 PAS rudiments</span></div><div class="list"><button class="item" data-go="practice" data-ex="Paradiddle"><div style="flex:1">Browse the 40 rudiments</div><span class="chev">›</span></button></div></div>
+        <div><div class="section-title"><span>Stick Control style</span></div><div class="list"><button class="item" data-go="practice" data-ex="Single Strokes"><div style="flex:1"><div>8-note stickings</div><div class="foot sec">Each one 20 times without stopping</div></div><span class="chev">›</span></button><button class="item" data-go="practice" data-ex="Single Strokes"><div style="flex:1">Random sight reading</div><span class="chev">›</span></button></div></div>
+      </div>
+      <div><div class="section-title"><span>Path to Grade 8</span></div><div class="list">
+        <button class="item" data-go="practice" data-ex="Long Groove"><div style="flex:1"><div>8th- and 16th-note grooves</div><div class="foot sec">Grade 1–3</div></div><span class="chev">›</span></button>
+        <button class="item" data-go="practice" data-ex="Shuffle"><div style="flex:1"><div>Shuffle and half-time shuffle</div><div class="foot sec">Grade 4–6</div></div><span class="chev">›</span></button>
+        <button class="item" data-go="practice" data-ex="Paradiddle"><div style="flex:1"><div>Linear fills, odd time 7/8</div><div class="foot sec">Grade 7–8</div></div><span class="chev">›</span></button>
+      </div></div>
+    </section>
+
+    <!-- LEVELS -->
+    <section class="page" id="levels">
+      <div class="header"><div><h2>Levels</h2><div class="sec">Pass a test at over 90%. Level up when every test is passed and you have the practice points.</div></div></div>
+      <div class="levels" id="levelGrid"></div>
+      <div class="cols">
+        <div><div class="section-title"><span>Grade 3 tests</span><span class="num sec" style="font-size:15px">0/5 passed</span></div>
+          <div class="foot sec" style="margin:-4px 0 10px">Your own Grade 3 tests go here, typed in from your Rockschool book; the app ships none of the book. Group A is playable in this demo.</div><div class="list"><button class="item" data-go="practice" data-ex="G3-A" data-test="1"><div style="flex:1"><div>Group A: singles, 8ths → triplets → 16ths</div><div class="foot sec">75 BPM, 30 sec</div></div><span class="tag">not tried</span><span class="chev">›</span></button><button class="item" data-go="practice" data-ex="G3-A" data-test="1"><div style="flex:1"><div>Group B: doubles around the toms</div><div class="foot sec">75 BPM, 30 sec</div></div><span class="tag">not tried</span><span class="chev">›</span></button><button class="item" data-go="practice" data-ex="G3-A" data-test="1"><div style="flex:1"><div>Group C: accented paradiddles on the toms</div><div class="foot sec">75 BPM, 30 sec</div></div><span class="tag">not tried</span><span class="chev">›</span></button><button class="item" data-go="practice" data-ex="G3-A" data-test="1"><div style="flex:1"><div>Group D: flams and drags</div><div class="foot sec">75 BPM, 30 sec</div></div><span class="tag">not tried</span><span class="chev">›</span></button><button class="item" data-go="practice" data-ex="G3-A" data-test="1"><div style="flex:1"><div>Group E: accented triplets on the toms</div><div class="foot sec">75 BPM, 30 sec</div></div><span class="tag">not tried</span><span class="chev">›</span></button></div></div>
+        <div><div class="section-title"><span>Listening skills</span></div><div class="list">
+          <button class="item" data-go="dictation"><div style="flex:1"><div>Rhythm dictation</div><div class="foot sec">Hear 2 bars, tap the slots with a drum hit</div></div><span class="chev">›</span></button>
+          <button class="item" data-toast="Ear test: hear 2 bars, then play them back on the pad"><div style="flex:1"><div>Ear test (listen, then play back)</div><div class="foot sec">Like the Rockschool exam</div></div><span class="chev">›</span></button>
+          <button class="item" data-toast="10 general music questions for Grade 3"><div style="flex:1"><div>General music questions (GMQ)</div><div class="foot sec">Theory, parts of the kit</div></div><span class="chev">›</span></button>
+        </div></div>
+      </div>
+    </section>
+
+    <!-- DICTATION -->
+    <section class="page" id="dictation">
+      <div class="header"><div><h2>Rhythm dictation</h2><div class="sec">Hear 2 bars of eighth notes, tap the slots with a drum hit</div></div><button class="link" data-go="levels">‹ Levels</button></div>
+      <div class="row">
+        <button class="play" id="dictPlay" style="width:64px;height:64px" aria-label="Play rhythm"><span class="ring"></span><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></button>
+        <span class="num" style="font-size:28px">70</span><span class="sec">BPM</span>
+        <div class="spacer"></div>
+        <button class="btn" id="dictNew">New one</button><button class="btn primary" id="dictCheck">Check</button>
+      </div>
+      <div class="stage" id="dictGrid" style="display:flex;flex-direction:column;gap:18px"></div>
+      <button class="link" id="dictShow" style="display:none;align-self:flex-start">Show answer</button>
+    </section>
+
+    <!-- AI TEACHER -->
+    <section class="page" id="teacher">
+      <div class="header"><div><h2>AI teacher</h2><div class="sec">Claude Pro through Notion: send your history, the teacher writes a plan, the app syncs it back</div></div>
+        <div class="row" style="gap:8px"><button class="btn" id="sendTeacher">Send to teacher</button><button class="btn primary" id="syncTeacher">Sync</button></div></div>
+      <div class="stage row" style="gap:14px"><span style="width:10px;height:10px;border-radius:50%;background:var(--on)"></span><span id="teacherStatus">Notion connected. Last sent: Sunday, October 18</span></div>
+      <div class="cols">
+        <div class="stage" style="display:flex;flex-direction:column;gap:14px">
+          <div class="row" style="justify-content:space-between"><b style="font-size:20px">How long each day?</b><div class="seg" id="budgetSeg"><button data-m="30">30 min</button><button class="on" data-m="60">1 hour</button><button data-m="120">2 hours</button><button data-m="240">4 hours</button></div></div>
+          <div id="budgetBlocks" style="display:flex;flex-direction:column;gap:10px"></div>
+          <div class="row" style="gap:32px;align-items:flex-end">
+            <div class="readout"><div class="v" id="budgetNext" style="font-size:34px">3–4</div><div class="foot sec" id="budgetNextLabel">months to Grade 3</div></div>
+            <div class="readout"><div class="v" id="budgetG8" style="font-size:34px">23–30</div><div class="foot sec">months to Grade 8</div></div>
+            <div class="readout"><div class="v" id="budgetRest" style="font-size:34px">0</div><div class="foot sec">rest days a week</div></div>
+          </div>
+          <div id="budgetWarn" class="callout" style="display:flex;flex-direction:column;gap:6px"></div>
+          <div class="row"><button class="btn primary" id="budgetApply">Use this for my plan</button><span class="foot sec">An estimate from the selected profile's pace and scores, not a promise.</span></div>
+        </div>
+        <div class="stage" style="display:flex;flex-direction:column;gap:14px">
+          <div class="row" style="justify-content:space-between"><b style="font-size:20px">Your personal forecast</b><div class="seg" id="fcSeg"><button class="on" data-w="7">Last 7 days</button><button data-w="30">Last 30 days</button></div></div>
+          <div class="row" style="gap:10px"><span class="foot sec">Demo profile:</span><div class="seg" id="personaSeg"><button class="on" data-p="me">You</button><button data-p="fast">Fast learner, little practice</button><button data-p="sloppy">Lots of practice, sloppy</button></div></div>
+          <svg id="fcBars" viewBox="0 0 600 120" style="width:100%;height:auto" role="img" aria-label="Minutes practised per day"></svg>
+          <div><div class="foot sec" style="margin-bottom:6px">Forecast based on</div><div class="list" style="background:var(--canvas)" id="fcFactors"></div></div>
+          <div class="callout sec" id="fcSummary"></div>
+          <div class="list" style="background:var(--canvas)" id="fcRows"></div>
+          <div class="callout" id="fcCompare"></div>
+        </div>
+      </div>
+      <div class="cols">
+        <div style="display:flex;flex-direction:column;gap:22px">
+          <div class="stage">
+            <div class="row" style="justify-content:space-between"><b style="font-size:20px">Week 3 plan</b><span class="tag good">Active</span></div>
+            <p class="sec callout" style="margin:8px 0 14px">Left hand is late on the "&amp;" above 75 BPM. This week: practise slowly, count out loud, add left-lead exercises.</p>
+            <div class="list" style="background:var(--canvas)">
+              <div class="item"><span class="num" style="width:72px">Mon–Wed</span><div style="flex:1">Left-lead singles, 60→70 BPM</div></div>
+              <div class="item"><span class="num" style="width:72px">Thu–Fri</span><div style="flex:1">Accented paradiddles, 72 BPM</div></div>
+              <div class="item"><span class="num" style="width:72px">Sun</span><div style="flex:1">Grade 3 tests, send results to the teacher</div></div>
+            </div>
+          </div>
+          <div><div class="section-title"><span>Teacher recommendations</span></div><div class="list">
+            <button class="item yt" data-toast="Opening YouTube: Moeller method basics"><span class="thumb"></span><div style="flex:1"><div>Moeller method for beginners</div><div class="foot sec">YouTube, 12 min</div></div></button>
+            <button class="item yt" data-toast="Opening YouTube: counting 1 e & a"><span class="thumb"></span><div style="flex:1"><div>Counting 1 e &amp; a evenly</div><div class="foot sec">YouTube, 8 min</div></div></button>
+          </div></div>
+        </div>
+        <div class="stage" style="display:flex;flex-direction:column;gap:14px">
+          <b>Ask the teacher</b>
+          <div class="chat" id="chat">
+            <div class="bubble me">Why do I keep rushing the "and"?</div>
+            <div class="bubble ai">Your last 2 weeks show your "&amp;" about 15 ms early. Try counting "one-uh-and" to stretch the beat, and do 5 minutes of the counting coach before each session.</div>
+          </div>
+          <div class="chat-in"><input id="chatIn" placeholder="Ask about technique, exercises, your plan…" aria-label="Question"><button class="btn primary" id="chatSend">Send</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROGRESS -->
+    <section class="page" id="progress">
+      <div class="header"><h2>Progress</h2><div class="seg" id="progSeg"><button class="on" data-p="0">Charts</button><button data-p="1">Journey</button><button data-p="2">History</button></div></div>
+      <div id="prog0" style="display:flex;flex-direction:column;gap:22px">
+        <div class="row" style="gap:40px"><div class="readout"><div class="v" style="font-size:44px">+14</div><div class="foot sec">BPM in 4 weeks</div></div><div class="readout"><div class="v" style="font-size:44px">11.5</div><div class="foot sec">hours practised</div></div><div class="readout"><div class="v" style="font-size:44px;color:var(--on)">±18</div><div class="foot sec">ms spread, down from ±31</div></div></div>
+        <div class="stage"><b>Tempo at over 90%, Paradiddle</b><svg id="bpmChart" viewBox="0 0 900 220" style="width:100%;height:auto;margin-top:10px" role="img" aria-label="Tempo chart"></svg></div>
+      </div>
+      <div id="prog1" style="display:none" class="stage">
+        <div class="timeline">
+          <div class="t done"><b>August: starting out</b><div class="sec callout">No idea what level I was, the "&amp;" was jerky. Comfortable at 50–60.</div></div>
+          <div class="t done"><b>September: passed Grades 1 and 2</b><div class="sec callout">Even singles at 80 BPM. Counting coach at 88% evenness.</div></div>
+          <div class="t"><b>October: working on Grade 3</b><div class="sec callout">2/5 tests passed. Main job: the left hand on the "&amp;".</div></div>
+          <div class="t"><b>November: goal</b><div class="sec callout">All of Grade 3, 16th-note groove at 90 BPM.</div></div>
+        </div>
+        <button class="btn" style="margin-top:20px" data-toast="Sent 3 months of history to the AI teacher for a review">Ask for a 3-month review</button>
+      </div>
+      <div id="prog2" style="display:none" class="list">
+        <div class="item"><div style="flex:1"><div>16th-note paradiddle</div><div class="foot sec">Today, 72 BPM, pad</div></div><span class="num" style="color:var(--on)">94%</span></div>
+        <div class="item"><div style="flex:1"><div>16th-note hi-hat groove</div><div class="foot sec">Yesterday, 85 BPM, e-kit</div></div><span class="num" style="color:var(--off)">78%</span></div>
+        <div class="item"><div style="flex:1"><div>Single Strokes</div><div class="foot sec">Oct 19, 70 BPM, pad</div></div><span class="num" style="color:var(--off)">86%</span></div>
+        <div class="item"><div style="flex:1"><div>Shuffle blues</div><div class="foot sec">Oct 18, 64 BPM, tap screen</div></div><span class="num" style="color:var(--miss)">54%</span></div>
+      </div>
+    </section>
+
+    <!-- PERMUTATIONS -->
+    <section class="page" id="perm">
+      <div class="header"><div><h2 id="permTitle">Kick permutations</h2><div class="sec" id="permSub">From the 8th-note rock groove. Each one adds a note in a different spot.</div></div><button class="link" data-go="library">‹ Library</button></div>
+      <div class="list" id="permList"></div>
+    </section>
+
+    <!-- MIDI -->
+    <section class="page" id="midi">
+      <div class="header"><div><h2>MIDI learn</h2><div class="sec">Map each of the TD-4K's MIDI notes to a drum. Unmapped notes are ignored and not scored.</div></div><button class="link" data-go="settings">‹ Settings</button></div>
+      <div class="cols">
+        <div><div class="section-title"><span>Note map</span></div><div class="list" id="midiMap"></div></div>
+        <div style="display:flex;flex-direction:column;gap:22px">
+          <div class="stage" style="display:flex;flex-direction:column;gap:14px">
+            <div class="row" style="justify-content:space-between"><b>Listening</b><button class="btn" id="midiConnect">Connect e-kit</button></div>
+            <div class="foot sec" id="midiStatus">Not connected. Tap the pads below to try it.</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="vkit"></div>
+            <div><div class="foot sec" style="margin-bottom:6px">Hi-hat pedal (CC4): <span class="num" id="pedalVal">0</span></div><div class="bar"><i id="pedalBar" style="width:0%"></i></div></div>
+          </div>
+          <div class="list" id="midiLog"><div class="item sec">No notes yet.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="page" id="settings">
+      <div class="header"><h2>Settings</h2></div>
+      <div><div class="form-head">Devices</div><div class="list form">
+        <div class="r"><span>Latency calibration (pad / e-kit)</span><button class="link" id="calib">Start</button></div>
+        <div class="r"><span>MIDI learn (Roland TD-4K)</span><button class="link" data-go="midi">Open</button></div>
+        <div class="r"><span>Hi-hat open/closed from pedal (CC4)</span><button class="switch" aria-label="Hi-hat from pedal"></button></div>
+      </div><div class="form-foot">Turn on if the kit sends the same note for open and closed hi-hat: the app reads the pedal position to tell them apart.</div></div>
+      <div><div class="form-head">AI teacher</div><div class="list form">
+        <div class="r"><span>Notion</span><span class="sec">Connected</span></div>
+        <div class="r"><span>Claude API key (optional)</span><span class="sec">Not set</span></div>
+      </div><div class="form-foot">Optional. Without a key, the app uses your Claude Pro plan through Notion.</div></div>
+      <div><div class="form-head">General</div><div class="list form">
+        <div class="r"><span>Language</span><select><option>System</option><option>Tiếng Việt</option><option selected>English</option></select></div>
+        <div class="r"><span>Daily reminder</span><select><option>18:00</option><option selected>19:00</option><option>20:00</option></select></div>
+        <div class="r"><span>Appearance</span><div class="seg" id="themeSeg"><button class="on" data-t="">System</button><button data-t="light">Light</button><button data-t="dark">Dark</button></div></div>
+        <div class="r"><span>Back up history</span><button class="link" data-toast="Backup saved to Files > DrumCoach">Export file</button></div>
+      </div><div class="form-foot">Installed with a free Apple ID: the app expires after 7 days. Reinstall from Xcode and the history stays.</div></div>
+    </section>
+  </main>
+</div>
+
+<!-- Sound sheet -->
+<div class="sheet-bg" id="soundSheet" role="dialog" aria-label="Metronome sound">
+  <div class="sheet">
+    <div class="sheet-head"><b>Metronome and sounds</b><button class="link" data-close>Done</button></div>
+    <div class="sheet-body">
+      <div class="seg" id="presetSeg"><button>Quarters</button><button class="on">8ths</button><button>16ths</button><button>Triplets</button><button>Offbeats</button></div>
+      <div class="stage">
+        <div class="grid5" id="grid5"></div>
+        <div class="foot sec" style="margin-top:12px">Tap a cell to pick level 1–5, each with its own sound. Tap the current level to mute the slot.</div>
+      </div>
+      <div class="list form">
+        <div class="r"><span>Swing / shuffle</span><select><option>Straight</option><option>Light (58%)</option><option>Triplet (67%)</option><option>Hard shuffle (72%)</option></select></div>
+        <div class="r"><span>Voice count</span><select><option>1 &amp;</option><option>1 e &amp; a</option><option>1 2 3 4</option></select></div>
+        <div class="r"><span>Click volume</span><input type="range" value="80" aria-label="Click volume"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="sheet-bg" id="permSheet" role="dialog" aria-label="Make permutations">
+  <div class="sheet" style="width:min(420px,100%)">
+    <div class="sheet-head"><b id="permSheetTitle">8th-note rock groove</b><button class="link" data-close>Cancel</button></div>
+    <div class="sheet-body" style="gap:10px">
+      <button class="btn" style="padding:14px" data-perm="kick">Kick permutations</button>
+      <button class="btn" style="padding:14px" data-perm="snare">Snare permutations (ghost notes)</button>
+    </div>
+  </div>
+</div>
+<div class="sheet-bg" id="pointsSheet" role="dialog" aria-label="How points work">
+  <div class="sheet" style="width:min(560px,100%)">
+    <div class="sheet-head"><b>How points work</b><button class="link" data-close>Done</button></div>
+    <div class="sheet-body">
+      <div class="list form">
+        <div class="r"><span>90% and up</span><b class="num" style="color:var(--on)">+10 to +20</b></div>
+        <div class="r"><span>75% to under 90% (Merit)</span><b class="num" style="color:var(--on)">+3 to +8</b></div>
+        <div class="r"><span>60% to under 75% (Pass)</span><b class="num" style="color:var(--off)">+1 to +3</b></div>
+        <div class="r"><span>40% to under 60%</span><b class="num">0</b></div>
+        <div class="r"><span>Under 40%</span><b class="num" style="color:var(--miss)">−1 to −5</b></div>
+        <div class="r"><span>Finished the piece at 60% or more (+1 per 30 sec)</span><b class="num" style="color:var(--on)">+2 to +10</b></div>
+        <div class="r"><span>Stopped within 10 sec, or the app couldn't hear you</span><b class="num">doesn't count</b></div>
+        <div class="r"><span>Passed a level test</span><b class="num" style="color:var(--on)">+50</b></div>
+      </div>
+      <div class="list form">
+        <div class="r"><span>Hard difficulty (±20 ms)</span><span class="num">points ×1.5</span></div>
+        <div class="r"><span>Medium difficulty (±30 ms)</span><span class="num">×1</span></div>
+        <div class="r"><span>Easy difficulty (±45 ms)</span><span class="num">×0.75</span></div>
+      </div>
+      <div class="foot sec">Penalties aren't multiplied by difficulty. The total never goes below 0. Levels 0–8 follow Rockschool grades: you need both the accumulated practice points and that grade's tests passed.</div>
+      <div class="list form" id="rankTable"></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const colors = { good: '--on', early: '--off', late: '--off', missed: '--miss' };
+  const TITLES = { today: 'Today', practice: 'Practice', results: 'Results', metronome: 'Metronome', counting: 'Counting', lessons: 'Lessons', library: 'Library', levels: 'Levels', dictation: 'Rhythm dictation', perm: 'Permutations', midi: 'MIDI learn', teacher: 'AI teacher', progress: 'Progress', settings: 'Settings' };
+  const NAV_OF = { results: 'practice', dictation: 'levels', perm: 'library', midi: 'settings' };
+  let bpm = 70;
+
+  // ---------- Audio ----------
+  let ac;
+  const audio = () => (ac ||= new (window.AudioContext || window.webkitAudioContext)());
+  function click(t, level = 3) {
+    const a = audio(), o = a.createOscillator(), g = a.createGain();
+    o.frequency.value = [0, 600, 800, 1000, 1300, 1700][level];
+    o.type = level >= 4 ? 'square' : 'sine';
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(level >= 4 ? .35 : .22, t + .002); g.gain.exponentialRampToValueAtTime(.0001, t + .06);
+    o.connect(g).connect(a.destination); o.start(t); o.stop(t + .08);
+  }
+  function snare(t) {
+    const a = audio(), n = a.sampleRate * .15, b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
+    const s = a.createBufferSource(), g = a.createGain(); s.buffer = b; g.gain.value = .5; s.connect(g).connect(a.destination); s.start(t);
+  }
+
+  // ---------- Navigation ----------
+  function go(id) {
+    // "#practice/Long Groove" opens an exercise directly.
+    const [page, ex] = decodeURIComponent(id).split('/');
+    if (ex && EX[ex]) loadExercise(ex, false);
+    id = page;
+    if (!document.getElementById(id)) return;
+    stopAll();
+    $$('.page').forEach(p => p.classList.toggle('on', p.id === id));
+    $$('.nav').forEach(n => n.classList.toggle('on', n.dataset.go === (NAV_OF[id] || id)));
+    $('#mobileTitle').textContent = TITLES[id];
+    $('#side').classList.remove('open');
+    $('#main').scrollTop = 0; window.scrollTo(0, 0);
+    if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
+    if (id === 'results') drawRunChart();
+    if (id === 'progress') drawBpmChart();
+  }
+  document.addEventListener('click', e => {
+    const g = e.target.closest('[data-go]');
+    if (g) {
+      if (g.dataset.ex) loadExercise(g.dataset.ex, !!g.dataset.test);
+      go(g.dataset.go); return;
+    }
+    const t = e.target.closest('[data-toast]'); if (t) { toast(t.dataset.toast); $('#exportMenu').classList.remove('open'); }
+    const s = e.target.closest('[data-sheet]'); if (s) $('#' + s.dataset.sheet).classList.add('open');
+    if (e.target.closest('[data-close]') || e.target.classList.contains('sheet-bg')) $$('.sheet-bg').forEach(x => x.classList.remove('open'));
+    if (!e.target.closest('#exportBtn') && !e.target.closest('#exportMenu')) $('#exportMenu').classList.remove('open');
+    const sw = e.target.closest('.switch'); if (sw) sw.classList.toggle('on');
+  });
+  $('#menuBtn').onclick = () => $('#side').classList.add('open');
+  $('#exportBtn').onclick = () => $('#exportMenu').classList.toggle('open');
+  let toastT;
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
+  function segs(root, fn) { $$('button', root).forEach((b, i) => b.addEventListener('click', () => { $$('button', root).forEach(x => x.classList.remove('on')); b.classList.add('on'); fn && fn(b, i); })); }
+
+  // ---------- Tempo ----------
+  function setBpm(v) { bpm = Math.max(30, Math.min(300, v)); $$('[data-bpm]').forEach(e => e.textContent = bpm); document.documentElement.style.setProperty('--beat', (60 / bpm) + 's'); drawLanes(0); }
+  $$('#pTempo .step').forEach(b => b.onclick = () => setBpm(bpm + +b.dataset.d));
+  $$('[data-bpmstep]').forEach(b => b.onclick = () => { setBpm(bpm + +b.dataset.bpmstep); if (metroOn) { stopMetro(); startMetro(); } });
+  let taps = [];
+  $('#tapTempo').onclick = () => { const n = performance.now(); taps = taps.filter(t => n - t < 3000).concat(n); if (taps.length >= 3) { const iv = (taps.at(-1) - taps[0]) / (taps.length - 1); setBpm(Math.round(60000 / iv)); } };
+
+  // ---------- Exercises ----------
+  // Positions are in beats from the start of the exercise (4 beats per bar).
+  const hh8 = bars => [...Array(bars * 8)].map((_, i) => ({ p: i / 2, h: 'R', v: 'HH' }));
+  function longGroove(title) {
+    const n = [];
+    for (let b = 0; b < 8; b++) {
+      const o = b * 4, fill = b === 3 || b === 7;
+      for (let k = 0; k < (fill ? 4 : 8); k++) n.push({ p: o + k / 2, h: 'R', v: b % 4 === 0 && k === 0 ? 'CR' : 'HH' });
+      n.push({ p: o + 1, h: 'L', v: 'SN' }, { p: o, h: 'F', v: 'BD' }, { p: o + 2.5, h: 'F', v: 'BD' });
+      if (b % 2 === 1 && !fill) n.push({ p: o + 2, h: 'F', v: 'BD' });
+      if (!fill) n.push({ p: o + 3, h: 'L', v: 'SN' });
+      else ['SN', 'SN', 'T1', 'T1', 'T2', 'T2', 'FT', 'FT'].forEach((v, k) => n.push({ p: o + 2 + k / 4, h: k % 2 ? 'L' : 'R', v }));
+    }
+    return { title, bars: 8, notes: n.sort((a, b) => a.p - b.p) };
+  }
+  const EX = {
+    'Single Strokes': { title: 'Single Strokes (8th notes)', bars: 1, notes: [...Array(8)].map((_, i) => ({ p: i / 2, h: i % 2 ? 'L' : 'R', v: 'SN' })) },
+    'Paradiddle': { title: 'Paradiddle RLRR LRLL', bars: 1, notes: 'RLRRLRLL'.split('').map((h, i) => ({ p: i / 2, h, v: 'SN', acc: i % 4 === 0 })) },
+    'Grade 2 Groove': { title: '8th-note rock groove', bars: 1, notes: hh8(1).concat([{ p: 1, h: 'L', v: 'SN' }, { p: 3, h: 'L', v: 'SN' }, { p: 0, h: 'F', v: 'BD' }, { p: 2.5, h: 'F', v: 'BD' }]) },
+    'Shuffle': { title: 'Shuffle blues', bars: 1, notes: [0, 2 / 3, 1, 5 / 3, 2, 8 / 3, 3, 11 / 3].map((p, i) => ({ p, h: i % 2 ? 'L' : 'R', v: 'SN' })) },
+    'Long Groove': longGroove('8-bar groove with fills'),
+    'G3-A': { title: 'Grade 3, group A: singles', bars: 3, notes: [...Array(8)].map((_, i) => ({ p: i / 2, h: i % 2 ? 'L' : 'R', v: 'SN' })).concat([...Array(12)].map((_, i) => ({ p: 4 + i / 3, h: i % 2 ? 'L' : 'R', v: 'SN' })), [...Array(16)].map((_, i) => ({ p: 8 + i / 4, h: i % 2 ? 'L' : 'R', v: 'SN' }))) },
+  };
+  const POS8 = ['1', '1&', '2', '2&', '3', '3&', '4', '4&'];
+  function permutations(kind) {
+    return POS8.map((label, k) => {
+      if (kind === 'kick') {
+        if (k === 0) return null;
+        const key = 'perm-k-' + k;
+        EX[key] = { title: `Kick permutation: extra kick on ${label}`, bars: 1, notes: hh8(1).concat([{ p: 1, h: 'L', v: 'SN' }, { p: 3, h: 'L', v: 'SN' }, { p: 0, h: 'F', v: 'BD' }, { p: k / 2, h: 'F', v: 'BD' }]) };
+        return key;
+      }
+      if (k === 2 || k === 6) return null;
+      const key = 'perm-s-' + k;
+      EX[key] = { title: `Snare permutation: ghost note on ${label}`, bars: 1, notes: hh8(1).concat([{ p: 1, h: 'L', v: 'SN' }, { p: 3, h: 'L', v: 'SN' }, { p: 0, h: 'F', v: 'BD' }, { p: 2.5, h: 'F', v: 'BD' }, { p: k / 2, h: 'L', v: 'SN', ghost: true }]) };
+      return key;
+    }).filter(Boolean);
+  }
+  let cur = EX['Single Strokes'], results = {}, flipped = false, isTest = false, display = 'page', manualPage = 0;
+  function loadExercise(key, test) {
+    cur = EX[key] || cur; isTest = test; results = {}; manualPage = 0;
+    $('#exTitle').textContent = cur.title;
+    $('#exSub').textContent = `4/4, ${cur.bars} bar${cur.bars > 1 ? 's' : ''}` + (test ? ', level test' : '');
+    const n = $('#practiceNote');
+    n.style.display = test ? 'block' : 'none';
+    n.textContent = 'Tempo, length and difficulty are fixed. Over 90% to pass.';
+    drawNotation(null); drawLanes(0); $('#liveScore').textContent = '–'; $('#strip').innerHTML = '';
+  }
+  const lenBeats = () => cur.bars * 4;
+
+  // ---------- Notation ----------
+  const STEP = { CR: 30, HH: 40, RD: 50, T1: 60, T2: 70, SN: 80, FT: 100, BD: 120 };
+  const LINE_H = 180, PER_PAGE = 2;
+  const perLine = () => Math.max(1, Math.min(cur.bars, $('#notation').clientWidth < 700 ? 1 : 2));
+  const lineCount = () => Math.ceil(cur.bars / perLine());
+  const pageCount = () => display === 'page' ? Math.ceil(lineCount() / PER_PAGE) : 1;
+  function noteHead(x, y, n, fill, sec) {
+    let s = '';
+    if (n.v === 'HH' || n.v === 'CR' || n.v === 'RD') s += `<path d="M${x - 7} ${y - 7}l14 14M${x + 7} ${y - 7}l-14 14" stroke="${fill}" stroke-width="2.5"/>`;
+    else s += `<ellipse cx="${x}" cy="${y}" rx="9" ry="7" fill="${fill}" transform="rotate(-20 ${x} ${y})"/>`;
+    if (n.ghost) s += `<text x="${x - 19}" y="${y + 6}" font-size="18" fill="${fill}">(</text><text x="${x + 12}" y="${y + 6}" font-size="18" fill="${fill}">)</text>`;
+    return s;
+  }
+  // Draws notes at `place(n, absPos) -> {x, top} | null` for every pass in `reps`.
+  function drawNotes(place, reps) {
+    const txt = css('--text'), sec = css('--sec');
+    let s = '';
+    for (const rep of reps) {
+      const groups = {}, labelsAt = {};
+      cur.notes.forEach((n, i) => {
+        const at = place(rep * lenBeats() + n.p); if (!at) return;
+        const { x, top } = at, y = top + STEP[n.v];
+        const r = rep >= 0 ? (results[rep * 1000 + i] ?? (rep === 0 ? null : null)) : null;
+        const fill = r ? css(colors[r.g]) : txt;
+        if (r && (r.g === 'early' || r.g === 'late')) s += `<circle cx="${x + (r.g === 'early' ? -18 : 18)}" cy="${y}" r="5" fill="${css('--off')}"/>`;
+        s += noteHead(x, y, n, fill, sec);
+        if (n.acc) s += `<text x="${x - 2}" y="${top + 2}" font-size="16" fill="${txt}">&gt;</text>`;
+        if (n.v !== 'BD') {
+          s += `<line x1="${x + 8}" x2="${x + 8}" y1="${y}" y2="${top + 8}" stroke="${txt}" stroke-width="2"/>`;
+          const g = rep + ':' + Math.floor(n.p);
+          (groups[g] ||= { xs: [], ps: [] }).xs.push(x + 8); groups[g].ps.push(n.p);
+        }
+        if (n.h !== 'F') {
+          const hand = flipped ? (n.h === 'R' ? 'L' : 'R') : n.h;
+          const lk = top + ':' + Math.round(x), k = labelsAt[lk] = (labelsAt[lk] ?? -1) + 1;   // stack R over L when hands play together
+          s += `<text x="${x}" y="${top + 152 + k * 17}" text-anchor="middle" font-size="16" font-weight="700" font-family="ui-rounded,system-ui" fill="${hand === 'R' ? css('--ink') : sec}">${hand}</text>`;
+        }
+      });
+      Object.values(groups).forEach(g => {
+        const xs = [...new Set(g.xs)].sort((a, b) => a - b); if (xs.length < 2) return;
+        const top = place(rep * lenBeats() + g.ps[0]).top;
+        s += `<rect x="${xs[0] - 1}" y="${top + 6}" width="${xs.at(-1) - xs[0] + 2}" height="5" fill="${txt}"/>`;
+        const ps = [...new Set(g.ps)].sort((a, b) => a - b);
+        if (ps.some((p, k) => k && Math.abs(p - ps[k - 1] - .25) < .01)) s += `<rect x="${xs[0] - 1}" y="${top + 14}" width="${xs.at(-1) - xs[0] + 2}" height="5" fill="${txt}"/>`;
+        else if (ps.some((p, k) => k && Math.abs(p - ps[k - 1] - 1 / 3) < .01)) s += `<text x="${(xs[0] + xs.at(-1)) / 2}" y="${top - 2}" font-size="12" fill="${sec}" text-anchor="middle">3</text>`;
+      });
+    }
+    return s;
+  }
+  function staff(x1, x2, top, barXs) {
+    const sec = css('--sec');
+    let s = '';
+    for (let i = 0; i < 5; i++) s += `<line x1="${x1}" x2="${x2}" y1="${top + 40 + i * 20}" y2="${top + 40 + i * 20}" stroke="${sec}" stroke-opacity=".35"/>`;
+    barXs.forEach(x => s += `<line x1="${x}" x2="${x}" y1="${top + 40}" y2="${top + 120}" stroke="${sec}"/>`);
+    return s;
+  }
+  function drawNotation(beat) {
+    const svg = $('#notation'), shell = css('--shell'), playing = beat != null && beat >= 0;
+    const within = playing ? beat % lenBeats() : null;
+    let s = '';
+    if (display === 'page') {
+      const pl = perLine(), barW = 940 / pl, lines = lineCount();
+      const page = playing ? Math.floor(Math.floor(within / 4) / pl / PER_PAGE) : Math.min(manualPage, pageCount() - 1);
+      const first = page * PER_PAGE, shown = Math.min(PER_PAGE, lines - first);
+      svg.setAttribute('viewBox', `0 0 1000 ${LINE_H * Math.min(PER_PAGE, lines)}`);
+      const pos = abs => {
+        const bar = Math.floor(abs / 4), line = Math.floor(bar / pl) - first;
+        if (line < 0 || line >= shown) return null;
+        return { x: 40 + (bar % pl) * barW + 34 + (abs - bar * 4) / 4 * (barW - 52), top: line * LINE_H };
+      };
+      for (let l = 0; l < shown; l++) {
+        const barsHere = Math.min(pl, cur.bars - (first + l) * pl);
+        s += staff(40, 40 + barsHere * barW, l * LINE_H, [...Array(barsHere + 1)].map((_, k) => 40 + k * barW));
+        const label = first + l === 0 ? '4/4' : String((first + l) * pl + 1);
+        s += `<text x="16" y="${l * LINE_H + 84}" font-size="13" font-weight="600" fill="${first + l === 0 ? shell : css('--sec')}">${label}</text>`;
+      }
+      s += drawNotes(pos, [playing ? Math.floor(beat / lenBeats()) : 0]);
+      if (playing) { const at = pos(within); if (at) s += `<rect x="${at.x - 2}" y="${at.top + 28}" width="4" height="104" rx="2" fill="${css('--ink')}"/>`; }
+      const pc = pageCount();
+      $('#pager').style.display = pc > 1 ? 'flex' : 'none';
+      $('#pageLabel').textContent = `Trang ${page + 1}/${pc}`;
+      $('#pagePrev').disabled = playing || page === 0; $('#pageNext').disabled = playing || page === pc - 1;
+    } else {
+      // Scroll: one long line sliding under a fixed playhead at 30% of the width.
+      svg.setAttribute('viewBox', `0 0 1000 ${LINE_H}`);
+      const barW = 470, now = playing ? beat : 0, headX = 300;
+      const pos = abs => { const x = headX + (abs - now) * barW / 4; return x > 20 && x < 990 ? { x, top: 0 } : null; };
+      const firstBar = Math.floor((now - 3) / 4), barXs = [];
+      for (let b = firstBar; b < firstBar + 4; b++) { const x = headX + (b * 4 - now) * barW / 4 - 34; if (x > 0 && x < 1000) barXs.push(x); }
+      s += staff(0, 1000, 0, barXs);
+      const rep = Math.floor(now / lenBeats());
+      s += drawNotes(abs => pos(abs), [rep - 1, rep, rep + 1].filter(r => r >= 0));
+      s += `<rect x="${headX - 2}" y="28" width="4" height="104" rx="2" fill="${css('--ink')}"/>`;
+      $('#pager').style.display = 'none';
+    }
+    svg.innerHTML = s;
+  }
+  function drawLanes(beat) {
+    const svg = $('#lanes'), W = 1000, mid = W / 2, px = W / 4, axis = 56, sec = css('--sec'), len = lenBeats();
+    let s = `<line x1="40" x2="${W - 8}" y1="${axis}" y2="${axis}" stroke="${sec}" stroke-opacity=".3"/>`;
+    for (let b = Math.floor(beat - 3); b < beat + 3; b++) for (let k = 0; k < 2; k++) {
+      const x = mid + (b + k / 2 - beat) * px; if (x < 44 || x > W - 8) continue;
+      s += `<text x="${x}" y="${axis + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="${sec}">${k ? '&' : ((b % 4 + 4) % 4 + 1)}</text>`;
+    }
+    const rep0 = Math.floor(beat / len);
+    for (let rep = rep0 - 1; rep <= rep0 + 1; rep++) cur.notes.forEach((n, i) => {
+      if (n.h === 'F') return;
+      const x = mid + (rep * len + n.p - beat) * px; if (x < 44 || x > W - 8) return;
+      const hand = flipped ? (n.h === 'R' ? 'L' : 'R') : n.h, r = rep >= 0 ? results[rep * 1000 + i] : null;
+      s += `<rect x="${x - 3}" y="${hand === 'R' ? axis - 44 : axis + 16}" width="6" height="28" rx="3" fill="${r ? css(colors[r.g]) : sec}" fill-opacity="${r ? 1 : .25}"/>`;
+    });
+    s += `<line x1="${mid}" x2="${mid}" y1="6" y2="106" stroke="${css('--ink')}" stroke-width="2"/>`;
+    s += `<text x="20" y="${axis - 24}" font-size="15" font-weight="600" fill="${css('--ink')}">R</text><text x="20" y="${axis + 36}" font-size="15" font-weight="600" fill="${sec}">L</text>`;
+    svg.innerHTML = s;
+  }
+  $('#pagePrev').onclick = () => { manualPage = Math.max(0, manualPage - 1); drawNotation(null); };
+  $('#pageNext').onclick = () => { manualPage = Math.min(pageCount() - 1, manualPage + 1); drawNotation(null); };
+  window.addEventListener('resize', () => { if (!run) drawNotation(null); });
+
+  // ---------- Practice run (simulated scoring) ----------
+  let run = null;
+  function grade() { const r = Math.random(); if (r < .72) return { g: 'good', ms: (Math.random() - .4) * 24 }; if (r < .84) return { g: 'late', ms: 32 + Math.random() * 30 }; if (r < .94) return { g: 'early', ms: -32 - Math.random() * 30 }; return { g: 'missed', ms: null }; }
+  function startPractice() {
+    audio().resume(); results = {}; const spb = 60 / bpm, a = audio(), t0 = a.currentTime + .1;
+    const len = lenBeats(), reps = Math.max(1, Math.round(4 / cur.bars)), total = reps * len;
+    for (let b = 0; b < 4 + total; b++) { click(t0 + b * spb, b % 4 === 0 ? 5 : 4); click(t0 + (b + .5) * spb, 2); }
+    run = { t0, spb, reps, scored: new Set(), samples: [], raf: 0 };
+    $('#practicePlay').classList.add('playing'); $('#practicePlay').setAttribute('aria-label', 'Stop');
+    const mode = $('[data-cycle=mode] span').textContent;
+    $('#pads').classList.toggle('on', mode === 'Tap screen');
+    const tick = () => {
+      const beat = (a.currentTime - t0) / spb - 4; // 1 bar count-in
+      if (beat >= 0 && mode !== 'Watch only' && mode !== 'Tap screen') {
+        const rep = Math.floor(beat / len);
+        cur.notes.forEach((n, i) => {
+          const key = rep * 1000 + i;
+          if (rep < reps && n.p <= beat - rep * len && !run.scored.has(key)) {
+            run.scored.add(key); const r = grade(); results[key] = r;
+            run.samples.push({ t: (rep * len + n.p) * spb, ...r }); pushStrip(r); updateScore();
+          }
+        });
+      }
+      drawLanes(beat); drawNotation(beat >= 0 ? beat : null);
+      if (beat >= total) { finishPractice(); return; }
+      run.raf = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+  function tapHit(hand) {
+    if (!run) return; const a = audio(), beat = (a.currentTime - run.t0) / run.spb - 4; if (beat < 0) return;
+    snare(a.currentTime);
+    const len = lenBeats(), rep0 = Math.floor(beat / len); let best = null, key = -1;
+    for (const rep of [rep0 - 1, rep0, rep0 + 1]) cur.notes.forEach((n, i) => {
+      if (rep < 0 || rep >= run.reps || n.h === 'F') return;
+      const d = rep * len + n.p - beat;
+      if (best === null || Math.abs(d) < Math.abs(best)) { best = d; key = rep * 1000 + i; }
+    });
+    if (best === null) return;
+    const ms = -best * run.spb * 1000;
+    if (run.scored.has(key) || Math.abs(ms) > 120) return;
+    const r = Math.abs(ms) <= 30 ? { g: 'good', ms } : { g: ms < 0 ? 'early' : 'late', ms };
+    run.scored.add(key); results[key] = r; run.samples.push({ t: beat * run.spb, ...r }); pushStrip(r); updateScore();
+  }
+  $$('.pad').forEach(p => p.addEventListener('pointerdown', () => tapHit(p.dataset.hand)));
+  function pushStrip(r) {
+    const s = $('#strip'), i = document.createElement('i');
+    i.style.height = r.ms == null ? '22px' : Math.max(6, Math.min(24, Math.abs(r.ms) / 3 + 6)) + 'px';
+    i.style.background = css(colors[r.g]); s.append(i); while (s.children.length > 16) s.firstChild.remove();
+  }
+  function tally() { const v = run ? run.samples : []; const good = v.filter(x => x.g === 'good').length, off = v.filter(x => x.g === 'early' || x.g === 'late').length, miss = v.filter(x => x.g === 'missed').length; return { good, off, miss, score: v.length ? Math.round((good + off * .5) / v.length * 100) : 0 }; }
+  function scoreColor(s) { return css(s > 90 ? '--on' : s >= 60 ? '--off' : '--miss'); }
+  function updateScore() { const t = tally(), el = $('#liveScore'); el.textContent = t.score + '%'; el.style.color = scoreColor(t.score); }
+  let lastRun = null;
+  function finishPractice() {
+    if (!run) return; cancelAnimationFrame(run.raf); const t = tally(); lastRun = { ...t, samples: run.samples }; run = null;
+    $('#practicePlay').classList.remove('playing'); $('#practicePlay').setAttribute('aria-label', 'Start');
+    if (!lastRun.samples.length) { drawLanes(0); return; }
+    $('#rScore').textContent = t.score + '%'; $('#rScore').style.color = scoreColor(t.score);
+    $('#rCaption').textContent = `${cur.title}, ${bpm} BPM` + (isTest ? (t.score > 90 ? ', passed' : ', not passed (needs over 90%)') : '');
+    $('#rGood').textContent = t.good; $('#rOff').textContent = t.off; $('#rMiss').textContent = t.miss;
+    awardPoints(t.score);
+    go('results');
+  }
+  function stopPractice() { if (run) { cancelAnimationFrame(run.raf); if (ac) { ac.close(); ac = null; } run = null; $('#practicePlay').classList.remove('playing'); } }
+  $('#practicePlay').onclick = () => run ? (lastRun = null, finishPractice()) : startPractice();
+  $('#listenBtn').onclick = () => { audio().resume(); const t0 = audio().currentTime + .05, spb = 60 / bpm; cur.notes.forEach(n => n.v !== 'HH' ? snare(t0 + n.p * spb) : click(t0 + n.p * spb, 1)); toast('Playing one bar as an example'); };
+  $$('[data-cycle]').forEach(b => b.onclick = () => {
+    const o = b.dataset.opts.split('|'); b.dataset.i = (+b.dataset.i + 1) % o.length; b.querySelector('span').textContent = o[b.dataset.i];
+    if (b.dataset.cycle === 'mode') { $('#pads').classList.toggle('on', o[b.dataset.i] === 'Tap screen'); if (o[b.dataset.i] === 'Tap screen') toast('Press Play, then tap L / R in time'); }
+  });
+  $('#flip').onclick = () => { flipped = !flipped; $('#flip span').textContent = flipped ? 'Left hand lead' : 'Right hand lead'; $('#flip').classList.toggle('on', flipped); drawNotation(null); drawLanes(0); };
+  $('#autoBtn').onclick = () => { const on = $('#autoCard').classList.toggle('on'); $('#autoBtn').textContent = on ? 'Exit auto-learn' : 'Auto-learn'; };
+  segs($('#dispSeg'), (_, i) => { display = i ? 'scroll' : 'page'; drawNotation(null); });
+
+  function drawRunChart() {
+    const svg = $('#runChart'), v = (lastRun && lastRun.samples.length) ? lastRun.samples : demoSamples(), W = 900, H = 200, lim = 80;
+    const maxT = Math.max(...v.map(x => x.t), 1), sec = css('--sec');
+    let s = `<line x1="40" x2="${W}" y1="${H / 2}" y2="${H / 2}" stroke="${sec}" stroke-opacity=".3"/>`;
+    s += `<text x="0" y="16" font-size="12" fill="${sec}">late</text><text x="0" y="${H - 4}" font-size="12" fill="${sec}">early</text>`;
+    v.forEach(x => { const cx = 50 + x.t / maxT * (W - 60), y = x.ms == null ? H - 8 : H / 2 - Math.max(-lim, Math.min(lim, x.ms)) / lim * (H / 2 - 10), c = css(colors[x.g]);
+      s += x.ms == null ? `<path d="M${cx - 5} ${y - 5}l10 10M${cx + 5} ${y - 5}l-10 10" stroke="${c}" stroke-width="2.5"/>` : `<circle cx="${cx}" cy="${y}" r="5" fill="${c}"/>`; });
+    svg.innerHTML = s;
+  }
+  function demoSamples() { return [...Array(32)].map((_, i) => { const r = grade(); if (r.ms != null) r.ms += i * .8; return { t: i * .43, ...r }; }); }
+
+  // ---------- Today session ----------
+  let sess = null;
+  const SEG = [['Warm-up', 300], ['Main work', 900], ['Fun piece', 300]];
+  $('#sessionPlay').onclick = () => {
+    if (sess) { clearInterval(sess.iv); sess = null; sessUI(); return; }
+    sess = { i: 0, left: SEG[0][1] }; sess.iv = setInterval(() => { sess.left -= 15; if (sess.left <= 0) nextSeg(); sessUI(); }, 250); sessUI();
+  };
+  $('#sessionSkip').onclick = () => { nextSeg(); sessUI(); };
+  function nextSeg() { sess.i++; if (sess.i >= SEG.length) { clearInterval(sess.iv); sess = null; toast('Session done for today. Jot down how it felt in your journal.'); return; } sess.left = SEG[sess.i][1]; }
+  function sessUI() {
+    const on = !!sess; $('#sessionPlay').classList.toggle('playing', on); $('#sessionInfo').style.display = on ? 'block' : 'none'; $('#sessionSkip').style.display = on ? 'inline-block' : 'none'; $('#sessionLabel').style.display = on ? 'none' : 'inline';
+    $$('#today [data-seg]').forEach(h => h.style.color = on && +h.dataset.seg === sess.i ? css('--shell') : '');
+    if (on) { $('#sessionClock').textContent = `${Math.floor(sess.left / 60)}:${String(sess.left % 60).padStart(2, '0')}`; $('#sessionSeg').textContent = SEG[sess.i][0]; }
+  }
+
+  // ---------- Metronome ----------
+  let metroOn = false, metroIv, nextT, beatN;
+  const sched = [];
+  function startMetro() {
+    audio().resume(); metroOn = true; nextT = audio().currentTime + .05; beatN = 0; $('#metroPlay').classList.add('playing');
+    const swing = [0.5, 0.58, 0.667, 0.72][$('#mSwing').selectedIndex];
+    metroIv = setInterval(() => {
+      const spb = 60 / bpm;
+      while (nextT < audio().currentTime + .12) {
+        const b = beatN % 4; click(nextT, b === 0 ? 5 : 4); click(nextT + swing * spb, 2);
+        const at = nextT, idx = b; setTimeout(() => flash(idx), Math.max(0, (at - audio().currentTime) * 1000));
+        nextT += spb; beatN++;
+      }
+    }, 25);
+  }
+  function flash(i) { $$('#mDots i').forEach((d, k) => { d.classList.toggle('hit', k === i); d.classList.toggle('one', k === 0); }); }
+  function stopMetro() { metroOn = false; clearInterval(metroIv); $('#metroPlay').classList.remove('playing'); $$('#mDots i').forEach(d => d.classList.remove('hit')); }
+  $('#metroPlay').onclick = () => metroOn ? stopMetro() : startMetro();
+  const summary = () => $('#mSummary').textContent = `${$('#mTs').value}, voice count "${$('#mVoice').value}", ${$('#mSwing').value === 'Straight' ? 'straight' : 'swing ' + $('#mSwing').value.toLowerCase()}`;
+  ['#mTs', '#mVoice', '#mSwing'].forEach(s => $(s).onchange = () => { summary(); if (s === '#mTs') { const n = +$('#mTs').value.split('/')[0]; $('#mDots').innerHTML = '<i></i>'.repeat(n); } if (metroOn) { stopMetro(); startMetro(); } });
+
+  // 5-level grid
+  let pattern = [];
+  function setPreset(i) {
+    const slots = [1, 2, 4, 3, 2][i];
+    pattern = [...Array(4)].flatMap((_, b) => [...Array(slots)].map((_, k) => i === 4 ? (k === 1 ? 3 : 0) : k === 0 ? 4 : 2));
+    drawGrid(slots);
+  }
+  function drawGrid(slots) {
+    const g = $('#grid5'), lab = { 1: [''], 2: ['', '&'], 3: ['', 'ta', 'ti'], 4: ['', 'e', '&', 'a'] }[slots];
+    g.style.gridTemplateColumns = `repeat(${pattern.length}, 1fr)`;
+    g.innerHTML = pattern.map((lv, i) => `<div class="col">${[1, 2, 3, 4, 5].map(l => `<button class="cell ${l <= lv ? 'lit' : ''} ${lv === 5 ? 'l5' : ''}" data-i="${i}" data-l="${l}" aria-label="Slot ${i + 1}, level ${l}"></button>`).join('')}<span class="lbl">${i % slots === 0 ? i / slots + 1 : lab[i % slots]}</span></div>`).join('');
+    $$('.cell', g).forEach(c => c.onclick = () => { const i = +c.dataset.i, l = +c.dataset.l; pattern[i] = pattern[i] === l ? 0 : l; audio().resume(); if (pattern[i]) click(audio().currentTime + .01, pattern[i]); drawGrid(slots); });
+  }
+  segs($('#presetSeg'), (_, i) => setPreset(i)); setPreset(1);
+
+  // ---------- Count coach ----------
+  const CC = { '1 2 3 4': ['1', '2', '3', '4'], '1 &': ['1', '&', '2', '&', '3', '&', '4', '&'], '1 e & a': ['1', 'e', '&', 'a', '2', 'e', '&', 'a'], 'Triplets': ['1', 'ta', 'ti', '2', 'ta', 'ti'] };
+  // Syllables per beat for each counting mode.
+  const PER_BEAT = { '1 2 3 4': 1, '1 &': 2, '1 e & a': 4, 'Triplets': 3 };
+  let ccSyl = CC['1 &'], ccPer = 2, ccBpm = 60, ccOn = null;
+  function drawSyll(now = -1, bars) { $('#syll').innerHTML = ccSyl.map((s, i) => `<div><b class="${i === now ? 'now' : ''}">${s}</b><span style="background:${bars && bars[i] ? css(bars[i]) : ''}"></span></div>`).join(''); }
+  function stopCount() { if (ccOn) { clearInterval(ccOn); ccOn = null; } $('#ccPlay').classList.remove('playing'); }
+  function restartCount() { if (ccOn) { stopCount(); startCount(); } }
+  segs($('#ccMode'), b => { ccSyl = CC[b.textContent]; ccPer = PER_BEAT[b.textContent]; drawSyll(); restartCount(); });
+  $$('#ccTempo .step').forEach(b => b.onclick = () => {
+    ccBpm = Math.max(40, Math.min(120, ccBpm + +b.dataset.d)); $('#ccBpm').textContent = ccBpm; restartCount();
+  });
+  $('#ccPlay').onclick = () => ccOn ? stopCount() : startCount();
+  function startCount() {
+    audio().resume(); $('#ccPlay').classList.add('playing'); let i = 0; const bars = [];
+    $('#ccPlay').style.setProperty('--beat', (60 / ccBpm) + 's');
+    const step = 60 / ccBpm / ccPer * 1000;
+    ccOn = setInterval(() => { const k = i % ccSyl.length; click(audio().currentTime + .01, k === 0 ? 5 : ccSyl[k].match(/\d/) ? 4 : 2); bars[k] = ccSyl[k] === '&' && Math.random() < .35 ? '--off' : '--on'; drawSyll(k, bars); i++; if (i % ccSyl.length === 0) { const ok = bars.filter(b => b === '--on').length / ccSyl.length; $('#ccScore').textContent = Math.round(70 + ok * 28) + '%'; } }, step);
+  }
+  drawSyll();
+
+  // ---------- Lessons ----------
+  const LESSONS = [
+    ['Holding the sticks', ['Fulcrum a third of the way up, between the thumb and the second joint of the index finger.', 'The other three fingers wrap loosely, no squeezing.', '5A sticks: drop one on the pad; it should bounce 2–3 times.'], 'Single Strokes'],
+    ['Sitting position', ['Thighs parallel to the floor, throne at knee height.', 'Pad or snare at belt height.', 'Shoulders loose, elbows close to the body.'], 'Single Strokes'],
+    ['Counting out loud', ['Count "1 & 2 &" out loud, every syllable the same length.', 'The "&" lands exactly half a beat later, no rushing.', 'Five minutes of the counting coach every day.'], 'Single Strokes'],
+    ['Accents and ghost notes', ['Accent: lift the stick 30 cm.', 'Ghost note: stick 3 cm above the head.', 'Change height before the stroke, not after.'], 'Paradiddle'],
+    ['Feet and hi-hat', ['Heel on the kick pedal, play from the whole leg.', 'Left foot keeps the hi-hat firmly closed.', 'Start at 60 BPM; no speeding up until it is even.'], 'Grade 2 Groove'],
+  ];
+  $('#lessonList').innerHTML = LESSONS.map((l, i) => `<button class="item" data-lesson="${i}"><span class="num sec" style="width:20px">${i + 1}</span><div style="flex:1">${l[0]}</div><span class="chev">›</span></button>`).join('');
+  function showLesson(i) { const l = LESSONS[i]; $('#lessonBody').innerHTML = `<b style="font-size:22px">${l[0]}</b><ul style="margin:14px 0 18px 20px;display:flex;flex-direction:column;gap:8px">${l[1].map(p => `<li>${p}</li>`).join('')}</ul><button class="btn primary" data-go="practice" data-ex="${l[2]}">Practise now</button>`; $$('#lessonList .item').forEach((b, k) => b.style.background = k === i ? 'var(--shell-soft)' : ''); }
+  $$('[data-lesson]').forEach(b => b.onclick = () => showLesson(+b.dataset.lesson)); showLesson(0);
+
+  // ---------- Library MIDI import ----------
+  $('#importMidi').onclick = () => {
+    EX['midi-song'] = longGroove('Song from a MIDI file');
+    const row = document.createElement('button'); row.className = 'item'; row.dataset.go = 'practice'; row.dataset.ex = 'midi-song';
+    row.innerHTML = '<div style="flex:1"><div>Song from a MIDI file</div><div class="foot sec">4/4, 8 bars, 117 BPM, 3 non-drum notes skipped</div></div><span class="chev">›</span>';
+    $('#mine').prepend(row); toast('Imported: 8 bars, 117 BPM');
+  };
+
+  // ---------- Levels ----------
+  $('#levelGrid').innerHTML = [1, 2, 3, 4, 5, 6, 7, 8].map(g => {
+    const st = g <= 2 ? 'done' : g === 3 ? 'cur' : 'lock', pct = g <= 2 ? 100 : 0;
+    return `<button class="lvl ${st}" ${st === 'lock' ? 'data-toast="Pass Grade ' + (g - 1) + ' to unlock"' : ''}><span class="foot sec">Grade</span><span class="num">${g}</span><div class="bar"><i style="width:${pct}%;background:${css(g <= 2 ? '--on' : '--shell')}"></i></div><span class="foot sec">${g <= 2 ? 'Passed' : g === 3 ? '0/5 tests passed' : g >= 5 ? 'Needs the Grade ' + g + ' book' : 'Locked'}</span></button>`;
+  }).join('');
+
+  // ---------- Dictation ----------
+  let dAns = new Set(), dKey = [];
+  function newDict() { dKey = []; for (let i = 0; i < 16; i++) if (i % 8 === 0 || Math.random() < .45) dKey.push(i); dAns = new Set(); $('#dictShow').style.display = 'none'; drawDict(); }
+  function drawDict(verdict) {
+    $('#dictGrid').innerHTML = [0, 1].map(b => `<div class="dict-row">${[...Array(8)].map((_, c) => { const i = b * 8 + c; return `<button class="dcell ${dAns.has(i) ? 'on' : ''}" data-c="${i}" aria-label="Slot ${c % 2 ? '&' : c / 2 + 1}"><i></i><em>${c % 2 ? '&' : c / 2 + 1}</em></button>`; }).join('')}<span class="verdict" style="color:${verdict ? css(verdict[b] ? '--on' : '--miss') : ''}">${verdict ? (verdict[b] ? '✓' : '✕') : ''}</span></div>`).join('');
+    $$('.dcell').forEach(c => c.onclick = () => { const i = +c.dataset.c; dAns.has(i) ? dAns.delete(i) : dAns.add(i); drawDict(); });
+  }
+  $('#dictPlay').onclick = () => { audio().resume(); const t0 = audio().currentTime + .1, spb = 60 / 70; for (let b = 0; b < 4; b++) click(t0 + b * spb, b ? 4 : 5); dKey.forEach(i => snare(t0 + 4 * spb + i * spb / 2)); };
+  $('#dictNew').onclick = newDict;
+  $('#dictCheck').onclick = () => { const v = [0, 1].map(b => { const r = i => i >= b * 8 && i < b * 8 + 8; return JSON.stringify([...dAns].filter(r).sort((a, c) => a - c)) === JSON.stringify(dKey.filter(r)); }); drawDict(v); $('#dictShow').style.display = v.every(Boolean) ? 'none' : 'block'; if (v.every(Boolean)) toast('Both bars correct'); };
+  $('#dictShow').onclick = () => { dAns = new Set(dKey); drawDict(); $('#dictShow').style.display = 'none'; };
+  newDict();
+
+  // ---------- Teacher ----------
+  $('#sendTeacher').onclick = () => { $('#teacherStatus').textContent = 'Sent 14 sessions to Notion. Open Claude and say "check the new report" so the teacher can plan.'; toast('Sent to Notion'); };
+  $('#syncTeacher').onclick = () => { $('#teacherStatus').textContent = 'Synced: week 3 plan and 2 new resources.'; toast('Synced the new plan from the teacher'); };
+  $('#chatSend').onclick = () => { const v = $('#chatIn').value.trim(); if (!v) return; $('#chat').insertAdjacentHTML('beforeend', `<div class="bubble me"></div><div class="bubble ai">The teacher will answer through Notion at the next sync. Meanwhile, try paradiddles at 64 BPM.</div>`); $('#chat .bubble.me:last-of-type').textContent = v; $('#chatIn').value = ''; };
+  $('#chatIn').addEventListener('keydown', e => e.key === 'Enter' && $('#chatSend').click());
+
+  // ---------- Progress ----------
+  segs($('#progSeg'), (_, i) => [0, 1, 2].forEach(k => $('#prog' + k).style.display = k === i ? (k === 2 ? 'block' : 'flex') : 'none'));
+  $('#prog1').style.flexDirection = 'column';
+  function drawBpmChart() {
+    const d = [58, 60, 60, 63, 62, 65, 66, 66, 68, 70, 69, 72], W = 900, H = 220, sec = css('--sec'), sh = css('--shell');
+    const x = i => 50 + i * (W - 70) / (d.length - 1), y = v => H - 30 - (v - 50) / 30 * (H - 50);
+    let s = [50, 60, 70, 80].map(v => `<line x1="40" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="${sec}" stroke-opacity=".15"/><text x="0" y="${y(v) + 4}" font-size="12" fill="${sec}">${v}</text>`).join('');
+    s += `<polyline points="${d.map((v, i) => x(i) + ',' + y(v)).join(' ')}" fill="none" stroke="${sh}" stroke-width="3" stroke-linejoin="round"/>`;
+    s += d.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="${sh}"/>`).join('');
+    s += `<text x="${x(d.length - 1)}" y="${y(72) - 12}" text-anchor="end" font-size="14" font-weight="600" fill="${sh}">72 BPM</text>`;
+    s += ['T1', 'T2', 'T3', 'T4'].map((t, k) => `<text x="${x(k * 3 + 1)}" y="${H - 6}" font-size="12" fill="${sec}" text-anchor="middle">Week ${k + 1}</text>`).join('');
+    $('#bpmChart').innerHTML = s;
+  }
+
+  // ---------- Points (same rule as PracticePoints in the app) ----------
+  const RANKS = [[0, 'New to the sticks'], [10000, 'Grade 1 · Keeps time'], [20000, 'Grade 2 · Even hands'], [30000, 'Grade 3 · Steady tempo'], [40000, 'Grade 4 · Solid groove'], [50000, 'Grade 5 · Smooth hands'], [65000, 'Grade 6 · Performer'], [80000, 'Grade 7 · Artist'], [95000, 'Grade 8 · Master']];
+  function points(score, windowMs, levelTest, completed = true) {
+    const bonus = completed && score >= 60 ? 2 : 0;
+    if (score < 40) return -Math.ceil((40 - score) / 8) + bonus;
+    if (score < 60) return bonus;
+    const base = score >= 90 ? 10 + Math.round(score - 90) : score >= 75 ? 3 + Math.round((score - 75) / 3) : 1 + Math.round((score - 60) / 7.5);
+    const m = windowMs <= 20 ? 1.5 : windowMs <= 30 ? 1 : .75;
+    return Math.round(base * m) + bonus + (levelTest && score > 90 ? 50 : 0);
+  }
+  let totalPoints = 352;
+  function rankOf(t) { let i = 0; RANKS.forEach((r, k) => { if (t >= r[0]) i = k; }); return { level: i + 1, title: RANKS[i][1], floor: RANKS[i][0], next: RANKS[i + 1]?.[0] }; }
+  function showRank() {
+    const r = rankOf(totalPoints);
+    $('#todayRank').textContent = r.level; $('#todayRankTitle').textContent = 'rank: ' + r.title;
+    $('#rRank').textContent = `Rank ${r.level}: ${r.title}`;
+    $('#rRankBar').style.width = r.next ? ((totalPoints - r.floor) / (r.next - r.floor) * 100) + '%' : '100%';
+    $('#rRankNext').textContent = r.next ? `${totalPoints} points, ${r.next - totalPoints} to rank ${r.level + 1}` : `${totalPoints} points, top rank`;
+  }
+  function awardPoints(score) {
+    const w = { 'Easy': 45, 'Medium': 30, 'Hard': 20 }[$('[data-cycle=diff] span').textContent];
+    const p = points(score, w, isTest);
+    totalPoints = Math.max(0, totalPoints + p);
+    const el = $('#rPoints'); el.textContent = p >= 0 ? '+' + p : String(p).replace('-', '−');
+    el.style.color = css(p > 0 ? '--on' : p < 0 ? '--miss' : '--sec');
+    $('#rPenalty').style.display = p < 0 ? 'block' : 'none';
+    showRank();
+  }
+  $('#rankTable').innerHTML = RANKS.map((r, i) => `<div class="r"><span>Rank ${i + 1}: ${r[1]}</span><span class="num sec">from ${r[0]} points</span></div>`).join('');
+  showRank();
+
+  // ---------- Permutations (long-press a groove) ----------
+  let pressT = null, pressed = false, permFrom = null;
+  $$('[data-groove]').forEach(row => {
+    const open = () => { pressed = true; permFrom = row; $('#permSheetTitle').textContent = row.querySelector('div div').textContent; $('#permSheet').classList.add('open'); };
+    row.addEventListener('pointerdown', () => { pressed = false; pressT = setTimeout(open, 500); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(e => row.addEventListener(e, () => clearTimeout(pressT)));
+    row.addEventListener('contextmenu', e => { e.preventDefault(); clearTimeout(pressT); open(); });
+    row.addEventListener('click', e => { if (pressed) { e.stopImmediatePropagation(); pressed = false; } }, true);
+  });
+  $$('[data-perm]').forEach(b => b.onclick = () => {
+    const kind = b.dataset.perm, keys = permutations(kind);
+    $('#permTitle').textContent = kind === 'kick' ? 'Kick permutations' : 'Snare permutations';
+    $('#permSub').textContent = `From ${$('#permSheetTitle').textContent}. ` + (kind === 'kick' ? 'Each one adds a kick in a different spot.' : 'Each one adds a snare ghost note in a different spot.');
+    $('#permList').innerHTML = keys.map(k => `<button class="item" data-go="practice" data-ex="${k}"><div style="flex:1">${EX[k].title}</div><span class="foot sec">4/4, 60–100 BPM</span><span class="chev">›</span></button>`).join('');
+    $('#permSheet').classList.remove('open'); go('perm');
+  });
+
+  // ---------- MIDI learn + monitor ----------
+  const KIT = [['Kick', 36], ['Snare', 38], ['Snare rim', 40], ['Hi-hat closed', 42], ['Hi-hat open', 46], ['Hi-hat pedal', 44], ['Tom 1', 48], ['Tom 2', 45], ['Floor tom', 43], ['Crash', 49], ['Ride', 51]];
+  const map = Object.fromEntries(KIT.map(([v, n]) => [n, v]));
+  let learning = null;
+  function drawMap() {
+    $('#midiMap').innerHTML = KIT.map(([v]) => { const n = Object.keys(map).find(k => map[k] === v); return `<div class="item"><div style="flex:1">${v}</div><span class="num sec">${n ? 'note ' + n : 'not mapped'}</span><button class="btn" data-learn="${v}">${learning === v ? 'Hit the drum…' : 'Learn'}</button></div>`; }).join('');
+    $$('[data-learn]').forEach(b => b.onclick = () => { learning = b.dataset.learn; drawMap(); toast(`Hit ${learning} on the TD-4K`); });
+  }
+  function midiNote(n, vel) {
+    if (learning) { Object.keys(map).forEach(k => map[k] === learning && delete map[k]); map[n] = learning; toast(`Mapped note ${n} to ${learning}`); learning = null; drawMap(); }
+    const v = map[n], log = $('#midiLog');
+    if (log.querySelector('.sec.item')) log.innerHTML = '';
+    log.insertAdjacentHTML('afterbegin', `<div class="item"><span class="num" style="width:70px">Note ${n}</span><div style="flex:1">${v ? '→ ' + v : '→ not mapped, ignored'}</div><span class="foot sec">velocity ${vel}</span></div>`);
+    log.firstElementChild.style.color = v ? '' : css('--sec');
+    while (log.children.length > 8) log.lastChild.remove();
+    if (v) { audio().resume(); v.startsWith('Hi-hat') || v === 'Crash' || v === 'Ride' ? click(audio().currentTime + .01, 1) : snare(audio().currentTime + .01); }
+  }
+  function pedal(val) { $('#pedalVal').textContent = val; $('#pedalBar').style.width = (val / 127 * 100) + '%'; }
+  $('#vkit').innerHTML = KIT.map(([v, n]) => `<button class="pill" data-note="${n}" style="text-align:center;background:var(--canvas)"><small>note ${n}</small>${v}</button>`).join('') + `<button class="pill" data-note="22" style="text-align:center;background:var(--canvas)"><small>note 22</small>Unknown pad</button>`;
+  $$('[data-note]').forEach(b => b.addEventListener('pointerdown', () => midiNote(+b.dataset.note, 90 + Math.floor(Math.random() * 30))));
+  $('#midiConnect').onclick = async () => {
+    if (!navigator.requestMIDIAccess) { $('#midiStatus').textContent = 'This browser does not support MIDI (Safari). Use Chrome, or tap the pads below.'; return; }
+    try {
+      const acc = await navigator.requestMIDIAccess();
+      const hook = () => { let k = 0; acc.inputs.forEach(i => { k++; i.onmidimessage = e => { const [st, d1, d2] = e.data; if ((st & 0xF0) === 0x90 && d2 > 0) midiNote(d1, d2); if ((st & 0xF0) === 0xB0 && d1 === 4) pedal(d2); }; }); $('#midiStatus').textContent = k ? `Connected ${k} MIDI device(s). Hit a drum to see its note.` : 'No MIDI device found. Plug in the TD-4K USB cable and try again.'; };
+      acc.onstatechange = hook; hook();
+    } catch { $('#midiStatus').textContent = 'MIDI permission denied. Tap the pads below to try it.'; }
+  };
+  drawMap();
+
+  // ---------- Daily budget + forecast (same rules as DailyBudget / ProgressForecast in the app) ----------
+  const B = (t, m, d) => ({ t, m, d });
+  const warm = m => B('Warm-up', m, 'Slow rudiments on the pad, loose shoulders and wrists'), tech = m => B('Technique', m, 'Stick Control and rudiments with the metronome'),
+    main = m => B('Main work', m, 'Level tests or teacher assignments, looping the hard bars'), read = m => B('Reading and dictation', m, 'Random sight reading, rhythm dictation, counting coach'),
+    grv = m => B('Grooves and fills', m, 'Grooves for your level, kick/snare permutations'), song = m => B('Play along to songs', m, 'MIDI imports or backing tracks'), rev = m => B('Weak spots', m, 'Auto-learn on the lowest-scoring exercise of the week');
+  const brk = 'Between sessions: stand up, drink water, stretch your wrists and forearms.';
+  const BUDGET = {
+    30: { s: [[warm(5), tech(10), main(10), grv(5)]], br: 0, mpg: [5, 6], rest: 0, w: ['With little time, practising every day matters more than long weekend sessions.'] },
+    60: { s: [[warm(10), tech(15), main(20), read(10), grv(5)]], br: 0, mpg: [3, 4], rest: 0, w: [] },
+    120: { s: [[warm(10), tech(20), main(30)], [read(15), grv(20), song(15)]], br: 10, mpg: [2, 3], rest: 1, w: [brk] },
+    240: { s: [[warm(10), tech(35)], [main(45)], [read(25), grv(20)], [song(30), rev(15)]], br: 20, mpg: [1.5, 2.5], rest: 1,
+      w: [brk, 'Stop right away if your wrists or forearms hurt. See a doctor if it lasts more than 2 days.', 'Take at least one full day off a week so tendons and muscles recover.', '4 hours is not twice as fast as 2: after about 2 hours focus drops and mistakes creep in.'] },
+  };
+  const CUR_GRADE = 2;
+  const units = (from, to) => { let u = 0; for (let g = from + 1; g <= to; g++) u += g >= 6 ? 1.5 : 1; return u; };
+  const range = (u, mpg) => `${Math.ceil(u * mpg[0])}–${Math.ceil(u * mpg[1])}`;
+  let budget = 60;
+  function drawBudget() {
+    const b = BUDGET[budget], colorsB = ['--shell', '--on', '--off', '--sec'];
+    let h = '';
+    b.s.forEach((sess, k) => {
+      const tot = sess.reduce((a, x) => a + x.m, 0);
+      h += `<div><div class="foot sec" style="margin-bottom:4px">${b.s.length > 1 ? `Session ${k + 1}, ` : ''}${tot} min</div><div style="display:flex;gap:3px;height:30px;border-radius:8px;overflow:hidden">` +
+        sess.map((x, i) => `<div title="${x.t}: ${x.d}" style="flex:${x.m};background:${css(colorsB[i % 4])};opacity:${.35 + .65 * (1 - i / sess.length)};display:grid;place-items:center;color:#fff;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden">${x.m}′</div>`).join('') + '</div>' +
+        `<div class="foot" style="margin-top:6px;display:flex;flex-direction:column;gap:2px">${sess.map(x => `<span><b>${x.t}</b> ${x.m} min <span class="sec">${x.d}</span></span>`).join('')}</div></div>`;
+      if (k < b.s.length - 1) h += `<div class="foot sec">Break ${b.br} min</div>`;
+    });
+    $('#budgetBlocks').innerHTML = h;
+    // Personal: this learner's pace, score and tests passed, at the chosen minutes a day.
+    const P = PERSONAS[persona], sc = P.score[1];
+    const monthsTo = target => { let lo = 0, hi = 240; for (let k = 0; k < 40; k++) { const mid = (lo + hi) / 2; positionAfter(mid, budget, P, sc) >= target - 1e-6 ? hi = mid : lo = mid; } return hi; };
+    const span = m => m < 1 ? 'under 1' : `${Math.max(1, Math.floor(m * .85))}–${Math.ceil(m * 1.15)}`;
+    $('#budgetNext').textContent = span(monthsTo(CUR_GRADE + 1));
+    $('#budgetNextLabel').textContent = `months to Grade ${CUR_GRADE + 1}`;
+    $('#budgetG8').textContent = span(monthsTo(8));
+    $('#budgetRest').textContent = b.rest;
+    $('#budgetWarn').innerHTML = b.w.map(t => `<span style="color:${css(budget === 240 && t !== brk ? '--off' : '--sec')}">${t}</span>`).join('');
+    drawForecast();
+  }
+  segs($('#budgetSeg'), b => { budget = +b.dataset.m; drawBudget(); });
+  $('#budgetApply').onclick = () => toast(`Set to ${budget >= 60 ? budget / 60 + (budget > 60 ? ' hours' : ' hour') : budget + ' min'} a day. The teacher's next weekly plan will use it.`);
+
+  // Demo learners: minutes practised per day (oldest first), tests passed toward the next grade, how long past grades took,
+  // average score, and Paradiddle tempo at 90%+ with its weekly gain.
+  const LOG30 = [40, 0, 35, 50, 0, 30, 45, 25, 0, 60, 40, 30, 0, 0, 45, 35, 50, 30, 0, 40, 55, 30, 35, 0, 45, 30, 0, 60, 40, 35];
+  const PERSONAS = {
+    me: { log: LOG30, passed: 2, past: [[1, 3, 35], [2, 4, 40]], score: [81, 84], bpm: 72, perWeek: 1.5 },
+    fast: { log: LOG30.map(m => Math.round(m * .6)), passed: 4, past: [[1, 1.5, 20], [2, 2.5, 20]], score: [93, 92], bpm: 84, perWeek: 2 },
+    sloppy: { log: LOG30.map(m => m ? m * 2 + 30 : 0), passed: 0, past: [[1, 4, 90], [2, 5, 90]], score: [57, 59], bpm: 70, perWeek: .8 },
+  };
+  let fcWin = 7, persona = 'me';
+  // Same rules as ProgressForecast in the app.
+  function typicalMpg(m) {
+    const pts = [[15, 10], [30, 5.5], [60, 3.5], [120, 2.5], [240, 2]];
+    if (m <= 15) return 10 * 15 / Math.max(m, 5);
+    for (let i = 1; i < pts.length; i++) if (m <= pts[i][0]) { const [a, ma] = pts[i - 1], [b2, mb] = pts[i]; return ma + (mb - ma) * (m - a) / (b2 - a); }
+    return 2;
+  }
+  const wgt = g => g >= 6 ? 1.5 : 1;
+  function paceOf(past) { if (!past.length) return 1; const act = past.reduce((a, p) => a + p[1], 0), exp = past.reduce((a, p) => a + typicalMpg(p[2]) * wgt(p[0]), 0); return Math.min(2, Math.max(.5, act / exp)); }
+  const qualityOf = sc => sc >= 90 ? .9 : sc >= 75 ? 1 : sc >= 60 ? 1.2 : 1.5;
+  function positionAfter(months, m, P, score) {
+    let g = CUR_GRADE + P.passed / 5, left = months; const per = typicalMpg(m) * paceOf(P.past) * qualityOf(score);
+    while (left > 1e-9 && g < 8) { const next = Math.floor(g) + 1, cost = per * wgt(next), need = (next - g) * cost; if (left >= need) { g = next; left -= need; } else { g += left / cost; left = 0; } }
+    return Math.min(g, 8);
+  }
+  function bpmAfter(months, m, baseM, P) { const pw = P.perWeek * Math.sqrt(m / Math.max(baseM, 5)), w = months * 52 / 12; return Math.round(P.bpm + Math.min(pw * (1 - Math.pow(.97, w)) / .03, 60)); }
+  const gText = g => g >= 8 ? 'Grade 8' : `Grade ${Math.floor(g)}${g % 1 > .05 ? ` (${Math.round(g % 1 * 100)}% of the way to Grade ${Math.floor(g) + 1})` : ''}`;
+  const pct = x => Math.round(Math.abs(1 - x) * 100);
+  function drawForecast() {
+    const P = PERSONAS[persona], days = P.log.slice(-fcWin), avg = days.reduce((a, b) => a + b, 0) / days.length, on = days.filter(Boolean).length;
+    const score = fcWin === 7 ? P.score[0] : P.score[1], pace = paceOf(P.past), q = qualityOf(score);
+    const W = 600, bw = W / days.length, max = Math.max(60, ...days), sec = css('--sec');
+    $('#fcBars').innerHTML = days.map((m, i) => `<rect x="${i * bw + bw * .15}" y="${100 - m / max * 90}" width="${bw * .7}" height="${Math.max(2, m / max * 90)}" rx="3" fill="${css(m ? '--shell' : '--hair')}"/>`).join('') +
+      `<line x1="0" x2="${W}" y1="${100 - avg / max * 90}" y2="${100 - avg / max * 90}" stroke="${css('--off')}" stroke-dasharray="4 4"/>` +
+      `<text x="0" y="116" font-size="11" fill="${sec}">${fcWin} days ago</text><text x="${W}" y="116" font-size="11" fill="${sec}" text-anchor="end">today</text>`;
+    const effect = (x, faster, slower) => x < .98 ? `<span style="color:${css('--on')}">${faster.replace('%', pct(x) + '%')}</span>` : x > 1.02 ? `<span style="color:${css('--miss')}">${slower.replace('%', pct(x) + '%')}</span>` : '<span class="sec">about average</span>';
+    const rows = [
+      ['Time', `${Math.round(avg)} min/day, practised ${on}/${fcWin} days`, `<span class="sec">usually ${typicalMpg(avg).toFixed(1)} months per grade</span>`],
+      ['Done so far', `${P.passed}/5 Grade ${CUR_GRADE + 1} tests`, `<span class="sec">starting from ${(CUR_GRADE + P.passed / 5).toFixed(1)}</span>`],
+      ['Learning pace', P.past.map(p => `Grade ${p[0]} took ${String(p[1])} months`).join(', '), effect(pace, '% faster than others practising the same time', '% slower than others practising the same time')],
+      ['Quality', `average score ${score}%`, effect(q, 'clean playing, % faster', score < 60 ? 'often under 60%, % slower' : 'still sloppy, % slower')],
+      ['Tempo', `Paradiddle ${P.bpm} BPM, up ${String(P.perWeek)} BPM a week`, '<span class="sec">gains slow down over time</span>'],
+    ];
+    $('#fcFactors').innerHTML = rows.map(r => `<div class="item" style="align-items:flex-start"><span style="width:110px;flex:none" class="sec">${r[0]}</span><div style="flex:1"><div>${r[1]}</div><div class="foot">${r[2]}</div></div></div>`).join('');
+    $('#fcSummary').textContent = 'If you keep practising like this, at this quality:';
+    $('#fcRows').innerHTML = [[1, 'In 1 month'], [3, 'In 3 months'], [6, 'In 6 months'], [12, 'In 1 year']].map(([mo, label]) =>
+      `<div class="item"><span style="width:110px">${label}</span><div style="flex:1"><div>${gText(positionAfter(mo, avg, P, score))}</div><div class="foot sec">Paradiddle about ${bpmAfter(mo, avg, avg, P)} BPM, ${Math.round(avg * 30 * mo / 60)} more hours</div></div></div>`).join('');
+    const g6 = positionAfter(6, avg, P, score), g6b = positionAfter(6, budget, P, score), g6c = positionAfter(6, avg, P, Math.max(score, 90));
+    const name = budget >= 60 ? budget / 60 + (budget > 60 ? ' hours' : ' hour') : budget + ' min';
+    let tip = budget > avg + 5 ? `At <b>${name}</b> a day, as selected: about <b>${gText(g6b)}</b> in six months, instead of ${gText(g6)}.` : '';
+    if (score < 90) tip += `${tip ? '<br>' : ''}Same time, but slower and cleaner (over 90%): about <b>${gText(g6c)}</b> in six months.`;
+    $('#fcCompare').innerHTML = tip || '<span class="sec">You practise regularly and cleanly. Pick more time per day on the left to compare.</span>';
+  }
+  segs($('#personaSeg'), b => { persona = b.dataset.p; drawBudget(); });
+  drawBudget();
+  segs($('#fcSeg'), b => { fcWin = +b.dataset.w; drawForecast(); });
+
+  // ---------- Settings ----------
+  $('#calib').onclick = () => toast('Hit the pad with 8 clicks. Measured latency: 38 ms, saved.');
+  segs($('#themeSeg'), b => { b.dataset.t ? document.documentElement.setAttribute('data-theme', b.dataset.t) : document.documentElement.removeAttribute('data-theme'); drawNotation(null); drawLanes(0); drawBpmChart(); });
+
+  function stopAll() { stopPractice(); stopMetro(); stopCount(); }
+
+  setBpm(70); loadExercise('Single Strokes'); drawBpmChart();
+  go((location.hash || '#today').slice(1));
+  if (location.hash.includes('/')) history.replaceState(null, '', '#' + location.hash.slice(1).split('/')[0]);
+  window.addEventListener('hashchange', () => go(location.hash.slice(1)));
+})();
+</script>
+</body>
+</html>
