@@ -22,6 +22,9 @@ public struct OnsetDetector: Sendable {
     private var recentPeaks: [Double] = []
     private var noiseFloor = 0.0
     private var lastOnset: TimeInterval = -.infinity
+    private var lastNearMiss: TimeInterval = -.infinity
+    /// Strokes counted and sharp sounds that were not, newest last (at most 64), for the debug log. The caller drains it.
+    public var diagnostics: [OnsetDiagnostic] = []
 
     /// `threshold` is the lowest peak (after the high-pass) that can count as a stroke. iPad mics in measurement mode
     /// have no automatic gain, so a rubber pad often peaks at only 2–5% of full scale: the default is low, and the
@@ -66,6 +69,11 @@ public struct OnsetDetector: Sendable {
         return out
     }
 
+    private mutating func note(_ d: OnsetDiagnostic) {
+        diagnostics.append(d)
+        if diagnostics.count > 64 { diagnostics.removeFirst(diagnostics.count - 64) }
+    }
+
     private mutating func analyze(_ hopFilters: ArraySlice<(low: Double, high: Double)>, hopStart: TimeInterval) -> (time: TimeInterval, strength: Double)? {
         let hopSamples = hopFilters.map(\.low)[...]
         let peak = hopSamples.map(abs).max() ?? 0
@@ -75,16 +83,39 @@ public struct OnsetDetector: Sendable {
 
         let level = max(threshold, noiseFloor * 5)
         var result: (time: TimeInterval, strength: Double)?
-        if peak > level, peak > recent * 2, minBrightness == 0 || BrightnessFilters.brightness(hopFilters) >= minBrightness {
+        let sharp = peak > recent * 2
+        let bright = minBrightness == 0 || BrightnessFilters.brightness(hopFilters) >= minBrightness
+        if peak > level, sharp, bright {
             let offset = hopSamples.firstIndex { abs($0) > level }.map { $0 - hopSamples.startIndex } ?? 0
             let t = hopStart + Double(offset) / sampleRate
             if t - lastOnset >= minInterval {
                 lastOnset = t
-                if !suppressWindows.contains(where: { $0.contains(t) }) { result = (t, min(1, peak)) }
+                if !suppressWindows.contains(where: { $0.contains(t) }) {
+                    result = (t, min(1, peak))
+                    note(OnsetDiagnostic(time: t, peak: peak, level: level, verdict: .counted))
+                } else {
+                    note(OnsetDiagnostic(time: t, peak: peak, level: level, verdict: .suppressed))
+                }
             }
-        } else if peak < level {
+        } else if sharp, peak > level * 0.3, hopStart - max(lastOnset, lastNearMiss) >= minInterval {
+            // A sharp sound that did not count: too quiet, or not bright enough to be a stick.
+            lastNearMiss = hopStart
+            note(OnsetDiagnostic(time: hopStart, peak: peak, level: level, verdict: peak > level ? .tooDull : .belowThreshold))
+        }
+        if peak < level, result == nil {
             noiseFloor = noiseFloor * 0.995 + peak * 0.005
         }
         return result
     }
+}
+
+/// One sharp sound the detector looked at, and what it decided.
+public struct OnsetDiagnostic: Sendable, Equatable {
+    public enum Verdict: String, Sendable { case counted, belowThreshold, tooDull, suppressed }
+    public let time: TimeInterval
+    /// Peak of the hop (0…1, after the high-pass).
+    public let peak: Double
+    /// Level a stroke had to clear: the threshold, or 5 × the room's noise floor when that is higher.
+    public let level: Double
+    public let verdict: Verdict
 }

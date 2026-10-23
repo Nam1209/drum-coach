@@ -88,3 +88,23 @@ func feed(_ d: inout OnsetDetector, _ s: [Float], chunk: Int = 256, startTime: D
     var d = OnsetDetector(sampleRate: 48_000)
     #expect(feed(&d, synth(duration: 3, hits: [], noiseAmp: 0.004)).isEmpty)
 }
+
+@Test func reportsWhyAStrokeWasNotCounted() {
+    // A loud stroke at 0.5 s is counted; a soft one at 1.0 s rises sharply but stays under the threshold.
+    var d = OnsetDetector(sampleRate: 48_000, threshold: 0.1)
+    var signal = synth(duration: 1.5, hits: [0.5], amp: 0.8, noiseAmp: 0.001)
+    let soft = synth(duration: 1.5, hits: [1.0], amp: 0.06, noiseAmp: 0)
+    for i in signal.indices { signal[i] += soft[i] }
+    let on = feed(&d, signal)
+    #expect(on.count == 1)
+    let accepted = d.diagnostics.filter { $0.verdict == .counted }
+    #expect(accepted.count == 1)
+    #expect(abs(accepted[0].time - 0.5) < 0.003)
+    #expect(accepted[0].level == 0.1)
+    let quiet = d.diagnostics.filter { $0.verdict == .belowThreshold }
+    #expect(quiet.count == 1)
+    #expect(abs(quiet[0].time - 1.0) < 0.003)
+    #expect(quiet[0].peak < 0.1 && quiet[0].peak > 0.03)
+    d.diagnostics.removeAll()
+    #expect(d.diagnostics.isEmpty)
+}

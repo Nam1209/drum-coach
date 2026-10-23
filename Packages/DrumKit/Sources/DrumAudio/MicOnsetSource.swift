@@ -1,5 +1,6 @@
 import AVFoundation
 import DrumAnalysis
+import DrumCore
 import Foundation
 import os
 
@@ -9,6 +10,10 @@ public final class MicOnsetSource: HitSource, @unchecked Sendable {
     /// The real-time sink delivers a few milliseconds at a time, so strokes are reported almost at once.
     public let reportDelay: TimeInterval = 0.08
     private let continuation: AsyncStream<Hit>.Continuation
+    /// Detector decisions, carried off the audio thread to be printed (only with `-debugLog`).
+    private let diagnostics: AsyncStream<OnsetDiagnostic>
+    private let diagnosticsContinuation: AsyncStream<OnsetDiagnostic>.Continuation
+    private var logTask: Task<Void, Never>?
     private let engine = AVAudioEngine()
     private var sink: AVAudioSinkNode?
     private let detector = OSAllocatedUnfairLock<(any OnsetDetecting)?>(initialState: nil)
@@ -32,6 +37,7 @@ public final class MicOnsetSource: HitSource, @unchecked Sendable {
     /// Use a custom detector, e.g. `SyllableOnsetDetector` for spoken counting.
     public init(calibrationOffset: TimeInterval = 0, makeDetector: @escaping @Sendable (Double) -> any OnsetDetecting) {
         (hits, continuation) = AsyncStream.makeStream(of: Hit.self, bufferingPolicy: .bufferingNewest(256))
+        (diagnostics, diagnosticsContinuation) = AsyncStream.makeStream(of: OnsetDiagnostic.self, bufferingPolicy: .bufferingNewest(256))
         offset = OSAllocatedUnfairLock(initialState: calibrationOffset)
         self.makeDetector = makeDetector
     }
@@ -55,7 +61,17 @@ public final class MicOnsetSource: HitSource, @unchecked Sendable {
         #endif
         // A sink node gets the mic on the real-time thread in IO-buffer-sized slices (~5 ms). An input tap would
         // batch ~100 ms or more, so hits would light up late and the run would feel unresponsive.
-        let node = Self.makeSink(detector: detector, offset: offset, meter: meter, continuation: continuation, inputLatency: inputLatency)
+        if DebugLog.enabled, logTask == nil {
+            DebugLog.line("MIC start: sample rate \(Int(format.sampleRate)) Hz, input latency \(Int(inputLatency * 1000)) ms, calibration \(Int(offset.withLock { $0 } * 1000)) ms")
+            let stream = diagnostics
+            logTask = Task.detached {
+                for await d in stream {
+                    DebugLog.line(String(format: "MIC %@ at %.3f peak %.2f%% need %.2f%%", d.verdict.rawValue, d.time, d.peak * 100, d.level * 100))
+                }
+            }
+        }
+        let node = Self.makeSink(detector: detector, offset: offset, meter: meter, continuation: continuation,
+                                 diagnostics: DebugLog.enabled ? diagnosticsContinuation : nil, inputLatency: inputLatency)
         engine.attach(node)
         engine.connect(input, to: node, format: format)
         sink = node
@@ -65,7 +81,8 @@ public final class MicOnsetSource: HitSource, @unchecked Sendable {
     /// Built outside any actor: it runs on the audio thread.
     private static func makeSink(detector: OSAllocatedUnfairLock<(any OnsetDetecting)?>, offset: OSAllocatedUnfairLock<TimeInterval>,
                                  meter: OSAllocatedUnfairLock<(level: Float, lastHit: TimeInterval)>,
-                                 continuation cont: AsyncStream<Hit>.Continuation, inputLatency: TimeInterval) -> AVAudioSinkNode {
+                                 continuation cont: AsyncStream<Hit>.Continuation,
+                                 diagnostics diag: AsyncStream<OnsetDiagnostic>.Continuation?, inputLatency: TimeInterval) -> AVAudioSinkNode {
         AVAudioSinkNode { timestamp, frameCount, bufferList in
             let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: bufferList))
             guard let data = buffers.first?.mData?.assumingMemoryBound(to: Float.self) else { return noErr }
@@ -75,6 +92,7 @@ public final class MicOnsetSource: HitSource, @unchecked Sendable {
             let host = stamp.mFlags.contains(.hostTimeValid) ? HostClock.seconds(fromHostTime: stamp.mHostTime) : HostClock.now()
             let start = host - inputLatency - offset.withLock { $0 }
             let onsets = detector.withLock { $0?.process(frames, startTime: start) ?? [] }
+            if let diag { for d in detector.withLock({ $0?.drainDiagnostics() ?? [] }) { diag.yield(d) } }
             meter.withLock { $0.level = level; if let last = onsets.last { $0.lastHit = last.time } }
             for o in onsets { cont.yield(Hit(time: o.time, voice: nil, velocity: o.strength)) }
             return noErr
@@ -87,5 +105,9 @@ public final class MicOnsetSource: HitSource, @unchecked Sendable {
         sink = nil
     }
 
-    deinit { continuation.finish() }
+    deinit {
+        continuation.finish()
+        diagnosticsContinuation.finish()
+        logTask?.cancel()
+    }
 }

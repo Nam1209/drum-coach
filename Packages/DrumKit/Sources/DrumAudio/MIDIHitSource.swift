@@ -49,7 +49,10 @@ public final class MIDIHitSource: HitSource, @unchecked Sendable {
         token = try SharedMIDIInput.shared.subscribe { [overrides, offset, pedal, hiHatByPedal] words, stamp in
             let host = (stamp == 0 ? HostClock.now() : HostClock.seconds(fromHostTime: stamp)) - offset.withLock { $0 }
             let map = overrides.withLock { $0 }
-            for m in MIDIParser.channelMessages(words: words) { messageCont.yield((host, m)) }
+            for m in MIDIParser.channelMessages(words: words) {
+                messageCont.yield((host, m))
+                DebugLog.line(String(format: "MIDI %@ at %.3f", m.summary, host))
+            }
             for c in MIDIParser.controllers(words: words) where c.controller == 4 { pedal.withLock { $0 = Int(c.value) } }
             for n in MIDIParser.noteOns(words: words) {
                 noteCont.yield(n.note)

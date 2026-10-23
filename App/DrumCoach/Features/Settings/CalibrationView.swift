@@ -195,6 +195,7 @@ struct CalibrationView: View {
             return
         }
         let a = LatencyCalibrator.analyze(expected: run.expected(beatZero: zero), detected: detected)
+        DebugLog.line("CALIBRATION \(mode): \(a) — \(detected.map { String(format: "%+.0f", ($0 - zero) * 1000) }.joined(separator: " ")) ms from beat 0")
         message = Self.describe(a)
         if let estimate = a.estimate { SettingsStore.setLatency(estimate, for: mode) }
     }

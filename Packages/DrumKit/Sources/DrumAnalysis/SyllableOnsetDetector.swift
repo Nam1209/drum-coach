@@ -4,9 +4,20 @@ import Foundation
 public protocol OnsetDetecting: Sendable {
     var suppressWindows: [ClosedRange<TimeInterval>] { get set }
     mutating func process(_ frames: [Float], startTime: TimeInterval) -> [(time: TimeInterval, strength: Double)]
+    mutating func drainDiagnostics() -> [OnsetDiagnostic]
 }
 
-extension OnsetDetector: OnsetDetecting {}
+extension OnsetDetecting {
+    /// What the detector decided about recent sharp sounds, emptied by the call (for the debug log).
+    public mutating func drainDiagnostics() -> [OnsetDiagnostic] { [] }
+}
+
+extension OnsetDetector: OnsetDetecting {
+    public mutating func drainDiagnostics() -> [OnsetDiagnostic] {
+        defer { diagnostics.removeAll(keepingCapacity: true) }
+        return diagnostics
+    }
+}
 
 /// Finds the start of spoken counting syllables ("one", "and", …).
 ///

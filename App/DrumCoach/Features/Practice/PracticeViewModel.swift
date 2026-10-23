@@ -306,6 +306,7 @@ final class PracticeViewModel: ObservableObject {
             for match in matches { record(match.noteIndex, match.result) }
         } else if hit.time >= m.beatZero {
             extraHits = m.extraHits.count
+            DebugLog.line(String(format: "SCORE extra hit %@ at %.3f (beat %.2f)", hit.voice?.rawValue ?? "mic", hit.time, (hit.time - m.beatZero) * settings.bpm / 60))
         }
         matcher = m
         updateScore()
@@ -314,6 +315,15 @@ final class PracticeViewModel: ObservableObject {
     private func record(_ index: Int, _ result: NoteResult) {
         results[index] = result
         let g = rules.grade(result)
+        if DebugLog.enabled, let tn = timeline?.notes.first(where: { $0.index == index }) {
+            let what: String
+            switch result {
+            case .hit(let o, let v): what = String(format: "%+.0f ms vel %.2f", o * 1000, v)
+            case .wrongVoice(let o, let played): what = String(format: "%+.0f ms but played %@", o * 1000, played.rawValue)
+            case .missed: what = "missed"
+            }
+            DebugLog.line("SCORE pass \(tn.repeatIndex + 1) note \(tn.noteIndex + 1) \(tn.note.hand?.rawValue ?? "-") \(tn.note.voice.rawValue): \(what) → \(g)")
+        }
         if let o = result.offset {
             recent.append((o * 1000, g))
             if recent.count > 16 { recent.removeFirst(recent.count - 16) }
