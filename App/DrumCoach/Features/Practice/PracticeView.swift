@@ -30,7 +30,6 @@ struct PracticeView: View {
     var body: some View {
         TimelineView(.animation(paused: !model.isPlaying)) { _ in
             let beat = model.beat(atHostTime: HostClock.now())
-            let pass = model.currentRepeat(beat: beat)
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     header
@@ -39,12 +38,15 @@ struct PracticeView: View {
                     Stage {
                         VStack(alignment: .leading, spacing: 14) {
                             NotationView(exercise: model.playedExercise, display: model.display, beat: beat,
-                                         noteColor: { model.color(noteIndex: $0, repeat: pass) },
-                                         orangeOffsetMs: { model.orangeOffsetMs(noteIndex: $0, repeat: pass) })
+                                         noteColor: { model.color(noteIndex: $0, repeat: $1) },
+                                         orangeOffsetMs: { model.orangeOffsetMs(noteIndex: $0, repeat: $1) },
+                                         bpm: model.settings.bpm,
+                                         lastPass: model.displayTimeline.notes.last?.repeatIndex ?? 0)
                             Divider().overlay(Theme.hairline)
                             RLStripView(timeline: model.displayTimeline, exercise: model.playedExercise,
                                         countMode: model.settings.voiceCount ?? .eighths, beat: beat,
-                                        noteColor: { tn in model.results[tn.index].map { model.rules.grade($0).color } })
+                                        noteColor: { tn in model.results[tn.index].map { model.rules.grade($0).color } },
+                                        followsScrollingLine: model.display == .scroll)
                         }
                     }
                     .overlay {
@@ -269,7 +271,7 @@ struct PracticeView: View {
     @MainActor
     private func printNotation() {
         let renderer = ImageRenderer(content:
-            NotationView(exercise: model.playedExercise, display: .page, beat: nil, noteColor: { _ in nil }, orangeOffsetMs: { _ in nil }, allPages: true)
+            NotationView(exercise: model.playedExercise, display: .page, beat: nil, allPages: true)
                 .padding(36).frame(width: 842).background(Color.white).environment(\.colorScheme, .light))
         // Titles can contain "/" and other characters that are not valid in a file name.
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("DrumCoach-\(UUID().uuidString).pdf")

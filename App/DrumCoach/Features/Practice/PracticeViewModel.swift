@@ -32,12 +32,17 @@ enum NotationDisplay: String, CaseIterable, Identifiable {
     case page, scroll
     var id: String { rawValue }
     var title: String { self == .page ? L("Trang", "Page") : L("Cuộn", "Scroll") }
+
+    /// Short exercises scroll as one endless line; long pieces (level tests) read better page by page.
+    static func preferred(for exercise: Exercise) -> NotationDisplay { exercise.bars <= 2 ? .scroll : .page }
 }
 
 
 @MainActor
 final class PracticeViewModel: ObservableObject {
-    @Published var exercise: Exercise { didSet { if !isPlaying { flipped = false; loopBars = nil; autoLearn = nil } } }
+    @Published var exercise: Exercise {
+        didSet { if !isPlaying { flipped = false; loopBars = nil; autoLearn = nil; display = .preferred(for: exercise) } }
+    }
     @Published var settings: MetronomeSettings
     @Published var mode: InputMode = .pad
     @Published var display: NotationDisplay = .page
@@ -83,6 +88,7 @@ final class PracticeViewModel: ObservableObject {
     init(exercise: Exercise, voiceBank: CountVoiceBank, testItem: LevelTestItem? = nil) {
         self.exercise = exercise
         self.testItem = testItem
+        display = .preferred(for: exercise)
         var saved = SettingsStore.loadMetronome() ?? MetronomeSettings(bpm: 70, pattern: .quarter, accentBeatOne: true)
         if let testItem {
             saved.bpm = testItem.bpm

@@ -9,12 +9,15 @@ struct RLStripView: View {
     /// Beats since the end of the count-in (negative during count-in).
     let beat: Double?
     var noteColor: (TimedNote) -> Color? = { _ in nil }
+    /// Line up with the scrolling notation above: same "now" position and speed.
+    var followsScrollingLine = false
 
     private let beatsVisible = 4.0
 
     var body: some View {
         Canvas { ctx, size in
-            let mid = size.width * 0.5, pxPerBeat = size.width / beatsVisible
+            let mid = followsScrollingLine ? size.width * ScrollWindow.headFraction : size.width * 0.5
+            let pxPerBeat = followsScrollingLine ? ScrollWindow.pixelsPerBeat(width: size.width, exercise: exercise) : size.width / beatsVisible
             let now = beat ?? 0
             let axisY = size.height / 2
             var axis = Path()
@@ -23,8 +26,9 @@ struct RLStripView: View {
 
             // Counting labels for the visible beats.
             let beatsPerBar = Int(exercise.timeSignature.beatsInQuarters.doubleValue.rounded())
-            let first = Int((now - beatsVisible / 2).rounded(.down)) - 1
-            for b in first...(first + Int(beatsVisible) + 2) {
+            let first = Int((now - mid / pxPerBeat).rounded(.down)) - 1
+            let last = Int((now + (size.width - mid) / pxPerBeat).rounded(.up)) + 1
+            for b in first...max(first, last) {
                 for item in Counting.labels(mode: countMode, beats: 1) {
                     let pos = Double(b) + item.position.doubleValue
                     let x = mid + (pos - now) * pxPerBeat
