@@ -29,3 +29,14 @@ import Testing
     #expect(MIDIParser.controllers(words: [0x20B9_0464]).first?.controller == 4)
     #expect(MIDIParser.controllers(words: [0x2099_2664]).isEmpty)
 }
+
+@Test func describesEveryChannelMessageForTheLog() {
+    // Note on, note off (as note on velocity 0), CC4; SysEx-type words (type 3) are skipped.
+    let m = MIDIParser.channelMessages(words: [0x2099_2664, 0x2099_2600, 0x20B9_0440, 0x3001_F07E])
+    #expect(m.map(\.status) == [0x99, 0x99, 0xB9])
+    #expect(m.map(\.data1) == [38, 38, 4])
+    #expect(m.map(\.data2) == [100, 0, 64])
+    #expect(m[0].summary == "Note on 38, vel 100")
+    #expect(m[1].summary == "Note off 38")
+    #expect(m[2].summary == "CC4 = 64")
+}

@@ -10,8 +10,11 @@ public final class MIDIHitSource: HitSource, @unchecked Sendable {
     public let reportDelay: TimeInterval = 0.05
     /// Raw note numbers, for MIDI learn.
     public let notes: AsyncStream<UInt8>
+    /// Every channel message with its host time, for the raw log in MIDI learn.
+    public let messages: AsyncStream<(time: TimeInterval, message: MIDIMessage)>
     private let continuation: AsyncStream<Hit>.Continuation
     private let noteContinuation: AsyncStream<UInt8>.Continuation
+    private let messageContinuation: AsyncStream<(time: TimeInterval, message: MIDIMessage)>.Continuation
     private let overrides: OSAllocatedUnfairLock<[UInt8: Voice]>
     private let offset: OSAllocatedUnfairLock<TimeInterval>
     /// Last CC4 (hi-hat pedal) value, when open/closed comes from the pedal.
@@ -23,6 +26,7 @@ public final class MIDIHitSource: HitSource, @unchecked Sendable {
         self.hiHatByPedal = hiHatByPedal
         (hits, continuation) = AsyncStream.makeStream(of: Hit.self, bufferingPolicy: .bufferingNewest(256))
         (notes, noteContinuation) = AsyncStream.makeStream(of: UInt8.self, bufferingPolicy: .bufferingNewest(64))
+        (messages, messageContinuation) = AsyncStream.makeStream(of: (time: TimeInterval, message: MIDIMessage).self, bufferingPolicy: .bufferingNewest(64))
         self.overrides = OSAllocatedUnfairLock(initialState: overrides)
         offset = OSAllocatedUnfairLock(initialState: calibrationOffset)
     }
@@ -41,10 +45,11 @@ public final class MIDIHitSource: HitSource, @unchecked Sendable {
 
     public func start() throws {
         guard token == nil else { return }
-        let cont = continuation, noteCont = noteContinuation
+        let cont = continuation, noteCont = noteContinuation, messageCont = messageContinuation
         token = try SharedMIDIInput.shared.subscribe { [overrides, offset, pedal, hiHatByPedal] words, stamp in
             let host = (stamp == 0 ? HostClock.now() : HostClock.seconds(fromHostTime: stamp)) - offset.withLock { $0 }
             let map = overrides.withLock { $0 }
+            for m in MIDIParser.channelMessages(words: words) { messageCont.yield((host, m)) }
             for c in MIDIParser.controllers(words: words) where c.controller == 4 { pedal.withLock { $0 = Int(c.value) } }
             for n in MIDIParser.noteOns(words: words) {
                 noteCont.yield(n.note)
@@ -67,6 +72,7 @@ public final class MIDIHitSource: HitSource, @unchecked Sendable {
         stop()
         continuation.finish()
         noteContinuation.finish()
+        messageContinuation.finish()
     }
 }
 

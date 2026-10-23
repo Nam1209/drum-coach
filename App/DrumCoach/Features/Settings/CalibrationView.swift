@@ -190,12 +190,36 @@ struct CalibrationView: View {
         let zero = metro.beatZeroHostTime
         metro.stop(); source.stop()
         mic = nil
-        guard let zero, let estimate = LatencyCalibrator.estimate(expected: run.expected(beatZero: zero), detected: detected) else {
-            message = L("Kết quả chưa ổn định (\(detected.count) cú nghe được). Thử lại và đánh đều theo click nhé.", "Result isn't stable (\(detected.count) hits heard). Try again and play steadily with the click.")
+        guard let zero else {
+            message = L("Không đo được: máy nhịp chưa chạy. Thử lại nhé.", "Couldn't measure: the metronome didn't start. Try again.")
             return
         }
-        SettingsStore.setLatency(estimate, for: mode)
-        message = L("Đã lưu: \(Int((estimate * 1000).rounded())) ms", "Saved: \(Int((estimate * 1000).rounded())) ms")
+        let a = LatencyCalibrator.analyze(expected: run.expected(beatZero: zero), detected: detected)
+        message = Self.describe(a)
+        if let estimate = a.estimate { SettingsStore.setLatency(estimate, for: mode) }
+    }
+
+    /// Says what the pass measured and, when it was refused, which rule it missed and what to try.
+    static func describe(_ a: LatencyCalibrator.Analysis) -> String {
+        let ms = { (v: Double?) in v.map { "\(Int($0.rounded()))" } ?? "–" }
+        let need = LatencyCalibrator.minPairs, maxSpread = Int(LatencyCalibrator.maxSpread * 1000)
+        let extra = a.unmatched > 0
+            ? L(" \(a.unmatched) cú không khớp click nào (gõ lúc đếm vào, dùi nảy thành hai cú, hoặc lệch quá 150 ms).",
+                " \(a.unmatched) hits matched no click (taps during the count-in, a bounce counted twice, or more than 150 ms off).")
+            : ""
+        switch a.problem {
+        case nil:
+            return L("Đã lưu: \(ms(a.medianMs)) ms (\(a.matched)/\(a.clicks) click, các cú lệch nhau ±\(ms(a.spreadMs)) ms).",
+                     "Saved: \(ms(a.medianMs)) ms (\(a.matched)/\(a.clicks) clicks, hits within ±\(ms(a.spreadMs)) ms of each other).")
+        case .tooFewMatched?:
+            return L("Chưa lưu: chỉ \(a.matched)/\(a.clicks) click có cú đánh trong khoảng ±150 ms, cần ít nhất \(need).", "Not saved: only \(a.matched)/\(a.clicks) clicks had a hit within ±150 ms; at least \(need) are needed.")
+                + extra
+                + L(" Tai nghe Bluetooth làm click đến tai trễ khoảng 200 ms: dùng tai nghe có dây hoặc loa iPad khi đo.", " Bluetooth headphones delay the click by about 200 ms: use wired headphones or the iPad speaker to measure.")
+        case .tooUneven?:
+            return L("Chưa lưu: \(a.matched)/\(a.clicks) click khớp, nhưng các cú lệch nhau ±\(ms(a.spreadMs)) ms, cần dưới \(maxSpread) ms.", "Not saved: \(a.matched)/\(a.clicks) clicks matched, but the hits were ±\(ms(a.spreadMs)) ms apart; under \(maxSpread) ms is needed.")
+                + extra
+                + L(" Bắt đầu gõ từ click thứ 5 (sau 4 tiếng đếm vào), gõ cùng một lực, nhìn tránh màn hình.", " Start on the 5th click (after the 4 count-in clicks), hit with the same strength, and look away from the screen.")
+        }
     }
 }
 
